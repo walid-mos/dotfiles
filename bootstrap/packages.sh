@@ -79,7 +79,7 @@ install_pi() {
 }
 
 install_herdr() {
-    if command_exists herdr; then
+    if command_exists herdr || [ -x "$HOME/.local/bin/herdr" ]; then
         skip "herdr already installed"
         return 0
     fi
