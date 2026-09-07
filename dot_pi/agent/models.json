@@ -21,7 +21,9 @@
               "ignore": [
                 "digitalocean",
                 "morph",
-                "parasail"
+                "parasail",
+                "coreweave",
+                "wafer"
               ]
             }
           }
