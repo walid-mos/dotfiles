@@ -1,0 +1,32 @@
+{
+  "providers": {
+    "openrouter": {
+      "modelOverrides": {
+        "z-ai/glm-5.3-flash": {
+          "maxTokens": 131072,
+          "compat": {
+            "openRouterRouting": {
+              "allow_fallbacks": true,
+              "sort": {
+                "by": "throughput"
+              },
+              "preferred_min_throughput": {
+                "p50": 100,
+                "p90": 50
+              },
+              "max_price": {
+                "prompt": 0.15,
+                "completion": 0.5
+              },
+              "ignore": [
+                "digitalocean",
+                "morph",
+                "parasail"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}
