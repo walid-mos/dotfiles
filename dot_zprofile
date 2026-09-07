@@ -1,0 +1,14 @@
+# =============================================================================
+# Zsh Profile (.zprofile)
+# =============================================================================
+# Sourced by LOGIN shells only (after .zshenv, before .zshrc).
+# =============================================================================
+
+# Homebrew (macOS, Apple Silicon)
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
+# GUI apps launched from Finder/Dock inherit the minimal launchd PATH without
+# /opt/homebrew/bin: they can't find brew or its tools (node, ripgrep, ...).
+# Re-write the login launchd PATH at every login so GUI children inherit it.
+# Session-scoped: re-applied at each login, gone after reboot.
+launchctl setenv PATH "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
