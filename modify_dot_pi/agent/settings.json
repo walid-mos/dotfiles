@@ -1,0 +1,20 @@
+#!/bin/sh
+# Pin ONLY stable, user-owned settings. Run by chezmoi on every `chezmoi apply`:
+# stdin = current target content, stdout = new target content.
+# Everything not listed here (lastChangelogVersion, defaultModel, enabledModels,
+# any key pi adds later) is left to pi and never synced.
+jq -s 'if length == 0 then $pinned else .[0] * $pinned end' --argjson pinned '{
+  "theme": "catppuccin-latte/catppuccin-macchiato",
+  "defaultProvider": "openrouter",
+  "npmCommand": ["pnpm", "--config.strict-dep-builds=false"],
+  "hideThinkingBlock": true,
+  "editorPaddingX": 0,
+  "outputPad": 0,
+  "autocompleteMaxVisible": 10,
+  "markdown": { "mermaid": "streaming" },
+  "doubleEscapeAction": "tree",
+  "treeFilterMode": "no-tools",
+  "tuiMode": "fullscreen",
+  "fullscreenExitOutput": "transcript",
+  "packages": ["npm:pi-web-access"]
+}'
