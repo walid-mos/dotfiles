@@ -15,21 +15,44 @@ apply_dotfiles() {
         chezmoi apply --dry-run --force
         return 0
     fi
-    # Non-interactive by design: if a live file drifted from the repo
-    # (e.g. config customized inside an app's UI), fail with instructions
-    # instead of prompting mid-script or silently overwriting. Second-column
-    # M/D in `chezmoi status` means the live file differs from the source;
-    # a fresh machine only reports 'A' (new) entries, which is fine.
-    drift=$(chezmoi status 2>/dev/null | awk '$2 ~ /[MD]/ {print $NF}')
+    # Live files win. Anything edited outside chezmoi (herdr UI, nvim, ...)
+    # is absorbed into the repo before applying, so the bootstrap never
+    # prompts and never overwrites an edit. Applying then only matters for
+    # files missing on this machine (fresh setup).
+    drift=$(chezmoi status 2>/dev/null | awk '$2 ~ /M/ {print $NF}')
     if [ -n "$drift" ]; then
-        die "dotfiles drift detected between the repo and live files:
-       $drift
-       Review with:   chezmoi diff
-       Absorb live edits into the repo:   chezmoi re-add <file>
-       Then re-run this bootstrap."
+        run "absorbing live edits into the repo"
+        act "re-add drifted files" chezmoi re-add $drift
     fi
     run "applying dotfiles"
     chezmoi apply --force
+}
+
+configure_zsh_secrets
+
+# configure_zsh_secrets - scaffold the untracked secrets file sourced by
+# .zshenv for every shell (API keys, tokens). Never versioned: the file is
+# NOT in the chezmoi source, so applying dotfiles can't create or overwrite
+# it - this only scaffolds the template once, then leaves it alone.
+configure_zsh_secrets() {
+    local secrets_file="$HOME/.config/zsh/secrets"
+    if [ -f "$secrets_file" ]; then
+        skip "~/.config/zsh/secrets already exists"
+        return 0
+    fi
+    if is_dry_run; then
+        would "scaffold ~/.config/zsh/secrets (mode 600)"
+        return 0
+    fi
+    mkdir -p "$HOME/.config/zsh"
+    cat > "$secrets_file" <<'EOF'
+# ~/.config/zsh/secrets - API keys and tokens (NEVER commit this file).
+# Sourced by ~/.zshenv for every shell, including non-interactive ones
+# (agent hooks, scripts). One export per line, e.g.:
+#   export CLOUDFLARE_API_TOKEN="..."
+EOF
+    chmod 600 "$secrets_file"
+    ok "scaffolded ~/.config/zsh/secrets (add your keys, mode 600)"
 }
 
 # configure_local_bin_path - user-local binaries (herdr, ...) live in
