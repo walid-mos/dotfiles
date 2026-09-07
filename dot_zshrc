@@ -10,11 +10,10 @@
 # Autoload custom commands (fpath is set in .zshenv)
 autoload -Uz ~/.config/zsh/functions/*(:t)
 
-# Modular configuration - explicit numbering:
+# Modular configuration. Only order-dependent files carry a number:
 #   00- ghostty shell integration (must be first)
-#   10- completion          20- history
-#   30- env (fnm, pnpm)     40- tools (zoxide, starship)
-#   60- fastfetch banner    90- syntax highlighting (must be last)
+#   90- syntax highlighting (must be last)
+# Everything else is order-independent and loads alphabetically.
 for config in ~/.config/zsh/conf.d/*.zsh(N); do
   source "$config"
 done
