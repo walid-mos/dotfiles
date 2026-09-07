@@ -6,7 +6,8 @@
 # already-set-up machine: it reports and skips when the tool is present.
 
 BREW_FORMULAS=(neovim chezmoi gh)
-BREW_CASKS=(ghostty brave-browser kitlangton-hex)
+BREW_CASKS=(ghostty brave-browser hex)
+BREW_TAPS=(anomalyco/tap)
 LAPTOP_CASKS=(tailscale)
 SERVER_FORMULAS=(tailscale)
 
@@ -20,6 +21,19 @@ install_homebrew() {
     fi
     act "install Homebrew" sh -c 'NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
     is_dry_run || eval "$(/opt/homebrew/bin/brew shellenv)"
+}
+
+# ensure_brew_taps - third-party taps needed by BREW_CASKS (e.g. anomalyco/tap
+# for the Hex cask). brew auto-taps on install, but tapping first keeps the
+# per-cask `brew list` idempotence checks working.
+ensure_brew_taps() {
+    for tap in "${BREW_TAPS[@]}"; do
+        if brew tap-info "$tap" >/dev/null 2>&1; then
+            skip "tap $tap already added"
+        else
+            act "add brew tap $tap" brew tap "$tap"
+        fi
+    done
 }
 
 # install_brew_package <formula|cask> <name>
