@@ -16,3 +16,5 @@
 
 # gh: credentials (contains GitHub token)
 .config/gh/hosts.yml
+# Pi: web search cache
+.pi/web-search.json
