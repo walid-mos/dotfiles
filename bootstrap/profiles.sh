@@ -24,6 +24,7 @@ setup_common() {
     install_node
     install_pi
     install_herdr
+    configure_local_bin_path
 
     step "Dotfiles"
     apply_dotfiles

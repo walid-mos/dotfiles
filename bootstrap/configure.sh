@@ -19,6 +19,25 @@ apply_dotfiles() {
     chezmoi apply
 }
 
+# configure_local_bin_path - user-local binaries (herdr, ...) live in
+# ~/.local/bin, which no shell config puts on PATH by default. Idempotent,
+# dry-run aware; appends one guarded export to ~/.zshrc.
+configure_local_bin_path() {
+    if grep -qs '.local/bin' "$HOME/.zshrc"; then
+        skip "~/.zshrc already exports ~/.local/bin"
+        return 0
+    fi
+    if is_dry_run; then
+        would "append ~/.local/bin PATH export to ~/.zshrc"
+        return 0
+    fi
+    {
+        printf '\n# ~/.local/bin - user-local binaries (herdr, ...)\n'
+        printf 'case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac\n'
+    } >> "$HOME/.zshrc"
+    ok "added ~/.local/bin to PATH in ~/.zshrc"
+}
+
 # --- herdr remote: Mac Studio as the always-on server ---
 #
 # Server = Mac Studio (headless, runs everything). Clients = MacBooks, which
