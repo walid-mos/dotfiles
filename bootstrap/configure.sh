@@ -28,8 +28,6 @@ apply_dotfiles() {
     chezmoi apply --force
 }
 
-configure_zsh_secrets
-
 # configure_zsh_secrets - scaffold the untracked secrets file sourced by
 # .zshenv for every shell (API keys, tokens). Never versioned: the file is
 # NOT in the chezmoi source, so applying dotfiles can't create or overwrite
