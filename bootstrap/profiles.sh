@@ -36,10 +36,14 @@ setup_laptop() {
     step "Fonts"
     install_brew_list cask "${LAPTOP_CASKS[@]}"
     install_nerd_fonts
+    configure_studio_client
 }
 
 setup_server() {
     setup_common
+    install_tailscale_daemon
+    configure_headless_server
+    configure_server_reminders
 }
 
 main() {
