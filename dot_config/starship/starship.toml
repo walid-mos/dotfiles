@@ -4,16 +4,3 @@
 # Default 500ms trips on cold binary execs (Gatekeeper check after a brew
 # upgrade) and spams "Executing command timed out" warnings
 command_timeout = 2000
-
-# Disable built-in nodejs module (runs node --version via fnm shim = slow)
-[nodejs]
-disabled = true
-
-# Fast replacement: fnm current reads internal state, no shim overhead
-[custom.node]
-command = "fnm current 2>/dev/null"
-detect_files = ["package.json", ".node-version", ".nvmrc"]
-detect_folders = ["node_modules"]
-symbol = "⬢ "
-format = "via [$symbol($output )]($style)"
-style = "bold green"
