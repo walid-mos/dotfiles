@@ -1,9 +1,13 @@
 {
   "lastChangelogVersion": "0.85.1",
-  "theme": "light/dark",
+  "theme": "catppuccin-latte/catppuccin-macchiato",
   "defaultProvider": "openrouter",
   "defaultModel": "z-ai/glm-5.3-flash",
-  "hideThinkingBlock": false,
+  "npmCommand": [
+    "pnpm",
+    "--config.strict-dep-builds=false"
+  ],
+  "hideThinkingBlock": true,
   "editorPaddingX": 0,
   "outputPad": 0,
   "autocompleteMaxVisible": 10,
@@ -16,5 +20,8 @@
   "fullscreenExitOutput": "transcript",
   "enabledModels": [
     "openrouter/z-ai/glm-5.3-flash"
+  ],
+  "packages": [
+    "npm:pi-web-access"
   ]
 }
