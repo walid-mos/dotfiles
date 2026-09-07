@@ -15,8 +15,21 @@ apply_dotfiles() {
         chezmoi apply --dry-run --force
         return 0
     fi
+    # Non-interactive by design: if a live file drifted from the repo
+    # (e.g. config customized inside an app's UI), fail with instructions
+    # instead of prompting mid-script or silently overwriting. Second-column
+    # M/D in `chezmoi status` means the live file differs from the source;
+    # a fresh machine only reports 'A' (new) entries, which is fine.
+    drift=$(chezmoi status 2>/dev/null | awk '$2 ~ /[MD]/ {print $NF}')
+    if [ -n "$drift" ]; then
+        die "dotfiles drift detected between the repo and live files:
+       $drift
+       Review with:   chezmoi diff
+       Absorb live edits into the repo:   chezmoi re-add <file>
+       Then re-run this bootstrap."
+    fi
     run "applying dotfiles"
-    chezmoi apply
+    chezmoi apply --force
 }
 
 # configure_local_bin_path - user-local binaries (herdr, ...) live in
