@@ -3,7 +3,8 @@
 # stdin = current target content, stdout = new target content.
 # Everything not listed here (lastChangelogVersion, defaultModel, enabledModels,
 # any key pi adds later) is left to pi and never synced.
-jq -s 'if length == 0 then $pinned else .[0] * $pinned end' --argjson pinned '{
+# NOTE: output must NOT end with a newline - pi writes the file without one.
+pinned=$(jq -s 'if length == 0 then $pinned else .[0] * $pinned end' --argjson pinned '{
   "theme": "catppuccin-latte/catppuccin-macchiato",
   "defaultProvider": "openrouter",
   "npmCommand": ["pnpm", "--config.strict-dep-builds=false"],
@@ -17,4 +18,5 @@ jq -s 'if length == 0 then $pinned else .[0] * $pinned end' --argjson pinned '{
   "tuiMode": "fullscreen",
   "fullscreenExitOutput": "transcript",
   "packages": ["npm:pi-web-access"]
-}'
+}')
+printf '%s' "$pinned"
