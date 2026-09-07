@@ -15,6 +15,7 @@ setup_common() {
     step "Homebrew"
     ensure_sudo
     install_homebrew
+    ensure_brew_taps
     install_brew_list formula "${BREW_FORMULAS[@]}"
     install_brew_list cask "${BREW_CASKS[@]}"
 
