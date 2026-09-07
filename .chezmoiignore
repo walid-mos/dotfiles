@@ -1,0 +1,18 @@
+# Pi: volatile state and secrets - never version
+.pi/agent/auth.json
+.pi/agent/sessions
+.pi/agent/models-store.json
+.pi/agent/bin
+.pi/agent/npm
+.pi/web-search-cache
+
+# chezmoi internal state
+.config/chezmoi
+
+# herdr: volatile state
+.config/herdr/.plugins.lock
+.config/herdr/*.log
+.config/herdr/session.json
+
+# gh: credentials (contains GitHub token)
+.config/gh/hosts.yml
