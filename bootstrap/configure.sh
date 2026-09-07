@@ -15,14 +15,30 @@ apply_dotfiles() {
         chezmoi apply --dry-run --force
         return 0
     fi
-    # Live files win. Anything edited outside chezmoi (herdr UI, nvim, ...)
-    # is absorbed into the repo before applying, so the bootstrap never
-    # prompts and never overwrites an edit. Applying then only matters for
-    # files missing on this machine (fresh setup).
-    drift=$(chezmoi status 2>/dev/null | awk '$2 ~ /M/ {print $NF}')
-    if [ -n "$drift" ]; then
-        run "absorbing live edits into the repo"
-        act "re-add drifted files" chezmoi re-add $drift
+    status=$(chezmoi status 2>/dev/null)
+    # Directional sync from `chezmoi status` line codes (col 1 = X = repo
+    # side changed since last apply, col 2 = Y = live side changed since
+    # last apply; target starts at col 4 - raw substr, not awk fields, or
+    # the leading space of ' M' codes is lost):
+    #   live ahead  -> re-add (absorb into repo)
+    #   repo ahead  -> apply (update live)
+    #   both ahead  -> conflict, skip and let the user decide
+    conflicts=$(printf '%s\n' "$status" | awk 'substr($0,1,1) == "M" && substr($0,2,1) == "M" {print substr($0,4)}')
+    live_edits=$(printf '%s\n' "$status" | awk 'substr($0,2,1) == "M" && substr($0,1,1) != "M" {print substr($0,4)}')
+    if [ -n "$live_edits" ]; then
+        run "syncing live edits into the repo"
+        act "re-add live-edited files" chezmoi re-add ${=live_edits}
+    fi
+    if [ -n "$conflicts" ]; then
+        skip "changed on both repo and live sides since the last sync - left untouched:"
+        printf '      %s\n' ${(f)conflicts}
+        ok "resolve with 'chezmoi diff' then 'chezmoi re-add <file>' (or edit the repo)"
+        apply_args=$(comm -23 <(chezmoi managed | sort) <(printf '%s\n' "${(f)conflicts}" | sort))
+        if [ -n "$apply_args" ]; then
+            run "applying dotfiles (conflicts skipped)"
+            chezmoi apply --force ${=apply_args}
+        fi
+        return 0
     fi
     run "applying dotfiles"
     chezmoi apply --force
