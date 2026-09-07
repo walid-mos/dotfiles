@@ -1,0 +1,35 @@
+# =============================================================================
+# Zsh Environment (.zshenv)
+# =============================================================================
+# Sourced by EVERY zsh invocation (login, interactive, scripts, agent hooks).
+# Only environment: XDG dirs, PATH, tool behavior. No interactive-only code.
+# =============================================================================
+
+# XDG Base Directory Specification
+export XDG_CONFIG_HOME="$HOME/.config"
+export XDG_CACHE_HOME="$HOME/.cache"
+export XDG_DATA_HOME="$HOME/.local/share"
+export XDG_STATE_HOME="$HOME/.local/state"
+
+# Tool behavior
+export DOCKER_BUILDKIT=1
+export TURBO_TELEMETRY_DISABLED=1
+
+# User-local binaries (herdr, ...) - guarded, no duplicate entries
+case ":$PATH:" in
+  *":$HOME/.local/bin:"*) ;;
+  *) export PATH="$HOME/.local/bin:$PATH" ;;
+esac
+
+# Custom functions (autoloaded in .zshrc)
+fpath=("$HOME/.config/zsh/functions" $fpath)
+
+# Rust (when installed via rustup)
+[[ -f "$HOME/.cargo/env" ]] && . "$HOME/.cargo/env"
+
+# =============================================================================
+# Secrets (API keys, tokens) - untracked file, NEVER committed.
+# Sourced here so non-interactive shells (hooks, scripts) see them too.
+# Scaffolding + permissions: bootstrap/configure.sh (configure_zsh_secrets).
+# =============================================================================
+[[ -f "$XDG_CONFIG_HOME/zsh/secrets" ]] && source "$XDG_CONFIG_HOME/zsh/secrets"

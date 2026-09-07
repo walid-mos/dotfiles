@@ -1,0 +1,27 @@
+# =============================================================================
+# Zsh Runtime Config (.zshrc)
+# =============================================================================
+# Sourced by INTERACTIVE shells only. This file only orchestrates: everything
+# lives in ~/.config/zsh/conf.d/*.zsh (numbered = deterministic load order),
+# ~/.config/zsh/aliases and ~/.config/zsh/functions. Never append tool blocks
+# here - add a numbered conf.d file instead.
+# =============================================================================
+
+# Autoload custom commands (fpath is set in .zshenv)
+autoload -Uz ~/.config/zsh/functions/*(:t)
+
+# Modular configuration - explicit numbering:
+#   00- ghostty shell integration (must be first)
+#   10- completion          20- history
+#   30- env (fnm, pnpm)     40- tools (zoxide, starship)
+#   60- fastfetch banner    90- syntax highlighting (must be last)
+for config in ~/.config/zsh/conf.d/*.zsh(N); do
+  source "$config"
+done
+
+# Aliases - separate file for quick access (order-independent: aliases only)
+source ~/.config/zsh/aliases
+
+# Machine-local overrides - untracked, created on demand for per-machine
+# extras (project ports, one-off env). This replaces bottom-of-file appends.
+[[ -f ~/.config/zsh/local.zsh ]] && source ~/.config/zsh/local.zsh
