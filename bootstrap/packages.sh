@@ -75,7 +75,11 @@ install_node() {
 }
 
 install_pi() {
-    act "install/upgrade pi-coding-agent" pnpm add -g --ignore-scripts "$PI_PACKAGE"
+    if command_exists pi; then
+        skip "pi already installed (upgrade with: pnpm add -g $PI_PACKAGE)"
+        return 0
+    fi
+    act "install pi-coding-agent" pnpm add -g --ignore-scripts "$PI_PACKAGE"
 }
 
 install_herdr() {

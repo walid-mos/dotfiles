@@ -2,6 +2,25 @@ onboarding = false
 [keys]
 prefix = "ctrl+space"
 
+# Tabs
+new_tab = "prefix+n"
+next_tab = "ctrl+]"
+previous_tab = "ctrl+["
+
+# Workspaces (new_workspace = default prefix+shift+n)
+next_workspace = "ctrl+shift+]"
+previous_workspace = "ctrl+shift+["
+
+# Panes
+focus_pane_left = "alt+h"
+focus_pane_down = "alt+j"
+focus_pane_up = "alt+k"
+focus_pane_right = "alt+l"
+close_tab = "prefix+x"
+close_pane = "alt+x"
+split_vertical = "alt+n"
+split_horizontal = "alt+v"
+
 [theme]
 # Follow host terminal light/dark appearance, like Ghostty and Neovim
 auto_switch = true
