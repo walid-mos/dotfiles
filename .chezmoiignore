@@ -18,3 +18,7 @@
 .config/gh/hosts.yml
 # Pi: web search cache
 .pi/web-search.json
+
+# bootstrap script: lives in the repo, run via curl, never applied to $HOME
+bootstrap.sh
+bootstrap/
