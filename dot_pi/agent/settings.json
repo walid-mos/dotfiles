@@ -1,0 +1,20 @@
+{
+  "lastChangelogVersion": "0.85.1",
+  "theme": "light/dark",
+  "defaultProvider": "openrouter",
+  "defaultModel": "z-ai/glm-5.3-flash",
+  "hideThinkingBlock": false,
+  "editorPaddingX": 0,
+  "outputPad": 0,
+  "autocompleteMaxVisible": 10,
+  "markdown": {
+    "mermaid": "streaming"
+  },
+  "doubleEscapeAction": "tree",
+  "treeFilterMode": "no-tools",
+  "tuiMode": "fullscreen",
+  "fullscreenExitOutput": "transcript",
+  "enabledModels": [
+    "openrouter/z-ai/glm-5.3-flash"
+  ]
+}
