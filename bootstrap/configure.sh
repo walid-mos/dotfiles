@@ -15,7 +15,7 @@ apply_dotfiles() {
         chezmoi apply --dry-run --force
         return 0
     fi
-    status=$(chezmoi status 2>/dev/null)
+    sync_status=$(chezmoi status 2>/dev/null)   # 'status' is read-only in zsh
     # Directional sync from `chezmoi status` line codes (col 1 = X = repo
     # side changed since last apply, col 2 = Y = live side changed since
     # last apply; target starts at col 4 - raw substr, not awk fields, or
@@ -23,8 +23,8 @@ apply_dotfiles() {
     #   live ahead  -> re-add (absorb into repo)
     #   repo ahead  -> apply (update live)
     #   both ahead  -> conflict, skip and let the user decide
-    conflicts=$(printf '%s\n' "$status" | awk 'substr($0,1,1) == "M" && substr($0,2,1) == "M" {print substr($0,4)}')
-    live_edits=$(printf '%s\n' "$status" | awk 'substr($0,2,1) == "M" && substr($0,1,1) != "M" {print substr($0,4)}')
+    conflicts=$(printf '%s\n' "$sync_status" | awk 'substr($0,1,1) == "M" && substr($0,2,1) == "M" {print substr($0,4)}')
+    live_edits=$(printf '%s\n' "$sync_status" | awk 'substr($0,2,1) == "M" && substr($0,1,1) != "M" {print substr($0,4)}')
     if [ -n "$live_edits" ]; then
         run "syncing live edits into the repo"
         act "re-add live-edited files" chezmoi re-add ${=live_edits}
@@ -67,25 +67,6 @@ configure_zsh_secrets() {
 EOF
     chmod 600 "$secrets_file"
     ok "scaffolded ~/.config/zsh/secrets (add your keys, mode 600)"
-}
-
-# configure_local_bin_path - user-local binaries (herdr, ...) live in
-# ~/.local/bin, which no shell config puts on PATH by default. Idempotent,
-# dry-run aware; appends one guarded export to ~/.zshrc.
-configure_local_bin_path() {
-    if grep -qs '.local/bin' "$HOME/.zshrc"; then
-        skip "~/.zshrc already exports ~/.local/bin"
-        return 0
-    fi
-    if is_dry_run; then
-        would "append ~/.local/bin PATH export to ~/.zshrc"
-        return 0
-    fi
-    {
-        printf '\n# ~/.local/bin - user-local binaries (herdr, ...)\n'
-        printf 'case ":$PATH:" in *":$HOME/.local/bin:"*) ;; *) export PATH="$HOME/.local/bin:$PATH" ;; esac\n'
-    } >> "$HOME/.zshrc"
-    ok "added ~/.local/bin to PATH in ~/.zshrc"
 }
 
 # --- herdr remote: Mac Studio as the always-on server ---
@@ -135,7 +116,7 @@ configure_server_reminders() {
 
 # configure_studio_client - laptop profile only: wire the MacBooks to the
 # Studio with an SSH Host alias and a one-key herdr attach. Idempotent,
-# dry-run aware; appends markers to ~/.ssh/config and ~/.zshrc.
+# dry-run aware; appends to ~/.ssh/config and ~/.config/zsh/local.zsh.
 configure_studio_client() {
     step "Mac Studio client (herdr remote attach)"
     if grep -qs "Host $STUDIO_SSH_ALIAS" "$HOME/.ssh/config"; then
@@ -155,17 +136,18 @@ configure_studio_client() {
             ok "added Host $STUDIO_SSH_ALIAS to ~/.ssh/config"
         fi
     fi
-    if grep -qs "herdr --remote $STUDIO_SSH_ALIAS" "$HOME/.zshrc"; then
-        skip "~/.zshrc already has the herdr remote alias"
+    if grep -qs "herdr --remote $STUDIO_SSH_ALIAS" "$HOME/.config/zsh/local.zsh"; then
+        skip "~/.config/zsh/local.zsh already has the herdr remote alias"
     else
         if is_dry_run; then
-            would "append 'h' alias to ~/.zshrc"
+            would "append 'h' alias to ~/.config/zsh/local.zsh"
         else
+            mkdir -p "$HOME/.config/zsh"
             {
                 printf '\n# Mac Studio - herdr thin client\n'
                 printf "alias h='herdr --remote %s'\n" "$STUDIO_SSH_ALIAS"
-            } >> "$HOME/.zshrc"
-            ok "added 'h' alias to ~/.zshrc"
+            } >> "$HOME/.config/zsh/local.zsh"
+            ok "added 'h' alias to ~/.config/zsh/local.zsh"
         fi
     fi
 }
