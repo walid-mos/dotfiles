@@ -1,0 +1,47 @@
+# =============================================================================
+# Aliases
+# =============================================================================
+# Aliases only - order-independent. For anything needing logic, add a function
+# in ~/.config/zsh/functions instead.
+# =============================================================================
+
+# Shell
+alias szsh="source ~/.zshenv && source ~/.zshrc"
+alias k="clear && printf $'\e[3J'"   # full clear: screen + scrollback (Cmd+K equivalent)
+alias getip="ifconfig | grep \"inet \" | grep -v 127.0.0.1"
+
+# Git - basics
+alias gs="git status"
+alias ga="git add"
+alias gc="git commit"
+alias gcm="git commit -m"
+alias gca="git commit --amend --no-edit"
+alias gd="git diff"
+alias gds="git diff --staged"
+
+# Git - branches
+alias gb="git branch"
+alias gsw="git switch"
+alias gcb="git switch -c"
+
+# Git - log
+alias gl="git log --oneline --graph --decorate --all"
+
+# Git - remote
+alias gp="git push"
+alias gpf="git push --force-with-lease"
+alias gpl="git pull --all"
+
+# Git - rebase / stash / restore
+alias gr="git rebase"
+alias gst="git stash"
+alias gstp="git stash pop"
+alias grs="git restore --staged"
+
+# Editor
+alias v="nvim"
+
+# Navigation
+alias cddl="cd ~/Downloads"
+alias cdcfg="cd ~/.config"
+alias cdzsh="cd ~/.config/zsh"
