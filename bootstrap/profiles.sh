@@ -28,6 +28,7 @@ setup_common() {
 
     step "Dotfiles"
     apply_dotfiles
+    configure_zsh_secrets
 
     step "macOS defaults"
     configure_macos_defaults
