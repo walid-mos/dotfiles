@@ -7,7 +7,8 @@
 
 BREW_FORMULAS=(neovim chezmoi gh)
 BREW_CASKS=(ghostty brave-browser kitlangton-hex)
-LAPTOP_CASKS=()
+LAPTOP_CASKS=(tailscale)
+SERVER_FORMULAS=(tailscale)
 
 NERD_FONTS_SOURCE="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Fonts/Nerd Font"
 PI_PACKAGE="@earendil-works/pi-coding-agent"
@@ -69,6 +70,18 @@ install_herdr() {
         return 0
     fi
     act "install herdr" sh -c 'curl -fsSL https://herdr.dev/install.sh | sh -'
+}
+
+# install_tailscale_daemon - server profile only: tailscaled as a boot-time
+# root LaunchDaemon, so the mesh comes up without any GUI session. Auth still
+# needs one manual `sudo tailscale up` (browser) - see configure_server_reminders.
+install_tailscale_daemon() {
+    install_brew_list formula "${SERVER_FORMULAS[@]}"
+    if brew services list | awk '{print $1, $2}' | grep -q '^tailscale started$'; then
+        skip "tailscaled service already running"
+        return 0
+    fi
+    act "start tailscaled as a boot-time daemon" sudo brew services start tailscale
 }
 
 # install_nerd_fonts copies fonts from iCloud - laptop profile only, and
