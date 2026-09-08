@@ -71,19 +71,38 @@ EOF
 
 # start_container_system - server profile only. Apple's container CLI needs
 # its API server daemon started once per boot before any `container` command
-# works. `system status` pings the API server, so a successful ping means the
-# system is already up.
+# works. Registered as a user brew service so it starts now and re-runs
+# `container system start` at every login; the CLI also auto-starts the
+# daemon on demand, so a live system does NOT imply the service is
+# registered - hence the plist check instead of a status ping.
 start_container_system() {
     step "Container system"
     if ! command_exists container; then
         skip "container CLI not installed"
         return 0
     fi
+    if [ -f "$HOME/Library/LaunchAgents/sh.brew.container.plist" ]; then
+        skip "container brew service already registered"
+    else
+        act "register container brew service (starts now + at login)" \
+            brew services start container
+    fi
     if container system status >/dev/null 2>&1; then
         skip "container system already running"
-        return 0
+    else
+        act "start container system" container system start
     fi
-    act "start container system" container system start
+    # Formula caveat: the brew service runs `container system start
+    # --disable-kernel-install`, so the recommended kernel is never installed
+    # by the service - it must be set once by hand. Idempotent via the
+    # default-kernel symlink the command creates.
+    kernel_link="$HOME/Library/Application Support/com.apple.container/kernels/default.kernel-arm64"
+    if [ -L "$kernel_link" ] && [ -e "$kernel_link" ]; then
+        skip "recommended container kernel already installed"
+    else
+        act "install recommended container kernel" \
+            container system kernel set --recommended
+    fi
 }
 
 # configure_development_dirs - create the workspace layout under ~/Development:
