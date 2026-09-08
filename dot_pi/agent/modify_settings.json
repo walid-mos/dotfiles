@@ -1,12 +1,11 @@
 #!/bin/sh
 # Pin ONLY stable, user-owned settings. Run by chezmoi on every `chezmoi apply`:
 # stdin = current target content, stdout = new target content.
-# Everything not listed here (lastChangelogVersion, defaultModel, enabledModels,
-# any key pi adds later) is left to pi and never synced.
+# Everything not listed here (lastChangelogVersion, defaultProvider, defaultModel,
+# enabledModels, any key pi adds later) is left to pi and never synced.
 # NOTE: output must NOT end with a newline - pi writes the file without one.
 pinned=$(jq -s 'if length == 0 then $pinned else .[0] * $pinned end' --argjson pinned '{
   "theme": "catppuccin-latte/catppuccin-macchiato",
-  "defaultProvider": "inco",
   "npmCommand": ["pnpm", "--config.strict-dep-builds=false"],
   "hideThinkingBlock": true,
   "editorPaddingX": 0,

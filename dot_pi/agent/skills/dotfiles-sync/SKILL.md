@@ -46,6 +46,12 @@ chezmoi git -- commit -m "<scope>: <summary>"
 chezmoi git -- push
 ```
 
+**modify_ files.** `settings.json` is managed through a `modify_` merge script in
+the source repo (`dot_pi/agent/modify_settings.json`): `chezmoi re-add` silently
+skips it, and a lingering `MM` on `settings.json` after re-add means a pinned key
+changed in live - live wins: hand-edit the pinned JSON inside the script, never
+accept the drift.
+
 ## Rules
 
 - Never `chezmoi add` a whole directory blindly - enumerate leaf targets (`node_modules` trap).
