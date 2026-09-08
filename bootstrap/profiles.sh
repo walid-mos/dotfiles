@@ -38,6 +38,7 @@ setup_common() {
 setup_laptop() {
     setup_common
     step "Fonts"
+    install_brew_list cask "${LAPTOP_CASKS[@]}"
     install_nerd_fonts
     configure_studio_client
 }
