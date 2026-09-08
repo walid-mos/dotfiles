@@ -1,0 +1,71 @@
+# Usage: wt clean [branch...] [-y|--yes]
+# Removes worktrees; local branches are kept (use `wt prune` for those).
+# Interactive fzf picker when no branch names are given. Runs `clean` hooks.
+emulate -L zsh
+
+local wt_auto_yes wt_target wt_found wt_entry wt_path wt_branch
+local -a wt_targets=() wt_selected=()
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -y|--yes) wt_auto_yes=yes ;;
+    -*) print -u2 "❌ Unknown option: $1"; return 1 ;;
+    *) wt_targets+=("$1") ;;
+  esac
+  shift
+done
+_wt_require_repo || return 1
+local wt_git_root
+wt_git_root=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || return 1
+local wt_worktrees
+wt_worktrees=$(_wt_worktrees) || return 1
+[[ -n "$wt_worktrees" ]] || { print "📋 No worktrees to clean"; return 0 }
+
+if (( ${#wt_targets} )); then
+  for wt_target in "${wt_targets[@]}"; do
+    wt_found=""
+    while IFS='|' read -r wt_path wt_branch; do
+      if [[ "$wt_branch" == "$wt_target" ]]; then
+        wt_selected+=("${wt_branch}|${wt_path}")
+        wt_found=yes
+        break
+      fi
+    done <<< "$wt_worktrees"
+    [[ -n "$wt_found" ]] || print "⚠️  No worktree found for branch: $wt_target"
+  done
+  (( ${#wt_selected} )) || { print -u2 "❌ No matching worktrees found"; return 1 }
+else
+  _wt_require_fzf || return 1
+  print "🧹 Select worktrees to remove (Space to select, Enter to confirm):"
+  wt_selected=("${(f)$(print -r -- "$wt_worktrees" | fzf --multi \
+    --prompt="Select worktrees to remove: " --height=60% --border --delimiter='|' \
+    --header="Space to select, Enter to confirm, Ctrl-C to cancel" \
+    --preview='echo "Branch: {1}\nPath: {2}"' --preview-window=up:3)}")
+  (( ${#wt_selected} )) || { print "❌ No worktrees selected"; return 0 }
+fi
+
+print ""
+print "📋 Worktrees to remove:"
+for wt_entry in "${wt_selected[@]}"; do
+  print "  - ${wt_entry%%|*} (${wt_entry#*|})"
+done
+_wt_confirm "Remove these worktrees?" || { print "❌ Operation cancelled"; return 0 }
+
+print ""
+for wt_entry in "${wt_selected[@]}"; do
+  wt_branch="${wt_entry%%|*}"
+  wt_path="${wt_entry#*|}"
+  print "🗑️  Removing worktree: $wt_branch"
+  _wt_remove_worktree "$wt_git_root" "$wt_path"
+  _wt_export_context clean "$wt_path" "$wt_branch"
+  _wt_hooks clean "$wt_path" "$wt_branch" || return $?
+done
+
+# Resting point: when the caller's cwd was one of the removed worktrees,
+# move back to the main checkout instead of leaving a dead directory.
+wt_main_root="${wt_git_root:h}"
+if ! [[ -d "$PWD" ]] && [[ -d "$wt_main_root" ]]; then
+  cd "$wt_main_root"
+  print "📂 cwd was removed — back in: $wt_main_root"
+fi
+print ""
+print "✅ Cleanup complete!"

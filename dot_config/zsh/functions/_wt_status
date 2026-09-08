@@ -1,0 +1,30 @@
+# Usage: wt status
+emulate -L zsh
+
+_wt_require_repo || return 1
+local wt_worktrees
+wt_worktrees=$(_wt_worktrees) || return 1
+[[ -n "$wt_worktrees" ]] || { print "📋 No worktrees found for this project"; return 0 }
+
+print "📦 Project: $(_wt_project_name)"
+print ""
+local wt_path wt_branch wt_status
+while IFS='|' read -r wt_path wt_branch; do
+  print "🌿 $wt_branch"
+  print "   📂 $wt_path"
+  if [[ ! -d "$wt_path" ]]; then
+    print "   ❌ Path not found"
+    print ""
+    continue
+  fi
+  wt_status=$(git -C "$wt_path" status --short)
+  if [[ -z "$wt_status" ]]; then
+    print "   ✅ Clean working tree"
+  else
+    print "   📝 Changes:"
+    print -r -- "$wt_status" | head -5 | sed 's/^/      /'
+    local wt_count=$(print -r -- "$wt_status" | wc -l | tr -d ' ')
+    (( wt_count > 5 )) && print "      ... and $((wt_count - 5)) more"
+  fi
+  print ""
+done <<< "$wt_worktrees"
