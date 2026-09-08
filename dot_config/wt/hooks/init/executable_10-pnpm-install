@@ -1,0 +1,25 @@
+#!/bin/zsh
+# wt init hook: install JS dependencies for a fresh worktree (on the host).
+#
+# SKIPPED when the project enables the pi container-sandbox (.pi/container.json
+# present without "enabled": false): node_modules must be built inside the
+# container (linux/arm64), not on macOS — otherwise native modules break in
+# the sandbox. The first pi session in the worktree installs deps in-container.
+
+[[ -f pnpm-lock.yaml ]] || exit 0
+command -v pnpm >/dev/null 2>&1 || exit 0
+
+if [[ -f .pi/container.json ]] && ! grep -q '"enabled"[[:space:]]*:[[:space:]]*false' .pi/container.json; then
+  print "📦 container sandbox active — skipping host pnpm install (run it inside pi)"
+  exit 0
+fi
+
+wt_log="/tmp/wt-init-${WT_PROJECT}-${WT_BRANCH//[^a-zA-Z0-9-]/-}-pnpm.log"
+(
+  if ! pnpm install >"$wt_log" 2>&1; then
+    if command -v osascript >/dev/null 2>&1; then
+      osascript -e "display notification \"pnpm install failed in ${WT_PATH} — see ${wt_log}\" with title \"wt init\"" 2>/dev/null
+    fi
+  fi
+) &
+exit 0

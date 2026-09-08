@@ -1,0 +1,44 @@
+# wt help
+emulate -L zsh
+
+cat <<'EOF'
+Git Worktree Manager - centralized worktrees with lifecycle hooks
+
+USAGE:
+    wt <command> [options]
+
+COMMANDS:
+    new <branch> [-y]       Create new worktree for branch and switch to it
+    spawn <branch>          Create worktree + run init hooks + launch session
+                            (spawn hooks; fallback: pi in the worktree)
+    switch [branch]         Switch to existing worktree (interactive without args)
+    list                    List all worktrees for current project
+    status                  Show git status for all worktrees
+    clean [branches] [-y]   Remove worktrees, keep local branches (interactive)
+    prune [-i]              Remove worktrees + local branches for deleted remotes
+    help                    Show this help message
+
+OPTIONS:
+    -y, --yes               Auto-confirm all prompts (non-interactive mode)
+    -i, --interactive       Confirm each worktree individually (prune)
+
+HOOK PORTS (integration points for pi, herdr, container-sandbox, ...):
+    Executable files in ~/.config/wt/hooks/<event>/ then
+    <repo>/.config/wt/hooks/<event>/ run in lexical order with cwd set to the
+    worktree and context env WT_EVENT WT_PROJECT WT_BRANCH WT_PATH
+    WT_GIT_ROOT WORKTREES_BASE.
+
+    create   after a worktree is created (copy .env, install deps, ...)
+    init     right before a session is launched
+    spawn    session LAUNCHER: the FIRST executable hook found is run and
+             wins; with no hook, wt spawns pi directly in the worktree
+    clean    after a worktree is removed (clean and prune); e.g. container
+             teardown for pi sandbox worktrees
+
+ALIASES:
+    ws wtn wts wtl wtc wtp wtst   spawn new switch list clean prune status
+
+WORKTREE LOCATION:
+    All worktrees are stored in: ~/development/worktrees (WORKTREES_BASE)
+    Format: {project-name}-{branch-name}
+EOF

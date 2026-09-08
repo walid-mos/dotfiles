@@ -1,0 +1,7 @@
+# Usage: _wt_worktree_path <branch>
+# Prints the centralized worktree directory for a branch of this project.
+emulate -L zsh
+
+local wt_branch_slug
+wt_branch_slug=$(print -r -- "$1" | sed -E 's/[^a-zA-Z0-9-]+/-/g; s/^-+|-+$//g')
+print -r -- "${WORKTREES_BASE}/$(_wt_project_name)-${wt_branch_slug}"

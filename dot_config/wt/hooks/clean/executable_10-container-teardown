@@ -1,0 +1,25 @@
+#!/bin/zsh
+# wt clean hook: tear down the Apple container that pi spawned for the removed
+# worktree. Container names follow the container-sandbox extension's
+# resolveContainerName: pi-<worktree-dir-slug>-<6 hex chars>.
+# Note: two worktrees of different projects sharing the same directory slug
+# would match each other's containers — acceptable for personal use.
+
+command -v container >/dev/null 2>&1 || exit 0
+[[ -n "$WT_PATH" ]] || exit 0
+
+wt_slug=$(print -r -- "${WT_PATH:t}" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9-]+/-/g; s/^-+|-+$//g' | cut -c1-24)
+[[ -n "$wt_slug" ]] || exit 0
+
+while IFS= read -r wt_line; do
+  wt_name="${${(z)wt_line}[1]}"
+  case "$wt_name" in
+    pi-"$wt_slug"-[0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f])
+      container stop "$wt_name" >/dev/null 2>&1
+      if container delete "$wt_name" >/dev/null 2>&1; then
+        print "   🗑️  Deleted container: $wt_name"
+      fi
+      ;;
+  esac
+done < <(container ls 2>/dev/null)
+exit 0
