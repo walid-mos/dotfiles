@@ -1,0 +1,6 @@
+# Fails fast when not inside a git repository.
+emulate -L zsh
+
+git rev-parse --git-dir >/dev/null 2>&1 && return 0
+print -u2 "❌ Not in a git repository"
+return 1
