@@ -29,6 +29,9 @@ setup_common() {
     apply_dotfiles
     configure_zsh_secrets
 
+    start_container_system
+    configure_development_dirs
+
     step "macOS defaults"
     configure_macos_defaults
 }

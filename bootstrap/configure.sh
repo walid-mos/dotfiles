@@ -69,6 +69,37 @@ EOF
     ok "scaffolded ~/.config/zsh/secrets (add your keys, mode 600)"
 }
 
+# start_container_system - Apple's container CLI needs its API server daemon
+# started once per boot before any `container` command works. `system status`
+pings the API server, so a successful ping means the system is already up.
+start_container_system() {
+    step "Container system"
+    if ! command_exists container; then
+        skip "container CLI not installed"
+        return 0
+    fi
+    if container system status >/dev/null 2>&1; then
+        skip "container system already running"
+        return 0
+    fi
+    act "start container system" container system start
+}
+
+# configure_development_dirs - create the workspace layout under ~/Development:
+# one folder per client, nextnode internal projects, and personal tools.
+DEVELOPMENT_DIRS=(clients nextnode tools)
+
+configure_development_dirs() {
+    step "Development directories"
+    for dir in "${DEVELOPMENT_DIRS[@]}"; do
+        if [ -d "$HOME/Development/$dir" ]; then
+            skip "~/Development/$dir already exists"
+        else
+            act "create ~/Development/$dir" mkdir -p "$HOME/Development/$dir"
+        fi
+    done
+}
+
 # --- herdr remote: Mac Studio as the always-on server ---
 #
 # Server = Mac Studio (headless, runs everything). Clients = MacBooks, which
