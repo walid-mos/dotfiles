@@ -8,6 +8,7 @@
 BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch zsh-syntax-highlighting)
 BREW_CASKS=(ghostty brave-browser hex)
 BREW_TAPS=(anomalyco/tap)
+LAPTOP_CASKS=(tailscale-app)
 SERVER_FORMULAS=(tailscale container)
 
 NERD_FONTS_SOURCE="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Fonts/Nerd Font"
