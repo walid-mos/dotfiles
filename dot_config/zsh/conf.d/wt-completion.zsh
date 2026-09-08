@@ -72,4 +72,3 @@ _wt() {
 }
 
 compdef _wt wt ws wtn wts wtl wtc wtp wtst 2>/dev/null
-_wt "$@"
