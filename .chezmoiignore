@@ -22,3 +22,13 @@
 # bootstrap script: lives in the repo, run via curl, never applied to $HOME
 bootstrap.sh
 bootstrap/
+
+# zsh: machine-local config and secrets - never version
+.config/zsh/local.zsh
+.config/zsh/secrets
+
+# ssh: keys and credentials - never version
+.ssh
+
+# herdr: app-generated release notes
+.config/herdr/release-notes.json
