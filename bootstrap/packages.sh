@@ -5,11 +5,10 @@
 # pick it up automatically. Each installer is safe to call on an
 # already-set-up machine: it reports and skips when the tool is present.
 
-BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch zsh-syntax-highlighting container)
+BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch zsh-syntax-highlighting)
 BREW_CASKS=(ghostty brave-browser hex)
 BREW_TAPS=(anomalyco/tap)
-LAPTOP_CASKS=(tailscale)
-SERVER_FORMULAS=(tailscale)
+SERVER_FORMULAS=(tailscale container)
 
 NERD_FONTS_SOURCE="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Fonts/Nerd Font"
 PI_PACKAGE="@earendil-works/pi-coding-agent"

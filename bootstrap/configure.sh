@@ -69,9 +69,10 @@ EOF
     ok "scaffolded ~/.config/zsh/secrets (add your keys, mode 600)"
 }
 
-# start_container_system - Apple's container CLI needs its API server daemon
-# started once per boot before any `container` command works. `system status`
-# pings the API server, so a successful ping means the system is already up.
+# start_container_system - server profile only. Apple's container CLI needs
+# its API server daemon started once per boot before any `container` command
+# works. `system status` pings the API server, so a successful ping means the
+# system is already up.
 start_container_system() {
     step "Container system"
     if ! command_exists container; then
