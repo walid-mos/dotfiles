@@ -1,5 +1,33 @@
 {
   "providers": {
+    "inco": {
+      "name": "Inco",
+      "baseUrl": "https://api.inco.ai/v1",
+      "api": "openai-completions",
+      "models": [
+        {
+          "id": "glm-5.3-flash:fast",
+          "name": "GLM 5.3 Flash (Inco)",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": "low",
+            "medium": null,
+            "high": "high",
+            "xhigh": null,
+            "max": "max"
+          },
+          "input": ["text", "image"],
+          "cost": { "input": 0.075, "output": 0.25, "cacheRead": 0.015, "cacheWrite": 0 },
+          "contextWindow": 1048576,
+          "maxTokens": 131072,
+          "compat": {
+            "supportsDeveloperRole": false
+          }
+        }
+      ]
+    },
     "openrouter": {
       "modelOverrides": {
         "z-ai/glm-5.3-flash": {

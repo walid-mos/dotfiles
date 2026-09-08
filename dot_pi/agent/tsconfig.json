@@ -1,0 +1,11 @@
+{
+	"extends": "@nextnode-solutions/standards/typescript/library",
+	"compilerOptions": {
+		// Extensions and tests are executed directly by pi (type stripping),
+		// never emitted: imports keep their explicit .ts extensions and the
+		// runtime globals come from Node.js, not a browser lib.
+		"allowImportingTsExtensions": true,
+		"types": ["node"]
+	},
+	"include": ["extensions", "tests", "*.ts"]
+}

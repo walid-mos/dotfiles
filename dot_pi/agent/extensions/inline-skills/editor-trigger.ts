@@ -1,3 +1,5 @@
+import { isSkillTokenContext } from './token.ts'
+
 /**
  * Auto-open the skill autocomplete when `/skill:` is typed mid-line.
  *
@@ -6,40 +8,48 @@
  * `/skill:` token opens the popup too (Escape closes it as usual).
  *
  * Editor `state` and `tryTriggerAutocomplete` are private in pi-tui, so they
- * are reached through one isolated, documented cast — the single point of
+ * are reached through one isolated, documented cast - the single point of
  * coupling to editor internals.
  */
-import type { CustomEditor } from "@earendil-works/pi-coding-agent";
-import { isSkillTokenContext } from "./token.ts";
+import type { CustomEditor } from '@earendil-works/pi-coding-agent'
 
 /** Private Editor internals this trigger needs. */
 type EditorInternals = {
-	state: { lines: string[]; cursorLine: number; cursorCol: number };
-	tryTriggerAutocomplete: () => void;
-};
+	state: { lines: string[]; cursorLine: number; cursorCol: number }
+	tryTriggerAutocomplete: () => void
+}
 
-const PRINTABLE_ASCII_START = 0x20;
-const PRINTABLE_ASCII_END = 0x7e;
+const PRINTABLE_ASCII_START = 0x20
+const PRINTABLE_ASCII_END = 0x7e
 
 /** Single printable ASCII character (excludes Esc, Tab, arrows, Enter…). */
-function isPrintableAsciiChar(data: string): boolean {
-	if (data.length !== 1) return false;
-	const code = data.charCodeAt(0);
-	return code >= PRINTABLE_ASCII_START && code <= PRINTABLE_ASCII_END;
+function isPrintableAsciiChar(keyInput: string): boolean {
+	if (keyInput.length !== 1) return false
+	const code = keyInput.charCodeAt(0)
+	return code >= PRINTABLE_ASCII_START && code <= PRINTABLE_ASCII_END
 }
 
 export function installInlineSkillTrigger(editor: CustomEditor): void {
-	const originalHandleInput = editor.handleInput.bind(editor);
-	const internals = editor as unknown as EditorInternals;
+	const originalHandleInput = editor.handleInput.bind(editor)
+	// pi-tui exposes no accessor for editor internals; the duck-typed window
+	// mirrors CustomEditor's private surface and is asserted deliberately.
+	// oxlint-disable-next-line nextnode/no-type-assertion typescript/no-unsafe-type-assertion
+	const internals = editor as unknown as EditorInternals
 
-	editor.handleInput = (data: string) => {
-		originalHandleInput(data);
-		if (!isPrintableAsciiChar(data)) return;
+	// Rebinding handleInput is the sanctioned adapter hook for input interception.
+	// oxlint-disable-next-line no-param-reassign
+	editor.handleInput = (keyInput: string) => {
+		originalHandleInput(keyInput)
+		if (!isPrintableAsciiChar(keyInput)) return
 
-		const currentLine = internals.state.lines[internals.state.cursorLine] ?? "";
-		const textBeforeCursor = currentLine.slice(0, internals.state.cursorCol);
-		if (isSkillTokenContext(textBeforeCursor) && !editor.isShowingAutocomplete()) {
-			internals.tryTriggerAutocomplete();
+		const currentLine =
+			internals.state.lines[internals.state.cursorLine] ?? ''
+		const textBeforeCursor = currentLine.slice(0, internals.state.cursorCol)
+		if (
+			isSkillTokenContext(textBeforeCursor) &&
+			!editor.isShowingAutocomplete()
+		) {
+			internals.tryTriggerAutocomplete()
 		}
-	};
+	}
 }

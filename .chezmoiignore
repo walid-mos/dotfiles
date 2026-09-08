@@ -32,3 +32,27 @@ bootstrap/
 
 # herdr: app-generated release notes
 .config/herdr/release-notes.json
+
+# pi: third-party dependencies - never version
+.pi/agent/node_modules
+
+# macOS home: volatile state, caches and user data - never version
+.DS_Store
+.CFUserTextEncoding
+.viminfo
+.zsh_history
+.zsh_sessions
+.Trash
+.cache
+.npm
+.homebrew
+.local
+Desktop
+Documents
+Downloads
+Development
+Library
+Movies
+Music
+Pictures
+Public

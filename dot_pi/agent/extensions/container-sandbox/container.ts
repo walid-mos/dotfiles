@@ -1,77 +1,93 @@
-import { spawn, spawnSync } from "node:child_process";
+import { spawn, spawnSync } from 'node:child_process'
 
-const CONTAINER_BIN = "container";
-const NOT_RUNNING_HINT = "Apple container runtime is not responding. Run `container system start` and reload this session.";
+const CONTAINER_BIN = 'container'
+const MS_PER_SECOND = 1000
+const NOT_RUNNING_HINT =
+	'Apple container runtime is not responding. Run `container system start` and reload this session.'
 
 export interface RunResult {
-	exitCode: number;
-	stdout: string;
-	stderr: string;
+	exitCode: number
+	stdout: string
+	stderr: string
 }
 
 export interface ExecStreamOptions {
-	onData?: (chunk: Buffer) => void;
-	signal?: AbortSignal;
-	timeoutSeconds?: number;
+	onData?: (chunk: Buffer) => void
+	signal?: AbortSignal
+	timeoutSeconds?: number
 }
 
 export async function isContainerAvailable(): Promise<boolean> {
 	try {
-		const result = await runCapture(["ls"]);
-		return result.exitCode === 0;
+		const lsRun = await runCapture(['ls'])
+		return lsRun.exitCode === 0
 	} catch {
-		return false;
+		return false
 	}
 }
 
 export function containerUnavailableReason(err: unknown): string {
-	const message = err instanceof Error ? err.message : String(err);
-	if (message.includes("ECONNREFUSED") || message.toLowerCase().includes("connection")) {
-		return NOT_RUNNING_HINT;
+	const message = err instanceof Error ? err.message : String(err)
+	if (
+		message.includes('ECONNREFUSED') ||
+		message.toLowerCase().includes('connection')
+	) {
+		return NOT_RUNNING_HINT
 	}
-	return message;
+	return message
 }
 
 export async function containerExists(name: string): Promise<boolean> {
-	const result = await runCapture(["inspect", name]);
-	return result.exitCode === 0;
+	const inspectRun = await runCapture(['inspect', name])
+	return inspectRun.exitCode === 0
 }
 
 export async function isContainerRunning(name: string): Promise<boolean> {
-	const result = await runCapture(["exec", name, "/bin/true"]);
-	return result.exitCode === 0;
+	const execProbe = await runCapture(['exec', name, '/bin/true'])
+	return execProbe.exitCode === 0
 }
 
 export async function startExistingContainer(name: string): Promise<RunResult> {
-	return runCapture(["start", name]);
+	return runCapture(['start', name])
 }
 
 export async function createContainer(
 	name: string,
 	options: ContainerRunOptions,
 ): Promise<RunResult> {
-	return runCapture(buildRunArgs(name, options));
+	return runCapture(buildRunArgs(name, options))
 }
 
 export interface ContainerRunOptions {
-	image: string;
-	mountSource: string | null;
-	workdir: string;
-	cpus: number;
-	memory: string;
-	env: Record<string, string>;
-	runArgs: string[];
-	initArgs: string[];
+	image: string
+	mountSource: string | null
+	workdir: string
+	cpus: number
+	memory: string
+	env: Record<string, string>
+	runArgs: string[]
+	initArgs: string[]
 }
 
 function buildRunArgs(name: string, o: ContainerRunOptions): string[] {
-	const args = ["run", "--detach", "--name", name, "--cpus", String(o.cpus), "--memory", o.memory, "-w", o.workdir];
-	if (o.mountSource) args.push("-v", `${o.mountSource}:${o.workdir}`);
+	const args = [
+		'run',
+		'--detach',
+		'--name',
+		name,
+		'--cpus',
+		String(o.cpus),
+		'--memory',
+		o.memory,
+		'-w',
+		o.workdir,
+	]
+	if (o.mountSource) args.push('-v', `${o.mountSource}:${o.workdir}`)
 	for (const [key, value] of Object.entries(o.env)) {
-		args.push("-e", `${key}=${value}`);
+		args.push('-e', `${key}=${value}`)
 	}
-	args.push(...o.runArgs, o.image, ...o.initArgs);
-	return args;
+	args.push(...o.runArgs, o.image, ...o.initArgs)
+	return args
 }
 
 export async function execInContainer(
@@ -80,87 +96,99 @@ export async function execInContainer(
 	command: string,
 	options: ExecStreamOptions = {},
 ): Promise<RunResult> {
-	const args = ["exec", "-w", workdir, name, "bash", "-lc", command];
-	return runStreaming(args, options);
+	const args = ['exec', '-w', workdir, name, 'bash', '-lc', command]
+	return runStreaming(args, options)
 }
 
 export async function stopContainer(name: string): Promise<RunResult> {
-	return runCapture(["stop", name]);
+	return runCapture(['stop', name])
 }
 
 export function bestEffortContainerIp(name: string): string | null {
-	const result = spawnSync(CONTAINER_BIN, ["ls"], { encoding: "utf-8" });
-	if (result.status !== 0 || typeof result.stdout !== "string") return null;
-	const ownLine = result.stdout.split("\n").find((line) => line.includes(name));
-	const ipMatch = ownLine?.match(/(\d{1,3}(?:\.\d{1,3}){3})/);
-	return ipMatch ? ipMatch[1] : null;
+	const lsListing = spawnSync(CONTAINER_BIN, ['ls'], { encoding: 'utf-8' })
+	if (lsListing.status !== 0 || typeof lsListing.stdout !== 'string')
+		return null
+	const ownLine = lsListing.stdout
+		.split('\n')
+		.find(line => line.includes(name))
+	const ipMatch = ownLine?.match(/(\d{1,3}(?:\.\d{1,3}){3})/)
+	return ipMatch?.[1] ?? null
 }
 
 async function runCapture(args: string[]): Promise<RunResult> {
 	return new Promise((resolve, reject) => {
-		const child = spawn(CONTAINER_BIN, args, { stdio: ["ignore", "pipe", "pipe"] });
-		const stdoutChunks: Buffer[] = [];
-		const stderrChunks: Buffer[] = [];
-		child.stdout?.on("data", (chunk: Buffer) => stdoutChunks.push(chunk));
-		child.stderr?.on("data", (chunk: Buffer) => stderrChunks.push(chunk));
-		child.on("error", reject);
-		child.on("close", (code) =>
+		const child = spawn(CONTAINER_BIN, args, {
+			stdio: ['ignore', 'pipe', 'pipe'],
+		})
+		const stdoutChunks: Buffer[] = []
+		const stderrChunks: Buffer[] = []
+		child.stdout.on('data', (chunk: Buffer) => stdoutChunks.push(chunk))
+		child.stderr.on('data', (chunk: Buffer) => stderrChunks.push(chunk))
+		child.on('error', reject)
+		child.on('close', code =>
 			resolve({
 				exitCode: code ?? -1,
-				stdout: Buffer.concat(stdoutChunks).toString("utf-8"),
-				stderr: Buffer.concat(stderrChunks).toString("utf-8"),
+				stdout: Buffer.concat(stdoutChunks).toString('utf-8'),
+				stderr: Buffer.concat(stderrChunks).toString('utf-8'),
 			}),
-		);
-	});
+		)
+	})
 }
 
-function runStreaming(args: string[], options: ExecStreamOptions): Promise<RunResult> {
+function runStreaming(
+	args: string[],
+	options: ExecStreamOptions,
+): Promise<RunResult> {
 	return new Promise((resolve, reject) => {
-		const child = spawn(CONTAINER_BIN, args, { stdio: ["ignore", "pipe", "pipe"], detached: true });
+		const child = spawn(CONTAINER_BIN, args, {
+			stdio: ['ignore', 'pipe', 'pipe'],
+			detached: true,
+		})
 
-		let timedOut = false;
-		let timeoutHandle: NodeJS.Timeout | undefined;
+		let didTimeOut = false
+		let timeoutHandle: NodeJS.Timeout | undefined
 
-		if (options.timeoutSeconds !== undefined && options.timeoutSeconds > 0) {
+		const timeoutMs = (options.timeoutSeconds ?? 0) * MS_PER_SECOND
+		if (timeoutMs > 0) {
 			timeoutHandle = setTimeout(() => {
-				timedOut = true;
-				killProcessTree(child);
-			}, options.timeoutSeconds * 1000);
+				didTimeOut = true
+				killProcessTree(child)
+			}, timeoutMs)
 		}
 
-		child.stdout?.on("data", (chunk: Buffer) => options.onData?.(chunk));
-		child.stderr?.on("data", (chunk: Buffer) => options.onData?.(chunk));
+		child.stdout.on('data', (chunk: Buffer) => options.onData?.(chunk))
+		child.stderr.on('data', (chunk: Buffer) => options.onData?.(chunk))
 
-		child.on("error", (err) => {
-			if (timeoutHandle) clearTimeout(timeoutHandle);
-			reject(err);
-		});
+		child.on('error', err => {
+			if (timeoutHandle) clearTimeout(timeoutHandle)
+			reject(err)
+		})
 
-		const onAbort = () => killProcessTree(child);
-		options.signal?.addEventListener("abort", onAbort, { once: true });
+		const onAbort = (): void => killProcessTree(child)
+		options.signal?.addEventListener('abort', onAbort, { once: true })
 
-		child.on("close", (code) => {
-			if (timeoutHandle) clearTimeout(timeoutHandle);
-			options.signal?.removeEventListener("abort", onAbort);
+		child.on('close', (code): void => {
+			if (timeoutHandle) clearTimeout(timeoutHandle)
+			options.signal?.removeEventListener('abort', onAbort)
 			if (options.signal?.aborted) {
-				reject(new Error("aborted"));
-			} else if (timedOut) {
-				reject(new Error(`timeout:${options.timeoutSeconds}`));
+				reject(new Error('aborted'))
+			} else if (didTimeOut) {
+				reject(new Error(`timeout:${options.timeoutSeconds}`))
 			} else {
-				resolve({ exitCode: code ?? -1, stdout: "", stderr: "" });
+				resolve({ exitCode: code ?? -1, stdout: '', stderr: '' })
 			}
-		});
-	});
+		})
+	})
 }
 
 function killProcessTree(child: ReturnType<typeof spawn>): void {
 	if (!child.pid) {
-		child.kill("SIGKILL");
-		return;
+		child.kill('SIGKILL')
+		return
 	}
 	try {
-		process.kill(-child.pid, "SIGKILL");
+		process.kill(-child.pid, 'SIGKILL')
 	} catch {
-		child.kill("SIGKILL");
+		child.kill('SIGKILL')
 	}
 }
