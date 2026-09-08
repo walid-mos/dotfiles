@@ -20,6 +20,8 @@ Guide for creating Pi skills and maintaining agent instructions (AGENTS.md) in a
 
 **Golden rule**: if an instruction only matters in a specific context, it must NOT be in AGENTS.md.
 
+**Extension code conventions**: the writing structure for `~/.pi/agent/extensions/` lives in `~/.pi/agent/extensions/AGENTS.md`. Read and follow it before creating or modifying any extension file.
+
 ## Anti-duplication (the most important principle)
 
 1. **Single source of truth per detail** — numbers, thresholds, lists: one place only. Duplicating = drift (versions diverge → the model follows one at random).
@@ -98,3 +100,16 @@ Direct, actionable instructions. Reference files with relative paths:
   - AGENTS.md, skills: new session
   - Force-load a skill for testing: `/skill:<name>`
 - Extension syntax check: `npx esbuild <file>.ts --outfile=/dev/null --format=esm --packages=external`
+
+## Lint & format
+
+Any code file created or modified under `~/.pi/agent` (extensions, tests, configs) → run from `~/.pi/agent`:
+
+```bash
+pnpm run lint                    # oxlint
+pnpm exec oxfmt --write <files>  # format exactly the files you touched
+pnpm run test                    # node --test tests/ — when tests cover the change
+```
+
+- Fix every error and warning in the files you create or modify. Pre-existing issues in untouched files: leave alone (no unrelated churn).
+- Never format or lint markdown (`skills/**`, `AGENTS.md`) or Pi-managed state files (`models*.json`, `settings.json`, `auth.json`) — excluded by design in `oxfmt.config.ts`.

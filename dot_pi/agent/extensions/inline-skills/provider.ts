@@ -5,66 +5,171 @@
  * When the cursor is inside a `/skill:` token, returns fuzzy-filtered skill
  * commands; otherwise delegates untouched.
  */
-import type { AutocompleteItem, AutocompleteProvider, AutocompleteSuggestions } from "@earendil-works/pi-tui";
-import { fuzzyFilter } from "@earendil-works/pi-tui";
-import { applyInlineSkillCompletion } from "./apply.ts";
-import { isSkillTokenContext, SKILL_TOKEN_RE } from "./token.ts";
+import { fuzzyFilter } from '@earendil-works/pi-tui'
 
-export function createInlineSkillsProvider(current: AutocompleteProvider): AutocompleteProvider {
+import { applyInlineSkillCompletion } from './apply.ts'
+import { isSkillTokenContext, SKILL_TOKEN_RE } from './token.ts'
+
+import type {
+	AutocompleteItem,
+	AutocompleteProvider,
+	AutocompleteSuggestions,
+} from '@earendil-works/pi-tui'
+import type { AppliedCompletion, CompletionContext } from './apply.ts'
+
+// Query the built-in menu from its home position: first line, first column
+const HOME_CURSOR_COL = 1
+
+type ProviderOptions = { signal: AbortSignal; force?: boolean }
+
+type SkillQuery = {
+	lines: string[]
+	cursorLine: number
+	cursorCol: number
+	options: ProviderOptions
+}
+
+type CursorQuery = {
+	lines: string[]
+	cursorLine: number
+	cursorCol: number
+}
+
+type ProviderApplyArgs = Parameters<AutocompleteProvider['applyCompletion']>
+
+/** Fallback customization: replay the context onto the wrapped autocomplete implementation. */
+function builtInFallback(
+	current: AutocompleteProvider,
+): (context: CompletionContext) => AppliedCompletion {
+	return context =>
+		current.applyCompletion(
+			context.lines,
+			context.cursorLine,
+			context.cursorCol,
+			context.completion,
+			context.prefix,
+		)
+}
+
+/** Fuzzy-filter the `/skill:` command items against the typed prefix. */
+async function skillSuggestions(
+	current: AutocompleteProvider,
+	query: SkillQuery,
+): Promise<AutocompleteSuggestions | null> {
+	const currentLine = query.lines[query.cursorLine] ?? ''
+	const match = currentLine.slice(0, query.cursorCol).match(SKILL_TOKEN_RE)
+	if (!match) {
+		return current.getSuggestions(
+			query.lines,
+			query.cursorLine,
+			query.cursorCol,
+			query.options,
+		)
+	}
+
+	// group 1 = full token, group 2 = typed prefix; SKILL token match
+	const [, fullToken, typedPrefix] = match
+
+	// Same command list the built-in slash menu uses (skills, extension
+	// commands, prompt templates, …).
+	const allCommands = await current.getSuggestions(
+		['/'],
+		0,
+		HOME_CURSOR_COL,
+		query.options,
+	)
+	const skillCommands =
+		allCommands?.items.filter(command =>
+			command.value.startsWith('skill:'),
+		) ?? []
+	if (!skillCommands.length) return null
+	if (!fullToken) {
+		// The regex carries a mandatory token group: unreachable in practice.
+		return null
+	}
+
+	const filtered: AutocompleteItem[] = typedPrefix
+		? fuzzyFilter(skillCommands, typedPrefix, command => command.value)
+		: skillCommands
+
 	return {
-		async getSuggestions(
-			lines: string[],
-			cursorLine: number,
-			cursorCol: number,
-			options: { signal: AbortSignal; force?: boolean },
-		): Promise<AutocompleteSuggestions | null> {
-			const currentLine = lines[cursorLine] ?? "";
-			const match = currentLine.slice(0, cursorCol).match(SKILL_TOKEN_RE);
-			if (!match) {
-				return current.getSuggestions(lines, cursorLine, cursorCol, options);
+		items: filtered.map(command => {
+			const row: AutocompleteItem = {
+				value: command.value, // "skill:swarm"
+				label: command.label,
 			}
+			if (command.description) row.description = command.description
+			return row
+		}),
+		prefix: fullToken,
+	}
+}
 
-			const fullToken = match[1]!; // "/skill:sw"
-			const typedPrefix = match[2]!; // "sw"
+/** Apply a confirmed completion inline for skill tokens, delegate otherwise. */
+function applyProviderCompletion(
+	current: AutocompleteProvider,
+	applyArgs: ProviderApplyArgs,
+): AppliedCompletion {
+	const [lines, cursorLine, cursorCol, completion, prefix] = applyArgs
+	return applyInlineSkillCompletion(builtInFallback(current), {
+		lines,
+		cursorLine,
+		cursorCol,
+		completion,
+		prefix,
+	})
+}
 
-			// Same command list the built-in slash menu uses (skills, extension
-			// commands, prompt templates, …).
-			const allCommands = await current.getSuggestions(["/"], 0, 1, options);
-			const skillItems = allCommands?.items.filter((item) => item.value.startsWith("skill:")) ?? [];
-			if (skillItems.length === 0) return null;
+/** Inside a /skill: token, Tab must open the skill menu, not files. */
+export function shouldTriggerSkillCompletion(
+	current: AutocompleteProvider,
+	cursorQuery: CursorQuery,
+): boolean {
+	const currentLine = cursorQuery.lines[cursorQuery.cursorLine] ?? ''
+	if (isSkillTokenContext(currentLine.slice(0, cursorQuery.cursorCol))) {
+		return false
+	}
+	return (
+		current.shouldTriggerFileCompletion?.(
+			cursorQuery.lines,
+			cursorQuery.cursorLine,
+			cursorQuery.cursorCol,
+		) ?? true
+	)
+}
 
-			const filtered: AutocompleteItem[] = typedPrefix
-				? fuzzyFilter(skillItems, typedPrefix, (item) => item.value)
-				: skillItems;
+function queryOf(
+	lines: string[],
+	cursorLine: number,
+	cursorCol: number,
+	options: ProviderOptions,
+): SkillQuery {
+	return { lines, cursorLine, cursorCol, options }
+}
 
-			return {
-				items: filtered.map((item) => ({
-					value: item.value, // "skill:swarm"
-					label: item.label,
-					description: item.description,
-				})),
-				prefix: fullToken,
-			};
-		},
+function cursorQueryOf(
+	lines: string[],
+	cursorLine: number,
+	cursorCol: number,
+): CursorQuery {
+	return { lines, cursorLine, cursorCol }
+}
 
-		applyCompletion(lines, cursorLine, cursorCol, item, prefix) {
-			return applyInlineSkillCompletion(
-				current.applyCompletion.bind(current),
-				lines,
-				cursorLine,
-				cursorCol,
-				item,
-				prefix,
-			);
-		},
-
-		shouldTriggerFileCompletion(lines: string[], cursorLine: number, cursorCol: number): boolean {
-			// Inside a /skill: token, Tab must open the skill menu, not files.
-			const currentLine = lines[cursorLine] ?? "";
-			if (isSkillTokenContext(currentLine.slice(0, cursorCol))) {
-				return false;
-			}
-			return current.shouldTriggerFileCompletion?.(lines, cursorLine, cursorCol) ?? true;
-		},
-	};
+export function createInlineSkillsProvider(
+	current: AutocompleteProvider,
+): AutocompleteProvider {
+	return {
+		getSuggestions: (lines, cursorLine, cursorCol, options) =>
+			skillSuggestions(
+				current,
+				queryOf(lines, cursorLine, cursorCol, options),
+			),
+		applyCompletion: (...applyArgs) =>
+			applyProviderCompletion(current, applyArgs),
+		shouldTriggerFileCompletion: (lines, cursorLine, cursorCol) =>
+			shouldTriggerSkillCompletion(
+				current,
+				cursorQueryOf(lines, cursorLine, cursorCol),
+			),
+	}
 }

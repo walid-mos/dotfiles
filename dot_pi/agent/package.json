@@ -1,0 +1,29 @@
+{
+	"name": "pi-agent",
+	"private": true,
+	"type": "module",
+	"description": "Tooling manifest for the Pi agent extensions: oxlint + oxfmt driven by @nextnode-solutions/standards",
+	"scripts": {
+		"lint": "oxlint",
+		"lint:types": "oxlint --type-aware",
+		"type-check": "tsc --noEmit",
+		"format": "oxfmt --write .",
+		"format:check": "oxfmt --check .",
+		"test": "node --test tests/"
+	},
+	"devDependencies": {
+		"@earendil-works/pi-ai": "0.85.1",
+		"@earendil-works/pi-coding-agent": "0.85.1",
+		"@earendil-works/pi-tui": "0.85.1",
+		"@nextnode-solutions/standards": "^1.24.0",
+		"@types/node": "^24.13.3",
+		"oxfmt": "^0.67.0",
+		"oxlint": "^1.82.0",
+		"oxlint-tsgolint": "^7.0.2001",
+		"typebox": "1.3.7",
+		"typescript": "^5.9.3"
+	},
+	"engines": {
+		"node": ">=24.0.0"
+	}
+}

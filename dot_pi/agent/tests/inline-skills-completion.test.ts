@@ -1,69 +1,74 @@
-import assert from "node:assert/strict";
-import { test } from "node:test";
-import {
-	applyInlineSkillCompletion,
-	type AppliedCompletion,
-	type CompletionItem,
-} from "../extensions/inline-skills/apply.ts";
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
 
-function replacePrefix(
-	lines: string[],
-	cursorLine: number,
-	cursorCol: number,
-	item: CompletionItem,
-	prefix: string,
-): AppliedCompletion {
-	const currentLine = lines[cursorLine] ?? "";
-	const before = currentLine.slice(0, cursorCol - prefix.length);
-	const after = currentLine.slice(cursorCol);
-	const newLine = before + item.value + after;
-	const nextLines = [...lines];
-	nextLines[cursorLine] = newLine;
+import { applyInlineSkillCompletion } from '../extensions/inline-skills/apply.ts'
+
+import type {
+	AppliedCompletion,
+	CompletionContext,
+} from '../extensions/inline-skills/apply.ts'
+
+type CompletionSource = CompletionContext
+
+function replacePrefix(source: CompletionSource): AppliedCompletion {
+	const currentLine = source.lines[source.cursorLine] ?? ''
+	const before = currentLine.slice(0, source.cursorCol - source.prefix.length)
+	const after = currentLine.slice(source.cursorCol)
+	const nextLines = [...source.lines]
+	nextLines[source.cursorLine] = `${before}${source.completion.value}${after}`
 	return {
 		lines: nextLines,
-		cursorLine,
-		cursorCol: before.length + item.value.length,
-	};
+		cursorLine: source.cursorLine,
+		cursorCol: before.length + source.completion.value.length,
+	}
 }
 
-test("shell bang completion delegates without inheriting skill slash prefix", () => {
-	let delegated = false;
+void test('shell bang completion delegates without inheriting skill slash prefix', () => {
+	let isDelegated = false
 	const applied = applyInlineSkillCompletion(
-		(...args) => {
-			delegated = true;
-			return replacePrefix(...args);
+		context => {
+			isDelegated = true
+			return replacePrefix(context)
 		},
-		["!pwd"],
-		0,
-		4,
-		{ value: "pwd" },
-		"pwd",
-	);
-	assert.equal(delegated, true);
-	assert.deepEqual(applied.lines, ["!pwd"]);
-	assert.equal(applied.cursorCol, 4);
-});
+		{
+			lines: ['!pwd'],
+			cursorLine: 0,
+			cursorCol: 4,
+			completion: { value: 'pwd', label: 'pwd' },
+			prefix: 'pwd',
+		},
+	)
+	assert.equal(isDelegated, true)
+	// actual side is spread into a fresh literal so tsgolint's
+	// no-unnecessary-condition sees no static predicate worth dropping
+	assert.deepEqual(
+		{ ...applied },
+		{
+			lines: ['!pwd'],
+			cursorLine: 0,
+			cursorCol: 4,
+		},
+	)
+})
 
-test("skill token still inserts leading slash", () => {
-	const applied = applyInlineSkillCompletion(
-		replacePrefix,
-		["audit /skill:sw"],
-		0,
-		15,
-		{ value: "skill:swarm" },
-		"/skill:sw",
-	);
-	assert.equal(applied.lines[0], "audit /skill:swarm ");
-});
+void test('skill token still inserts leading slash', () => {
+	const applied = applyInlineSkillCompletion(replacePrefix, {
+		lines: ['audit /skill:sw'],
+		cursorLine: 0,
+		cursorCol: 15,
+		completion: { value: 'skill:swarm', label: 'swarm' },
+		prefix: '/skill:sw',
+	})
+	assert.equal(applied.lines[0], 'audit /skill:swarm ')
+})
 
-test("skill token mid-line keeps surrounding text intact", () => {
-	const applied = applyInlineSkillCompletion(
-		replacePrefix,
-		["fix the bug /skill:re"],
-		0,
-		21,
-		{ value: "skill:review" },
-		"/skill:re",
-	);
-	assert.equal(applied.lines[0], "fix the bug /skill:review ");
-});
+void test('skill token mid-line keeps surrounding text intact', () => {
+	const applied = applyInlineSkillCompletion(replacePrefix, {
+		lines: ['fix the bug /skill:re'],
+		cursorLine: 0,
+		cursorCol: 21,
+		completion: { value: 'skill:review', label: 'review' },
+		prefix: '/skill:re',
+	})
+	assert.equal(applied.lines[0], 'fix the bug /skill:review ')
+})
