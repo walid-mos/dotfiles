@@ -2,6 +2,12 @@
 
 DOTFILES_REPO="walid-mos/dotfiles"
 
+# Spell-check keys macOS 14+ stores per input source in HIToolbox, where
+# they override the global domain - mirrored by disable_input_source_spellcheck.
+SPELL_CHECK_KEYS=(NSAutomaticSpellingCorrectionEnabled)
+PLIST_BUDDY="/usr/libexec/PlistBuddy"
+HITOOLBOX_PLIST="${HITOOLBOX_PLIST:-$HOME/Library/Preferences/com.apple.HIToolbox.plist}"
+
 apply_dotfiles() {
     if [ ! -d "$HOME/.local/share/chezmoi/.git" ]; then
         act "initialize dotfiles from $DOTFILES_REPO" chezmoi init "$DOTFILES_REPO"
@@ -209,10 +215,49 @@ disable_spotlight_hotkey() {
         -dict-add "$1" "<dict><key>enabled</key><false/></dict>"
 }
 
+# write_input_source_key <array> <index> <key> <value> - upsert one boolean
+# in an input-source dict. Add fails when the key already exists.
+write_input_source_key() {
+    local target=":$1:$2:$3"
+    "$PLIST_BUDDY" -c "Add $target bool $4" "$HITOOLBOX_PLIST" 2>/dev/null \
+        || "$PLIST_BUDDY" -c "Set $target $4" "$HITOOLBOX_PLIST" 2>/dev/null \
+        || run "could not write $target - set it in System Settings > Keyboard"
+}
+
+# disable_source_spellcheck <array> - turn the spell-check keys off in every
+# entry of one HIToolbox input-source array.
+disable_source_spellcheck() {
+    local array_name="$1" entry_index key
+    entry_count=$("$PLIST_BUDDY" -c "Print :$array_name" "$HITOOLBOX_PLIST" 2>/dev/null \
+        | grep -c 'InputSourceKind') || return 0
+    for ((entry_index = 0; entry_index < entry_count; entry_index++)); do
+        for key in "${SPELL_CHECK_KEYS[@]}"; do
+            write_input_source_key "$array_name" "$entry_index" "$key" false
+        done
+    done
+}
+
+# disable_input_source_spellcheck - since macOS Sonoma the "Correct spelling
+# automatically" toggle lives per keyboard layout in com.apple.HIToolbox and
+# overrides the global domain, so the -g default alone may not stick. Mirror
+# the "off" state into every enabled and selected input source.
+disable_input_source_spellcheck() {
+    if [ ! -f "$HITOOLBOX_PLIST" ]; then
+        run "HIToolbox plist not created yet - skipping per-input-source keys"
+        return 0
+    fi
+    local array_name
+    for array_name in AppleEnabledInputSources AppleSelectedInputSources; do
+        disable_source_spellcheck "$array_name"
+    done
+}
+
 configure_macos_defaults() {
-    act "disable automatic spelling correction" sh -c '
+    act "disable automatic spelling correction (global fallback domain)" sh -c '
         defaults write -g NSAutomaticSpellingCorrectionEnabled -bool false
         defaults write -g NSContinuousSpellCheckingEnabled -bool false'
+    act "mirror spelling correction off into each input source" disable_input_source_spellcheck
+    act "reload the preferences daemon" killall cfprefsd
     act "disable Spotlight hotkeys (cmd+space, cmd+alt+space)" sh -c '
         defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add 64 "<dict><key>enabled</key><false/></dict>"
         defaults write com.apple.symbolichotkeys AppleSymbolicHotKeys -dict-add 65 "<dict><key>enabled</key><false/></dict>"'
@@ -220,5 +265,5 @@ configure_macos_defaults() {
     if [ -x "$activate_settings" ]; then
         act "reload system settings" "$activate_settings" -u
     fi
-    ok "macOS defaults applied (relaunch apps to see changes)"
+    ok "macOS defaults applied (relaunch apps or log out to see changes)"
 }
