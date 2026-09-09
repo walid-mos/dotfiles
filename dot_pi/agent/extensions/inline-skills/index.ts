@@ -1,5 +1,7 @@
 import { CustomEditor } from '@earendil-works/pi-coding-agent'
 
+import { registerEditorDecorator } from '../ui/editor-decorator.ts'
+
 import { installInlineSkillTrigger } from './editor-trigger.ts'
 import {
 	adoptLoadedSkills,
@@ -42,15 +44,15 @@ export default function (pi: ExtensionAPI): void {
 		// Autocomplete: handles /skill: tokens mid-line (delegates otherwise).
 		ctx.ui.addAutocompleteProvider(createInlineSkillsProvider)
 
-		// Editor wrapper: auto-opens the popup on mid-line `/skill:` typing.
-		// The interactive mode copies paddingX / autocompleteMaxVisible /
-		// borderColor / callbacks from the default editor (see
-		// setCustomEditorComponent), so empty options are fine.
-		ctx.ui.setEditorComponent((tui, theme, keybindings) => {
-			const editor = new CustomEditor(tui, theme, keybindings, {})
-			installInlineSkillTrigger(editor)
-			return editor
-		})
+		// Editor decorator: auto-opens the popup on mid-line `/skill:` typing.
+		// Goes through the shared decorator composition so other editor
+		// decorators (e.g. prompt-attachments) keep working alongside it.
+		registerEditorDecorator(
+			pi,
+			(tui, theme, keybindings) =>
+				new CustomEditor(tui, theme, keybindings, {}),
+			editor => installInlineSkillTrigger(editor),
+		)
 	})
 
 	// Adopt pi's exact loaded skill list once an agent run starts

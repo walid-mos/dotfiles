@@ -1,10 +1,20 @@
 /**
- * Domain model for the ask_user_question tool.
- *
- * Two layers, mapped at the boundary by normalizeQuestions():
- * - Raw*: what the LLM sends, validated by schema.ts (infrastructure).
- * - Question/Answer/AskResult: the normalized domain the UI works with.
+ * Domain types for the ask_user_question tool, derived from schema.ts so the
+ * tool input, the UI state and the replayed session details share one rule
+ * set per field. Semantic rules beyond shape (trimming, `Q{i}` fallbacks,
+ * uniqueness) live in questionnaire-normalization.ts.
  */
+
+import type { Static } from 'typebox'
+import type {
+	AnswerSchema,
+	AskResultSchema,
+	ChatRequestSchema,
+	OptionSchema,
+	QuestionSchema,
+	SingleAnswerSchema,
+	MultiAnswerSchema,
+} from './schema.ts'
 
 // Domain vocabulary shared by the UI modules (state, render, component).
 export const UI_TEXT = {
@@ -16,67 +26,26 @@ export const UI_TEXT = {
 /** Max characters of a typed answer shown on the static "Type something." row. */
 export const ANSWER_PREVIEW_MAX_LENGTH = 50
 
-export interface QuestionOption {
-	value: string
-	label: string
-	/** Present-but-undefined mirrors the raw payload through normalization. */
-	description?: string | undefined
-	/** Present-but-undefined mirrors the raw payload through normalization. */
-	recommended?: boolean | undefined
-}
+/** An option as stored: a stable value plus its display label. */
+export type QuestionOption = Static<typeof OptionSchema>
 
 /** An option row as rendered: a real option, or the synthetic "Type something." row. */
 export type RenderOption = QuestionOption & { isOther?: boolean }
 
-export interface Question {
-	id: string
-	label: string
-	prompt: string
-	options: QuestionOption[]
-	allowOther: boolean
-	multiSelect: boolean
-}
+export type Question = Static<typeof QuestionSchema>
 
-export interface AnswerBase {
-	id: string
-	label: string
-	value: string
-	wasCustom: boolean
-}
+export type SingleAnswer = Static<typeof SingleAnswerSchema>
 
-/** Answer to a single-select question; `index` is the 1-based option number for non-custom picks. */
-export interface SingleAnswer extends AnswerBase {
-	kind: 'single'
-	index?: number
-}
+export type MultiAnswer = Static<typeof MultiAnswerSchema>
 
-/** Answer to a multiSelect question: every picked label, including typed text when present. */
-export interface MultiAnswer extends AnswerBase {
-	kind: 'multi'
-	labels: string[]
-	/** Stable values of the selected options, in display order. */
-	optionValues: string[]
-	/** The committed free-text selection, when present. */
-	customText?: string
-}
-
-export type Answer = SingleAnswer | MultiAnswer
+export type Answer = Static<typeof AnswerSchema>
 
 /** Serializable questionnaire state used when returning from a chat pause. */
-export interface QuestionnaireInitialState {
-	answers: Answer[]
-	drafts?: Record<string, string>
-}
+export type QuestionnaireInitialState = Static<
+	typeof ChatRequestSchema
+>['initialState']
 
 /** The current question and state needed to resume after chatting with the agent. */
-export interface QuestionnaireChatRequest {
-	question: Question
-	initialState: QuestionnaireInitialState
-}
+export type QuestionnaireChatRequest = Static<typeof ChatRequestSchema>
 
-export interface AskResult {
-	questions: Question[]
-	answers: Answer[]
-	cancelled: boolean
-	chat?: QuestionnaireChatRequest
-}
+export type AskResult = Static<typeof AskResultSchema>

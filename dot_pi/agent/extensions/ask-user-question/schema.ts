@@ -1,8 +1,15 @@
-/** TypeBox schema for the ask_user_question tool parameters. */
+/**
+ * TypeBox schemas for every shape crossing the ask_user_question boundary:
+ * tool input from the LLM and the domain persisted into the session file.
+ * UI types derive from these (questionnaire-model.ts), so each field has one
+ * declared rule set that both boundaries share.
+ */
 
 import { Type } from 'typebox'
 
-const QuestionOptionSchema = Type.Object({
+// ── LLM tool input (validated by pi before the tool runs) ──────────────
+
+const RawQuestionOptionSchema = Type.Object({
 	value: Type.Optional(
 		Type.String({
 			description:
@@ -25,9 +32,10 @@ const QuestionOptionSchema = Type.Object({
 	),
 })
 
-const QuestionSchema = Type.Object({
+const RawQuestionSchema = Type.Object({
 	id: Type.String({
-		description: 'Unique identifier for this question',
+		description:
+			'Stable unique key reused as the answer key; never omit it',
 		minLength: 1,
 	}),
 	label: Type.Optional(
@@ -42,7 +50,7 @@ const QuestionSchema = Type.Object({
 		minLength: 1,
 	}),
 	options: Type.Optional(
-		Type.Array(QuestionOptionSchema, {
+		Type.Array(RawQuestionOptionSchema, {
 			description:
 				'Available options to choose from (2-5 recommended). Omit for open-ended questions: shows only a free-text editor.',
 		}),
@@ -61,10 +69,79 @@ const QuestionSchema = Type.Object({
 })
 
 export const AskParams = Type.Object({
-	questions: Type.Array(QuestionSchema, {
+	questions: Type.Array(RawQuestionSchema, {
 		description:
 			"Questions to ask the user. Ask only what's needed: 2-3 is usually enough, 5 max.",
 		minItems: 1,
 		maxItems: 5,
 	}),
+})
+
+// ── Canonical domain (UI state and session-file replay) ───────────────
+
+export const OptionSchema = Type.Object({
+	value: Type.String({ description: 'Stable value stored for this option' }),
+	label: Type.String({ description: 'Displayed option text' }),
+	description: Type.Optional(Type.Union([Type.String(), Type.Undefined()])),
+	recommended: Type.Optional(Type.Union([Type.Boolean(), Type.Undefined()])),
+})
+
+export const QuestionSchema = Type.Object({
+	id: Type.String(),
+	label: Type.String(),
+	prompt: Type.String(),
+	options: Type.Array(OptionSchema, { default: [] }),
+	allowOther: Type.Boolean({ default: true }),
+	multiSelect: Type.Boolean({ default: false }),
+})
+
+export const SingleAnswerSchema = Type.Object({
+	kind: Type.Literal('single'),
+	id: Type.String(),
+	label: Type.String(),
+	value: Type.String(),
+	wasCustom: Type.Boolean(),
+	index: Type.Optional(
+		Type.Union([
+			Type.Number({
+				description: '1-based option number for non-custom picks',
+			}),
+			Type.Undefined(),
+		]),
+	),
+})
+
+export const MultiAnswerSchema = Type.Object({
+	kind: Type.Literal('multi'),
+	id: Type.String(),
+	label: Type.String(),
+	value: Type.String(),
+	wasCustom: Type.Boolean(),
+	labels: Type.Array(Type.String()),
+	optionValues: Type.Array(Type.String()),
+	customText: Type.Optional(
+		Type.Union([
+			Type.String({
+				description: 'Committed free-text selection, when present',
+			}),
+			Type.Undefined(),
+		]),
+	),
+})
+
+export const AnswerSchema = Type.Union([SingleAnswerSchema, MultiAnswerSchema])
+
+export const ChatRequestSchema = Type.Object({
+	question: QuestionSchema,
+	initialState: Type.Object({
+		answers: Type.Array(AnswerSchema),
+		drafts: Type.Optional(Type.Record(Type.String(), Type.String())),
+	}),
+})
+
+export const AskResultSchema = Type.Object({
+	questions: Type.Array(QuestionSchema),
+	answers: Type.Array(AnswerSchema),
+	cancelled: Type.Boolean({ default: false }),
+	chat: Type.Optional(ChatRequestSchema),
 })

@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { normalizeQuestions } from '../extensions/ask-user-question/questionnaire-normalization.ts'
+import {
+	normalizeQuestions,
+	parseAskResult,
+} from '../extensions/ask-user-question/questionnaire-normalization.ts'
 
 void test('normalization trims text and applies questionnaire defaults', () => {
 	assert.deepEqual(
@@ -77,5 +80,41 @@ void test('blank semantic fields are rejected after trimming', () => {
 	assert.throws(
 		() => normalizeQuestions([{ id: 'scope', prompt: ' ' }]),
 		/Question "scope" prompt must not be blank/,
+	)
+})
+
+void test('parseAskResult applies schema rules to replayed details', () => {
+	assert.deepEqual(
+		parseAskResult({
+			questions: [
+				{ id: 'scope', label: 'Scope', prompt: 'Choose a scope' },
+			],
+			answers: [],
+		}),
+		{
+			questions: [
+				{
+					id: 'scope',
+					label: 'Scope',
+					prompt: 'Choose a scope',
+					options: [],
+					allowOther: true,
+					multiSelect: false,
+				},
+			],
+			answers: [],
+			cancelled: false,
+		},
+	)
+})
+
+void test('parseAskResult refuses unusable details payloads', () => {
+	assert.equal(parseAskResult(undefined), undefined)
+	assert.equal(parseAskResult('cancelled'), undefined)
+	assert.equal(parseAskResult({ answers: [] }), undefined)
+	assert.equal(parseAskResult({ questions: [] }), undefined)
+	assert.equal(
+		parseAskResult({ questions: [{ id: 'x' }], answers: [] }),
+		undefined,
 	)
 })
