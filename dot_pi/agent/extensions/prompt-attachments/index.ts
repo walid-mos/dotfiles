@@ -12,10 +12,20 @@
  *
  * Modules:
  *   image-paths.ts       - file-system capture side: mime sniffing, capture read
- *   path-scan.ts         - path parsing: token scan, spaced-path merging
+ *   path-scan.ts         - token scan and spaced-path merging
+ *   path-word.ts         - shell words and safe local-path boundaries
+ *   png-format.ts        - shared PNG constants and the RGBA image type
+ *   png-decode.ts        - bounded inflation and RGBA row traversal
+ *   png-scanline.ts      - PNG scanline filter reversal
+ *   png-colors.ts        - sample spreading: unfiltered rows to RGBA rows
+ *   png-encode.ts        - PNG writer: filter-0 RGBA re-encode
+ *   crc32.ts             - CRC-32 for chunk framing (used by png-encode)
+ *   image-preview.ts     - preview compute: streamed box-average downscale
+ *   preview-worker.ts    - worker-thread entry: job in, preview out
+ *   preview-service.ts   - async orchestration: worker queue, warm cache
  *   attachment-store.ts  - capture state; aliases live while the text keeps them
  *   attachment-editor.ts - pi editor hooks (ingestion, alias deletion, styling)
- *   attachment-strip.ts  - thumbnail strip renderer
+ *   attachment-strip.ts  - thumbnail strip renderer (warm previews + placeholders)
  */
 import { CustomEditor } from '@earendil-works/pi-coding-agent'
 
@@ -27,7 +37,8 @@ import {
 
 import { attachPromptImageEditor } from './attachment-editor.ts'
 import { AttachmentStore } from './attachment-store.ts'
-import { renderAttachmentStrip } from './attachment-strip.ts'
+import { renderAttachmentStrip, TILE_PREVIEW_BOX } from './attachment-strip.ts'
+import { PreviewService } from './preview-service.ts'
 
 import type {
 	ExtensionAPI,
@@ -47,34 +58,28 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 	let styleAlias: AliasStylist = identityAlias
 	let cwd = process.cwd()
 	const store = new AttachmentStore(() => repaintStrip())
+	// Previews compute off the UI thread: the strip renders warm tiles only,
+	// and every settled computation repaints the strip it was asked for.
+	// A fresh service per session keeps the worker a session-scoped resource.
+	let previews: PreviewService = new PreviewService(
+		() => repaintStrip(),
+		TILE_PREVIEW_BOX,
+	)
 
 	pi.on('session_start', (_event, context) => {
 		cwd = context.cwd
 		styleAlias = accentAlias(context)
-		repaintStrip = mountStripWidget(context.ui, store)
+		previews = new PreviewService(() => repaintStrip(), TILE_PREVIEW_BOX)
+		repaintStrip = mountStripWidget(context.ui, store, previews)
 		repaintStrip()
-		registerEditorDecorator(
-			pi,
-			defaultPromptEditor,
-			(base, keybindings) => {
-				attachPromptImageEditor(
-					base,
-					{
-						store,
-						cwd,
-						styleAlias,
-					},
-					keybindings,
-				)
-				return base
-			},
-		)
+		registerPromptEditorDecorators(pi, store, cwd, styleAlias)
 	})
 
-	pi.on('session_shutdown', (_event, context) => {
+	pi.on('session_shutdown', async (_event, context) => {
 		setOrderedAboveEditorWidget(context.ui, WIDGET_ID, undefined)
 		repaintStrip = NO_REPAINT
 		styleAlias = identityAlias
+		await previews.dispose()
 	})
 
 	// Attach every alias the submitted prompt still references, then consume
@@ -83,6 +88,7 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 		if (event.source !== 'interactive') return { action: 'continue' }
 		const images = store.imageAttachments(event.text)
 		store.clearCaptures()
+		previews.reset()
 		if (!images.length) return { action: 'continue' }
 		return {
 			action: 'transform',
@@ -91,11 +97,40 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 		}
 	})
 
+	registerStripScrollShortcuts(pi, store)
+}
+
+/** Ctrl+Shift+Left/Right scrolls the strip preview window. */
+function registerStripScrollShortcuts(
+	pi: ExtensionAPI,
+	store: AttachmentStore,
+): void {
 	pi.registerShortcut('ctrl+shift+left', scrollShortcut(store, -1, 'left'))
 	pi.registerShortcut('ctrl+shift+right', scrollShortcut(store, 1, 'right'))
 }
 
 const identityAlias = (alias: string): string => alias
+
+/** Decoratory wiring sees the session-start facts it was registered with. */
+function registerPromptEditorDecorators(
+	pi: ExtensionAPI,
+	store: AttachmentStore,
+	cwd: string,
+	styleAlias: AliasStylist,
+): void {
+	registerEditorDecorator(pi, defaultPromptEditor, (base, keybindings) => {
+		attachPromptImageEditor(
+			base,
+			{
+				store,
+				cwd,
+				styleAlias,
+			},
+			keybindings,
+		)
+		return base
+	})
+}
 
 function accentAlias(context: ExtensionContext): AliasStylist {
 	return alias => context.ui.theme.fg('accent', context.ui.theme.bold(alias))
@@ -113,6 +148,7 @@ function defaultPromptEditor(
 function mountStripWidget(
 	ui: ExtensionUIContext,
 	store: AttachmentStore,
+	previews: PreviewService,
 ): () => void {
 	const repaint = (): void => {
 		setOrderedAboveEditorWidget(
@@ -122,12 +158,13 @@ function mountStripWidget(
 				? {
 						priority: ABOVE_EDITOR_PRIORITY.attachments,
 						render: (width, theme) =>
-							renderAttachmentStrip(
-								store.items,
-								store.scrollOffset,
+							renderAttachmentStrip({
+								captures: store.items,
+								scrollOffset: store.scrollOffset,
 								width,
 								theme,
-							),
+								previews,
+							}),
 					}
 				: undefined,
 		)
