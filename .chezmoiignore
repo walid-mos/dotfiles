@@ -6,6 +6,7 @@
 .pi/agent/bin
 .pi/agent/npm
 .pi/web-search-cache
+.pi/agent/extensions/herdr-agent-state.ts
 
 # chezmoi internal state
 .config/chezmoi
@@ -40,6 +41,7 @@ bootstrap/
 # macOS home: volatile state, caches and user data - never version
 .DS_Store
 .CFUserTextEncoding
+.config/homebrew
 .viminfo
 .zsh_history
 .zsh_sessions
