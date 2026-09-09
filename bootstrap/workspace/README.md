@@ -10,14 +10,14 @@ Runtime dependencies on the Studio: Node >=24, Git, Apple Container, Herdr, Pi, 
 
 The server bootstrap profile installs these dependencies, builds/reuses the development image, installs the official Pi integration and runs `scripts/install-host.py --admin sudo`. The installer generates `~/.local/bin/wt` with absolute executable/source paths.
 
-For development of this manager, `npm test` uses Node's native TypeScript support. `npm run check` needs TypeScript and Node type definitions; the Studio currently reuses the existing Pi tooling installation through a local ignored `node_modules` symlink. These are not runtime dependencies.
+Run `npm ci --ignore-scripts` to install the manager's locked dependencies. Its only runtime package, `jsonc-parser`, reads native Wrangler JSONC without evaluating project code. `npm test` uses Node's native TypeScript support; TypeScript and Node type definitions are development dependencies for `npm run check`. Bootstrap installs these dependencies; the manager no longer borrows Pi's `node_modules`.
 
 ## Daily commands
 
-From a repository containing `.workspace.json`, inside Herdr:
+From a supported project repository, inside Herdr—no `.workspace.json` required:
 
 ```sh
-wt trust                     # Explicit approval after reviewing the recipe
+wt trust                     # Approve the resolved environment after reviewing native dev configuration
 wt open my-feature           # Create/reuse compute and its Herdr workspace
 wt open my-feature --no-focus
 wt status
@@ -34,23 +34,25 @@ The existing zsh `wt` function delegates to the CLI. `ws`, `wtn` and `wts` are a
 
 Opening a workspace with an idle restored terminal reattaches that terminal to Linux. The manager checks Herdr's foreground-process information first and refuses to type into another running command. Pi resumes its official Herdr session reference when available; a new pane uses Pi's latest session for that worktree, or starts a new one if none exists.
 
-## fitApp reference environment
+## Simple project defaults
 
-`/Users/walid-mos/Development/nextnode/fitApp/.workspace.json` defines:
+The configuration-free path supports the current stack: Node 24, pnpm 11, and one Astro frontend using its default port. It reads the root package and immediate `apps/*` and `packages/*` manifests; standalone Astro projects are supported too. Different toolchains/layouts are not guessed. No profile registry or plugin framework is involved.
 
-- `studio-dev:node24-pnpm11`, Linux ARM64, non-root development user matching the Studio UID.
-- Frozen-lockfile Linux dependency installation.
-- Explicit **local** D1 migrations, never `--remote`.
-- Wrangler API on 8787 and Astro frontend on 4321, inside each feature's own namespace.
-- Preserved Cloudflare service binding from frontend to API.
-- A workspace-specific `SITE_URL` for authentication.
-- Wrangler state linked into workspace-owned persistent storage.
-- Chokidar polling for reliable **host-originated** file edits across the Apple mount. Native host-edit notifications did not produce HMR in the live test; polling did.
-- Astro's foreground `--ignore-lock` mode, because the workspace manager owns process lifetime. A persisted Astro PID cache can mistake a reused Linux PID after container recreation for a live prior server.
+`src/default-recipe.ts` resolves the environment from existing files:
 
-The project recipe prefers the feature's `.workspace.json` when present, otherwise the main checkout's recipe. It never merges multiple recipe formats. The exact parsed recipe must be approved for that repository; edits to execution configuration require renewed approval.
+- `package.json` declares the toolchain and normal `pnpm dev` entry point.
+- Dependencies install in Linux with the frozen pnpm lockfile.
+- Native `wrangler.dev.jsonc` files identify persistent `.wrangler` directories and D1 bindings/migration folders. Migrations explicitly use **local** D1, never `--remote`.
+- Shared defaults provide the development image, CPU/RAM limits and host-edit polling.
+- The runtime sets a workspace-local `TURBO_CACHE_DIR`; Turbo must not write caches into the unmounted main checkout through shared Git metadata.
 
-`assets/fitapp-dev.sh` is the initial project-specific starter included in the development image. Additional projects can provide their own trusted start command. This is not a universal service orchestrator.
+The resolved environment is approved per repository with `wt trust`. Changes to package commands, Turbo/workspace configuration or Wrangler settings invalidate approval. Each checkout is resolved and checked before starting compute; native config is not silently inherited from main. Commit native configuration changes before opening new branches, or bring them into existing features explicitly. Unmanaged pnpm development projects are blocked by `wt locate`, so Pi cannot fall back to macOS merely because `.workspace.json` is absent.
+
+Existing explicit `.workspace.json` recipes remain readable for compatibility (feature first, then main), but are not required by the normal workflow and are never merged with inferred defaults. The shared image contains tooling and execution helpers, not application startup scripts.
+
+### fitApp verification
+
+fitApp uses its ordinary `pnpm dev`; its package tasks and Turbo environment forwarding preserve the frontend/API service binding, the feature-specific authentication origin and Astro's foreground lock workaround. Its README documents those native settings. A disposable copy was opened without `.workspace.json` and verified for private HTTPS, frontend-to-API signup, host-edit HMR/WebSockets, and successful signin after full container recreation with the same local D1 data. The user's active feature was not restarted.
 
 ## What is shared
 

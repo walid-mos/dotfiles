@@ -3,6 +3,7 @@ export const APPLICATION_SOCKET = 'application.sock'
 export const GUEST_APPLICATION_SOCKET = '/tmp/studio-workspace-http.sock'
 export const DNS_SUFFIX = 'herdr.test'
 export const CONFIG_FILE = '.workspace.json'
+export const DEVELOPMENT_IMAGE = 'studio-dev:node24-pnpm11'
 export const OWNER_LABEL = 'dev.herdr.workspace'
 export const REVISION_LABEL = 'dev.herdr.revision'
 export const RUNTIME_TIMEOUT_MS = 120_000
@@ -23,6 +24,7 @@ export interface ProjectRecipe {
   start: string
   port: number
   env: Record<string, string>
+  sourceRevision?: string
 }
 
 export interface Project {

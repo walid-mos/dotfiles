@@ -5,6 +5,7 @@ import { checked, run } from './process.ts'
 import { featureHostname, parseWorktrees, slug, workspaceIdentity } from './identity.ts'
 import { loadWorkspace, saveWorkspace, workspaceData, workspaceFiles, hasCode } from './store.ts'
 import { recipeRevision } from './recipe.ts'
+import { excludeGeneratedPaths } from './exclusions.ts'
 import type { Project, ProjectRecipe, Workspace } from './model.ts'
 
 export async function obtainWorktree(project: Project, branch: string, recipe: ProjectRecipe): Promise<Workspace> {
@@ -39,6 +40,7 @@ export async function prepareStorage(workspace: Workspace): Promise<void> {
   await mkdir(workspaceData(workspace.id), { recursive: true, mode: 0o700 })
   await mkdir(workspaceFiles(workspace.id), { recursive: true, mode: 0o700 })
   for (const path of workspace.recipe.persistPaths) await linkPersistentPath(workspace, path)
+  await excludeGeneratedPaths(workspace)
 }
 
 async function linkPersistentPath(workspace: Workspace, relativePath: string): Promise<void> {

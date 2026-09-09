@@ -7,6 +7,8 @@ import { workspaceData, workspaceFiles } from './store.ts'
 import { APPLICATION_SOCKET, GUEST_APPLICATION_SOCKET, OWNER_LABEL, REVISION_LABEL } from './model.ts'
 import type { RuntimeInspection, Workspace } from './model.ts'
 
+const RUNTIME_SCHEMA_REVISION = 2
+
 export async function inspectContainer(name: string): Promise<RuntimeInspection | undefined> {
   const inventory = JSON.parse(await checked('container', ['ls', '--all', '--format', 'json'])) as { id: string }[]
   if (!inventory.some(entry => entry.id === name)) return undefined
@@ -20,7 +22,7 @@ export function requireOwner(inspection: RuntimeInspection, workspace: Workspace
 export async function runtimeRevision(workspace: Workspace): Promise<string> {
   const images = JSON.parse(await checked('container', ['image', 'inspect', workspace.recipe.image])) as { id: string }[]
   if (!images[0]?.id) throw new Error(`Image is not installed: ${workspace.recipe.image}. Build the development image first.`)
-  return digest(`${recipeRevision(workspace.recipe)}\0${images[0].id}`)
+  return digest(`${RUNTIME_SCHEMA_REVISION}\0${recipeRevision(workspace.recipe)}\0${images[0].id}`)
 }
 
 export async function ensureRuntime(workspace: Workspace): Promise<Workspace> {
@@ -68,6 +70,7 @@ export function containerArguments(workspace: Workspace, identity: Record<string
     WT_URL: `https://${workspace.hostname}`, TMPDIR: join(files, 'tmp'),
     WT_APPLICATION_SOCKET: GUEST_APPLICATION_SOCKET, WT_APPLICATION_PORT: String(workspace.recipe.port),
     __VITE_ADDITIONAL_SERVER_ALLOWED_HOSTS: workspace.hostname,
+    TURBO_CACHE_DIR: join(workspace.path, '.turbo/cache'),
   }
   return [
     'run', '--detach', '--name', workspace.container, '--network', workspace.container,
