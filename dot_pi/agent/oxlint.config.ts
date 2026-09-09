@@ -5,9 +5,16 @@ export default defineConfig({
 	extends: [standards],
 	// Machine state under ~/.pi/agent: never scan (sessions are jsonl anyway,
 	// but skipping them keeps scans fast and private data out of the report).
+	// backups/ holds point-in-time config snapshots that supersede nothing.
 	// NOTE: setting ignorePatterns overrides oxlint's default node_modules
 	// ignore, so it is listed explicitly.
-	ignorePatterns: ['node_modules/**', 'sessions/**', 'npm/**', 'bin/**'],
+	ignorePatterns: [
+		'node_modules/**',
+		'sessions/**',
+		'npm/**',
+		'bin/**',
+		'backups/**',
+	],
 	overrides: [
 		{
 			// Pi extension entry points are default-exported by design, same
@@ -16,6 +23,14 @@ export default defineConfig({
 			files: ['extensions/**'],
 			rules: {
 				'import/no-default-export': 'off',
+			},
+		},
+		{
+			// Test assertions match raw ANSI escape sequences; widths and
+			// offsets in render expectations are test fixtures, not logic.
+			files: ['tests/**'],
+			rules: {
+				'eslint/no-control-regex': 'off',
 			},
 		},
 	],

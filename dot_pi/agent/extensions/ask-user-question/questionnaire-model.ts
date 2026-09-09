@@ -2,11 +2,11 @@
  * Domain model for the ask_user_question tool.
  *
  * Two layers, mapped at the boundary by normalizeQuestions():
- * - AskParamsInput: what the LLM sends, validated by schema.ts (infrastructure).
+ * - Raw*: what the LLM sends, validated by schema.ts (infrastructure).
  * - Question/Answer/AskResult: the normalized domain the UI works with.
  */
 
-// Domain vocabulary shared by the UI modules (snapshot, state, render, component).
+// Domain vocabulary shared by the UI modules (state, render, component).
 export const UI_TEXT = {
 	otherOptionLabel: 'Type something.',
 	otherPlaceholder: 'Type something...',
@@ -17,9 +17,12 @@ export const UI_TEXT = {
 export const ANSWER_PREVIEW_MAX_LENGTH = 50
 
 export interface QuestionOption {
+	value: string
 	label: string
-	description?: string
-	recommended?: boolean
+	/** Present-but-undefined mirrors the raw payload through normalization. */
+	description?: string | undefined
+	/** Present-but-undefined mirrors the raw payload through normalization. */
+	recommended?: boolean | undefined
 }
 
 /** An option row as rendered: a real option, or the synthetic "Type something." row. */
@@ -37,6 +40,7 @@ export interface Question {
 export interface AnswerBase {
 	id: string
 	label: string
+	value: string
 	wasCustom: boolean
 }
 
@@ -46,74 +50,33 @@ export interface SingleAnswer extends AnswerBase {
 	index?: number
 }
 
-/** Answer to a multiSelect question: every picked option label, in display
- * order; the committed free-text selection, when present, is the last entry. */
+/** Answer to a multiSelect question: every picked label, including typed text when present. */
 export interface MultiAnswer extends AnswerBase {
 	kind: 'multi'
 	labels: string[]
+	/** Stable values of the selected options, in display order. */
+	optionValues: string[]
 	/** The committed free-text selection, when present. */
 	customText?: string
 }
 
 export type Answer = SingleAnswer | MultiAnswer
 
-/** Serializable questionnaire snapshot captured in serializeSnapshot(). */
-export interface QuestionnaireSnapshot {
+/** Serializable questionnaire state used when returning from a chat pause. */
+export interface QuestionnaireInitialState {
 	answers: Answer[]
 	drafts?: Record<string, string>
 }
 
-/** The current question and snapshot needed to resume after a chat pause. */
+/** The current question and state needed to resume after chatting with the agent. */
 export interface QuestionnaireChatRequest {
 	question: Question
-	snapshot: QuestionnaireSnapshot
+	initialState: QuestionnaireInitialState
 }
 
 export interface AskResult {
+	questions: Question[]
 	answers: Answer[]
 	cancelled: boolean
 	chat?: QuestionnaireChatRequest
-}
-
-// --- Boundary mapping (raw LLM payload -> domain) ---
-
-/** One option as sent by the model. A stray `value` field in the payload is
- * ignored: `label` IS the value of the option. */
-export interface RawQuestionOption {
-	label: string
-	description?: string
-	recommended?: boolean
-}
-
-/** A question as sent by the model, before defaults are applied. */
-export interface RawQuestion {
-	id?: string
-	label?: string
-	prompt: string
-	options?: RawQuestionOption[]
-	multiSelect?: boolean
-	allowOther?: boolean
-}
-
-/** Apply defaults to the raw LLM payload: empty option list, q1/Q labels by
- * position, allowOther on. A `value` field sent by the model anyway is not
- * read: `label` IS the value of the option. */
-export function normalizeQuestions(raw: readonly RawQuestion[]): Question[] {
-	return raw.map((question, index) => ({
-		id: question.id ?? `q${index + 1}`,
-		label: question.label ?? `Q${index + 1}`,
-		prompt: question.prompt,
-		options: (question.options ?? []).map(normalizeOption),
-		allowOther: question.allowOther ?? true,
-		multiSelect: question.multiSelect ?? false,
-	}))
-}
-
-function normalizeOption(raw: RawQuestionOption): QuestionOption {
-	const option: QuestionOption = {
-		label: raw.label,
-	}
-	if (raw.description) option.description = raw.description
-	if (raw.recommended === true) option.recommended = true
-	return option
 }

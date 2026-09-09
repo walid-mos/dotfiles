@@ -2,6 +2,7 @@
 .pi/agent/auth.json
 .pi/agent/sessions
 .pi/agent/models-store.json
+.pi/agent/backups
 .pi/agent/bin
 .pi/agent/npm
 .pi/web-search-cache

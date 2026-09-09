@@ -4,8 +4,9 @@ description: >-
     Language-agnostic coding judgment that MUST be loaded whenever writing,
     modifying, or reviewing code in ANY language. Covers judgment no tool
     can make: abstraction levels, naming by domain, DRY vs AHA, SOLID,
-    purity, error design - plus baseline mechanical caps to enforce even
-    when no linter does.
+    purity, error design, test quality (falsifiable, non-tautological
+    tests) - plus baseline mechanical caps to enforce even when no linter
+    does.
 ---
 
 # Coding Rules - Mandatory, Language-Agnostic
@@ -30,6 +31,7 @@ Sub-files, load on demand:
 
 - [architecture.md](architecture.md) - project-level structure rules (deep vs shallow modules, god objects, typed structures, dispatch tables, invariants & ownership, cross-cutting registries, decay signals). Load when designing or modifying structure across files, not just functions.
 - [ops-discipline.md](ops-discipline.md) - operational discipline: context economy when exploring code, and never using routing/scope rules as an excuse to skip a worthwhile change. Load when exploring an unfamiliar codebase, or when tempted to drop a change as "out of scope".
+- [testing.md](testing.md) - test quality in depth: the falsifiability litmus, tautology patterns and fixes, behavior-over-implementation, fakes vs mocks, determinism, coverage. Load when writing or modifying tests, or when a test smells like a mirror of the code.
 
 ## Assumptions, Simplicity, and Scope
 
@@ -95,3 +97,22 @@ Every piece of knowledge - constant, validation rule, business calculation, type
 - **L** - An implementation honors the contract of what it replaces - no surprise `throw`/`null`/narrowed behavior a caller can't see. If it can't fulfill the interface, it needs a different interface.
 - **I** - Depend on the narrow surface actually used: pass `{ name }`, not the whole `User`.
 - **D** - Depend on abstractions, not details: high-level policy never imports low-level detail (DB/HTTP/FS) directly. See *Deep Modules Over Shallow* in [architecture.md](architecture.md) - this is what makes code testable.
+
+## Test Quality: Every Test Must Be Falsifiable
+
+Tests obey every rule above, but answer to a stricter question: **can a production bug make it fail?** Name the bug a test catches before writing it. No answer means the test is a mirror of the implementation, not a check on it.
+
+**Mirrors (tautological tests) are forbidden** - assertions true by construction:
+- Expected values re-derived from the code under test (`expect(add(a, b)).toBe(a + b)`)
+- Mock echoes: a stub returns X, a pass-through forwards it, the test "verifies" X
+- Asserts too weak to fail meaningfully - they would pass on the broken behavior too
+- Snapshots frozen from current - possibly buggy - output
+
+- **Contract, not implementation:** inputs -> observable outputs/effects at the public seam; never private state or call order. Tests that break only on behavior-preserving refactors are miswritten - rewrite them.
+- **Expected values come from outside the code:** literals, hand computation, reviewed fixtures - never the function under test or a copy of its logic.
+- **Mock only real boundaries** (network, clock, filesystem, randomness); prefer fakes over interactions, and assert interactions only when the call itself is the contract.
+- **One behavior per test, named as the requirement** (`refuses expired claim`, not `testUser`).
+- **Deterministic:** no sleeps, ordering assumptions, unseeded randomness, live network. A flaky test is broken - fix the cause, never retry around it.
+- **Coverage is a measurement, not a goal:** no assert-less or degenerate tests to move the number.
+
+When in doubt a new test can fail, run the mutate-to-kill check: temporarily break the code, watch the test go red, restore. Patterns and worked examples: [testing.md](testing.md)

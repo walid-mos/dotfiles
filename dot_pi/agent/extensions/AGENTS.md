@@ -2,6 +2,8 @@
 
 Applies to every file created or modified under `extensions/`. Follow the existing structure of this config; do not invent new layouts.
 
+Read `~/.pi/agent/ARCHITECTURE.md` before changing extensions or shared UI; it defines ownership and the authoritative modules.
+
 ## Layout
 
 - One folder per extension: `extensions/<name>/` (kebab-case), entry point `index.ts` — pi auto-discovers `extensions/<dir>/index.ts`.
@@ -26,5 +28,8 @@ Applies to every file created or modified under `extensions/`. Follow the existi
 pnpm run lint                    # oxlint
 pnpm run type-check              # tsc --noEmit
 pnpm exec oxfmt --write <files>  # exactly the files you touched
-pnpm run test                    # node --test tests/ — when covered code changed
+pnpm run test                    # node --test 'tests/**/*.test.ts' — when covered code changed
 ```
+
+- After changes: `/reload` in the current session.
+- Syntax check a single file: `npx esbuild <file>.ts --outfile=/dev/null --format=esm --packages=external`.
