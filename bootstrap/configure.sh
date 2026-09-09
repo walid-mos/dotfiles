@@ -90,14 +90,19 @@ configure_development_dirs() {
     done
 }
 
-# --- herdr remote: Mac Studio as the always-on server ---
+# --- herdr remote: Mac Studio <-> laptops mutual herdr machines ---
 #
-# Server = Mac Studio (headless, runs everything). Clients = MacBooks, which
-# run herdr with the Studio saved as a machine in the same window. The target
-# is the MagicDNS short name: the tailnet resolver answers short names
-# directly (verified live: dig @100.100.100.100 mac-studio -> 100.95.191.41,
-# plus a full ssh handshake over the short name), so no ~/.ssh/config alias
-# is needed - the profile carries user + host verbatim.
+# Server = Mac Studio (headless, runs everything). Clients = MacBooks. Both
+# ends keep a saved profile of the other (herdr 0.9+ Machines), so each
+# sidebar shows Local + the peer and either side can view the other without
+# ssh gymnastics. The dance runs from the laptop bootstrap: it installs the
+# laptop's ssh key on the Studio, saves the Studio as a machine locally, then
+# authorizes the Studio's key back and tells the Studio (over ssh) to save
+# this laptop. The target is the MagicDNS short name: the tailnet resolver
+# answers short names directly (verified live: dig @100.100.100.100
+# mac-studio -> 100.95.191.41, plus a full ssh handshake over the short
+# name), so no ~/.ssh/config alias is needed - the profile carries user +
+# host verbatim.
 STUDIO_TAILNET_DEVICE="mac-studio"
 STUDIO_SSH_USER="walid-mos"
 STUDIO_SSH_TARGET="${STUDIO_SSH_USER}@${STUDIO_TAILNET_DEVICE}"
@@ -138,14 +143,84 @@ configure_server_reminders() {
     ok "3. after each reboot: ssh in (pre-boot unlock on macOS 26+), then run 'herdr'"
 }
 
-# configure_studio_client - laptop profile only: wire the MacBooks to the
-# Studio with a one-key manual attach and a saved herdr machine profile
-# (herdr 0.9+ Machines). The profile is saved on the laptop side - the
-# laptop runs the client (its sidebar shows Local + Mac Studio), while the
-# Studio never stores a profile of itself. Idempotent, dry-run aware;
+# ssh_batch - non-interactive ssh that accepts new host keys and gives up
+# fast; probes and Studio-driving only.
+ssh_batch() {
+    ssh -o BatchMode=yes -o ConnectTimeout=5 -o StrictHostKeyChecking=accept-new "$@"
+}
+
+# authorize_ssh_key <pubkey-line> - add one public key to this Mac's
+# authorized_keys (mode-guarded, duplicate-safe).
+authorize_ssh_key() {
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+    touch "$HOME/.ssh/authorized_keys"
+    chmod 600 "$HOME/.ssh/authorized_keys"
+    grep -qsxF "$1" "$HOME/.ssh/authorized_keys" || printf '%s\n' "$1" >> "$HOME/.ssh/authorized_keys"
+}
+
+# discover_laptop_magicdns - short MagicDNS name of this Mac from the
+# Tailscale CLI (GUI app or cask); failure when tailscale is missing or
+# signed out. Used as the Studio's pointer back to this Mac.
+discover_laptop_magicdns() {
+    local ts_client dns short
+    if command_exists tailscale; then
+        ts_client="tailscale"
+    elif [ -x "/Applications/Tailscale.app/Contents/MacOS/Tailscale" ]; then
+        ts_client="/Applications/Tailscale.app/Contents/MacOS/Tailscale"
+    else
+        return 1
+    fi
+    dns=$("$ts_client" status --json 2>/dev/null | grep -o '"DNSName": *"[^"]*"' | head -1) || return 1
+    dns=${dns#*\"}
+    dns=${dns%\"}
+    short=${dns%%.*}
+    [ -n "$short" ] || return 1
+    printf '%s\n' "$short"
+}
+
+# configure_studio_client - laptop profile only: pair this Mac with the
+# Studio for herdr (0.9+ Machines) in both directions:
+#
+#   1. key-based ssh laptop -> Studio (ed25519 keypair generated on the
+#      fly, installed with ssh-copy-id - the Studio password is asked once)
+#   2. laptop side: save the Studio as a machine (sidebar shows Local +
+#      Mac Studio) plus the 'h' manual-attach alias
+#   3. reverse: authorize the Studio's public key on this Mac, then drive
+#      'herdr machine add <this-mac>' on the Studio over ssh
+#
+# Each direction is idempotent; an unreachable or signed-out tailnet prints
+# finish-later commands instead of failing the bootstrap. Dry-run aware;
 # appends to ~/.config/zsh/local.zsh.
 configure_studio_client() {
-    step "Mac Studio client (herdr)"
+    step "Mac Studio <-> this Mac (herdr machines)"
+
+    # A fresh Mac needs a keypair before anything can talk to the Studio.
+    if [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
+        skip "~/.ssh/id_ed25519 already exists"
+    elif is_dry_run; then
+        would "generate ~/.ssh/id_ed25519 (ed25519, no passphrase)"
+    else
+        mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+        act "generate ~/.ssh/id_ed25519" ssh-keygen -t ed25519 -N "" \
+            -f "$HOME/.ssh/id_ed25519" -C "${USER:-$(id -un)}@$(hostname -s)"
+    fi
+
+    # Seeding the key on the Studio first is what makes both herdr machine
+    # adds (laptop -> Studio and Studio -> laptop) passwordless.
+    if ssh_batch "$STUDIO_SSH_TARGET" true 2>/dev/null; then
+        skip "key-based ssh to $STUDIO_SSH_TARGET already works"
+    elif is_dry_run; then
+        would "install this Mac's key on the Studio (ssh-copy-id, password asked once)"
+    elif ssh-copy-id -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new "$STUDIO_SSH_TARGET" \
+        && ssh_batch "$STUDIO_SSH_TARGET" true 2>/dev/null; then
+        ok "key installed - the Studio accepts this Mac without a password"
+    else
+        run "ssh-copy-id failed (tailnet up? Studio reachable?) - finish later with:"
+        printf '      ssh-copy-id -o StrictHostKeyChecking=accept-new %s\n' "$STUDIO_SSH_TARGET"
+        return 0
+    fi
+
     if grep -qs "herdr --remote $STUDIO_SSH_TARGET" "$HOME/.config/zsh/local.zsh"; then
         skip "~/.config/zsh/local.zsh already has the herdr remote alias"
     else
@@ -171,6 +246,41 @@ configure_studio_client() {
         ok "saved herdr machine $STUDIO_SSH_TARGET - shows next to Local in the sidebar"
     else
         run "could not save machine '$STUDIO_SSH_TARGET' from here (tailnet connected?) - finish later with: herdr machine add $STUDIO_SSH_TARGET"
+    fi
+
+    # Reverse direction - the Studio saves this Mac: its public key lands in
+    # this Mac's authorized_keys first, then the add runs over ssh on the
+    # Studio itself and applies to open clients automatically.
+    if is_dry_run; then
+        would "authorize the Studio's key in ~/.ssh/authorized_keys"
+        would "save this Mac as a herdr machine on the Studio (over ssh)"
+        return 0
+    fi
+    local studio_pubkey laptop_short laptop_target laptop_label
+    studio_pubkey=$(ssh_batch "$STUDIO_SSH_TARGET" cat "$HOME/.ssh/id_ed25519.pub" 2>/dev/null)
+    if [ -n "$studio_pubkey" ] && authorize_ssh_key "$studio_pubkey"; then
+        ok "authorized the Studio's key on this Mac - it can reach back over ssh"
+    else
+        run "could not fetch the Studio's public key - run later:"
+        printf '      ssh %s cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys\n' "$STUDIO_SSH_TARGET"
+    fi
+
+    if laptop_short=$(discover_laptop_magicdns); then
+        laptop_target="$STUDIO_SSH_USER@$laptop_short"
+        laptop_label=$(scutil --get ComputerName 2>/dev/null | tr -d "'")
+        [ -n "$laptop_label" ] || laptop_label=$(hostname -s)
+        if ssh_batch "$STUDIO_SSH_TARGET" "PATH=\"\$HOME/.local/bin:\$PATH\" herdr machine list --json" \
+            | grep -qs "\"target\": *\"$laptop_target\""; then
+            skip "herdr machine '$laptop_target' already saved on the Studio"
+        elif ssh_batch "$STUDIO_SSH_TARGET" "PATH=\"\$HOME/.local/bin:\$PATH\" herdr machine add $laptop_target --label '$laptop_label'"; then
+            ok "saved herdr machine $laptop_target on the Studio - both sidebars now show both machines"
+        else
+            run "could not save this Mac on the Studio - finish later on the Studio with:"
+            printf '      herdr machine add %s --label "%s"\n' "$laptop_target" "$laptop_label"
+        fi
+    else
+        run "could not discover this Mac's MagicDNS name (tailscale signed in?) - finish later on the Studio with:"
+        printf '      herdr machine add %s@<magicdns-name> --label "<this Mac>"\n' "$STUDIO_SSH_USER"
     fi
 }
 
