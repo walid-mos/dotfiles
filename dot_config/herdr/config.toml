@@ -26,3 +26,9 @@ split_horizontal = "alt+v"
 auto_switch = true
 dark_name = "catppuccin"
 light_name = "catppuccin-latte"
+
+# === Graphics ===
+# herdr 0.8.x: kitty graphics payloads in panes are opt-in (enabled by default in 0.9+).
+# Required for pi image previews + chat images (pi detects ghostty and streams kitty).
+[experimental]
+kitty_graphics = true
