@@ -22,7 +22,10 @@ const IMAGE_ALIAS_PATTERN_END = /\[img:\d+\]$/u
  * Attach image-path ingestion to an editor instance:
  *
  * - `onChange`: new image paths are rewritten to `[img:N]` aliases as they
- *   arrive (typing, paste, clipboard image); losing an alias drops its capture.
+ *   arrive (typing, paste, clipboard image); losing an alias to an edit drops
+ *   its capture, while the submit-clear (`onChange('')`) keeps the captures
+ *   alive for the input event and consumes them instead. Pruning skips empty
+ *   text because pi-tui submitValue() clears before calling onSubmit.
  * - `handleInput`: backspacing within a trailing `[img:N]` removes the whole
  *   alias instead of just the last digit.
  * - `render`: aliases are styled through `styleAlias`.
@@ -48,25 +51,31 @@ function attachImageRewrite(
 ): void {
 	let isRewriting = false
 	let upstreamChange: ((text: string) => void) | undefined = undefined
+	// pi-tui submitValue() fires onChange('') BEFORE onSubmit(result): a clear
+	// is a submit, not an edit, so pruning there would drop every capture
+	// before the input event can attach them.
+	const pruneUnreferenced = (text: string): void => {
+		if (text) store.retainReferencedAliases(text)
+	}
 	const handleChange = (text: string): void => {
 		if (isRewriting) {
-			store.retainReferencedAliases(text)
+			pruneUnreferenced(text)
 			upstreamChange?.(text)
 			return
 		}
 		const rewritten = store.ingestImagePaths(text, cwd)
-		if (rewritten === text) {
-			store.retainReferencedAliases(text)
-			upstreamChange?.(text)
+		if (rewritten !== text) {
+			// Our own setText fires onChange again; retain instead of re-ingesting.
+			isRewriting = true
+			try {
+				editor.setText(rewritten)
+			} finally {
+				isRewriting = false
+			}
 			return
 		}
-		// Our own setText fires onChange again; retain instead of re-ingesting.
-		isRewriting = true
-		try {
-			editor.setText(rewritten)
-		} finally {
-			isRewriting = false
-		}
+		pruneUnreferenced(text)
+		upstreamChange?.(text)
 	}
 	Object.defineProperty(editor, 'onChange', {
 		get: () => handleChange,

@@ -82,6 +82,61 @@ void test('punctuation around a path does not block the alias', () => {
 	assert.equal(rewritten, `(${toImageAlias(1)}),`)
 })
 
+void test('ingests an unquoted macOS screenshot path with spaces', () => {
+	const store = new AttachmentStore(() => {})
+	const directory = tempDirectory()
+	const imagePath = fakePng(
+		directory,
+		'Screenshot 2026-09-09 at 16.28.10.png',
+		'full',
+	)
+
+	const rewritten = store.ingestImagePaths(
+		`look at ${imagePath} now`,
+		directory,
+	)
+
+	assert.equal(rewritten, `look at ${toImageAlias(1)} now`)
+	assert.equal(store.items.length, 1)
+	const [capture] = store.items
+	assert.equal(capture?.filePath, imagePath)
+})
+
+void test('a spaced path and a plain path each get their own alias', () => {
+	const store = new AttachmentStore(() => {})
+	const directory = tempDirectory()
+	const spacedPath = fakePng(directory, 'a 1.png', 'spaced')
+	const plainPath = fakePng(directory, 'b.png', 'plain')
+
+	const rewritten = store.ingestImagePaths(
+		`${spacedPath} plus ${plainPath}`,
+		directory,
+	)
+
+	assert.equal(rewritten, `${toImageAlias(1)} plus ${toImageAlias(2)}`)
+	assert.equal(store.items.length, 2)
+})
+
+void test('punctuation after a spaced path stays outside the alias', () => {
+	const store = new AttachmentStore(() => {})
+	const directory = tempDirectory()
+	const imagePath = fakePng(directory, 'shot 1.png', 'x')
+
+	const rewritten = store.ingestImagePaths(`(${imagePath}).`, directory)
+
+	assert.equal(rewritten, `(${toImageAlias(1)}).`)
+})
+
+void test('an unquoted spaced path that does not exist stays untouched', () => {
+	const store = new AttachmentStore(() => {})
+	const missingPath = join(tempDirectory(), 'Screenshot 2026-09-09.png')
+
+	const rewritten = store.ingestImagePaths(`see ${missingPath} ok`, '/tmp')
+
+	assert.equal(rewritten, `see ${missingPath} ok`)
+	assert.equal(store.items.length, 0)
+})
+
 void test('numbers advance per capture and restart after all aliases vanish', () => {
 	const directory = tempDirectory()
 	const { store } = storeWithCaptures(directory)
@@ -123,6 +178,23 @@ void test('imageAttachments returns payloads for referenced aliases only', () =>
 	assert.deepEqual([...Buffer.from(attach.data, 'base64')].slice(4), [
 		...Buffer.from('second', 'utf8'),
 	])
+})
+
+void test('clearCaptures consumes every capture, numbering and scroll', () => {
+	const directory = tempDirectory()
+	const { store } = storeWithCaptures(directory)
+	store.scrollStrip(1)
+
+	store.clearCaptures()
+
+	assert.equal(store.items.length, 0)
+	assert.equal(store.scrollOffset, 0)
+	assert.deepEqual(store.imageAttachments(toImageAlias(1)), [])
+
+	// Numbering restarts, exactly like after pruning every alias.
+	const nextPath = fakePng(directory, 'again.png', 'next')
+	const rewritten = store.ingestImagePaths(nextPath, directory)
+	assert.equal(rewritten, toImageAlias(1))
 })
 
 void test('paths that are not images stay untouched', () => {
