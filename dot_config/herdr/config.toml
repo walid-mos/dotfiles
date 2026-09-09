@@ -1,4 +1,9 @@
 onboarding = false
+
+[session]
+# Restore terminal topology first; wt open resumes the selected Pi/environment.
+resume_agents_on_restore = false
+
 [keys]
 prefix = "ctrl+space"
 
@@ -20,6 +25,14 @@ close_tab = "prefix+x"
 close_pane = "alt+x"
 split_vertical = "alt+n"
 split_horizontal = "alt+v"
+
+# Desktop notifications when a background pi agent finishes (idle) or needs input (blocked).
+# "system" = macOS Notification Center via terminal-notifier (no osascript fallback,
+# terminal-notifier is installed). Click the notification, then prefix+o focuses the
+# pane that raised it.
+[ui.toast]
+delivery = "system"
+delay_seconds = 1
 
 [theme]
 # Follow host terminal light/dark appearance, like Ghostty and Neovim
