@@ -37,6 +37,11 @@ export function compactPath(
 
 const MAX_LENGTH_MARGIN = 1
 
+/** Flat link wrapper: quiet brackets hugging the tinted content. */
+export function bracketed(content: string): string {
+	return `${fgHex(LATTE.surface1, '[')}${content}${fgHex(LATTE.surface1, ']')}`
+}
+
 /** Hard-clamp plain text with a trailing ellipsis. */
 export function clampText(text: string, maxLength: number): string {
 	return text.length <= maxLength

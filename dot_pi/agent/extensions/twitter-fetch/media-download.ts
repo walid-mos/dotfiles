@@ -1,6 +1,6 @@
 /** Download media bytes from tweet-related CDN hosts; everything else is blocked. */
 
-import { readBoundedBytes } from './bounded-response.ts'
+import { readBoundedBytes } from '../http/bounded-response.ts'
 
 export type MediaBytesResult =
 	| {

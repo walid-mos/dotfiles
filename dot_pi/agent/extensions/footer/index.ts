@@ -4,7 +4,7 @@
  * No filled pills: colored icons and tinted text sit directly on the
  * terminal background; groups are separated by thin verticals.
  * Line 1: 󰚩 model │ ✻ thinking │ path │····· statuses │ context gauge ▰▰▱▱ │ arrows │ cost
- * Line 2:  branch │ churn ▰▰▱▱ + counters + PR #n │····· provider quotas
+ * Line 2:  branch │ churn ▰▰▱▱ + counters + [PR #n] │····· provider quotas
  */
 
 import { footerComponent } from './component.ts'
@@ -14,13 +14,13 @@ import { pollQuotas } from './poll-quotas.ts'
 import { clampFooterLines, renderFooterLines } from './render.ts'
 import { footerState } from './state.ts'
 import { shortPath } from './text.ts'
+import { tokenTotals } from './tokens.ts'
 
 import type {
 	ContextUsage,
 	ExtensionAPI,
 	ExtensionContext,
 	ReadonlyFooterDataProvider,
-	SessionEntry,
 } from '@earendil-works/pi-coding-agent'
 import type { FooterComponentDeps } from './component.ts'
 import type { FooterRenderInput } from './render.ts'
@@ -133,26 +133,6 @@ function missingTokens(): { input: number; output: number; cost: number } {
 	return { input: 0, output: 0, cost: 0 }
 }
 
-/** Sum token usage over every assistant turn of the active branch. */
-function tokenTotals(branchEntries: readonly SessionEntry[]): {
-	input: number
-	output: number
-	cost: number
-} {
-	let input = 0
-	let output = 0
-	let cost = 0
-	for (const entry of branchEntries) {
-		if (entry.type !== 'message') continue
-		if (entry.message.role !== 'assistant') continue
-		const { usage } = entry.message
-		input += usage.input
-		output += usage.output
-		cost += usage.cost.total
-	}
-	return { input, output, cost }
-}
-
 /** Build the full footer input, tolerating every pi accessor. */
 function safeInput(
 	ctx: ExtensionContext,
@@ -168,12 +148,13 @@ function safeInput(
 		missingTokens(),
 	)
 	const modelId = readThrough(() => ctx.model?.id, undefined)
+	const cwd = readThrough(() => ctx.cwd, process.cwd())
 	return {
 		width: 0,
 		// an empty model id is not a real state; truthiness covers both shapes
 		model: modelId ?? 'no-model',
 		thinkingLevel: readThrough(() => ctx.thinkingLevel, 'off') ?? 'off',
-		cwd: shortPath(readThrough(() => ctx.cwd, process.cwd())),
+		cwd: shortPath(cwd),
 		branch: readThrough(
 			() => footerData.getGitBranch() ?? undefined,
 			undefined,

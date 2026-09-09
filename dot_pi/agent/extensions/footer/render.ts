@@ -9,8 +9,8 @@ import { contextGroup } from './render-context.ts'
 import { gitLine, gitWithPr } from './render-git.ts'
 import { quotaStrip } from './render-quota.ts'
 // Pure footer rendering (no IO): line 1 couples the hero pill with the
-// provider quota strip, line 2 couples git/PR with statuses, context gauge,
-// token arrows and cost. Exported for tests.
+// provider quota strip, line 2 couples git/PR with statuses,
+// context gauge, token arrows and cost. Exported for tests.
 import {
 	compactPath,
 	fmtTokens,

@@ -3,6 +3,7 @@
 Applies to every file created or modified under `extensions/`. Follow the existing structure of this config; do not invent new layouts.
 
 Read `~/.pi/agent/ARCHITECTURE.md` before changing extensions or shared UI; it defines ownership and the authoritative modules.
+Read `~/.pi/agent/extensions/DESIGN.md` before restyling or migrating any pi render surface (tool rows, chrome, transcript); it is the migration checklist and status tracker for the TUI restyle.
 
 ## Layout
 
@@ -10,6 +11,10 @@ Read `~/.pi/agent/ARCHITECTURE.md` before changing extensions or shared UI; it d
 - Flat files, kebab-case, one concern per file. Split pure domain/state/renderer logic into their own modules; keep TUI wiring (`*-component.ts`, `index.ts`) thin.
 - A folder WITHOUT `index.ts` is a shared library, not an extension (e.g. `ui/`): other extensions import from its modules directly. Never add an index.ts there.
 - Tests live in `../tests/<name>.test.ts` (relative to a module under `extensions/`), `node --test`. Keep logic importable and testable without a TUI.
+
+## Herdr-managed files
+
+- `extensions/herdr-agent-state.ts` (flat file, `@ts-nocheck`, `HERDR_INTEGRATION_VERSION` header) is generated and overwritten by the herdr integration: never edit, lint, type-check, or format it. Add custom hooks/plugins beside it instead.
 
 ## Entry point
 

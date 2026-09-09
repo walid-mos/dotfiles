@@ -14,6 +14,8 @@ export default defineConfig({
 		'npm/**',
 		'bin/**',
 		'backups/**',
+		// Vendor-managed by `herdr integration install pi`; never hand-edit.
+		'extensions/herdr-agent-state.ts',
 	],
 	overrides: [
 		{
