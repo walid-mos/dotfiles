@@ -1,6 +1,7 @@
 /** Auto-fetch status context: X/Twitter URLs (and replies) become JSON context. */
 
-import { readBoundedText } from './bounded-response.ts'
+import { readBoundedText } from '../http/bounded-response.ts'
+
 import { repliesFromPayload, wantsReplies } from './conversation.ts'
 import { parseFxtwitterPayload } from './fx-payload.ts'
 import { summarizeStatusContext } from './status-summary.ts'

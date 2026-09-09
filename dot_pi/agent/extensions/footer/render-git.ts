@@ -9,7 +9,7 @@ import {
 	GIT_BAR_WIDTH,
 } from './git-scale.ts'
 // Line-2 git/PR rendering: churn meter, counters and the branch pill.
-import { clampText, quietText, thinSep } from './text.ts'
+import { bracketed, clampText, quietText, thinSep } from './text.ts'
 import { BAR_EMPTY, BAR_FULL, ICONS } from './theme.ts'
 
 import type { GitPr, GitStatus } from './git-data.ts'
@@ -99,10 +99,10 @@ export function gitLine(
 	return groups.join(` ${thinSep()} `)
 }
 
-/** Clickable `PR #n` (OSC 8). Empty when no PR is cached. */
+/** Clickable bracketed `[PR #n]` (OSC 8). Empty when no PR is cached. */
 export function prLink(pr: GitPr | null): string {
 	if (!pr) return ''
-	const linkText = fgHex(LATTE.blue, `PR #${pr.number}`)
+	const linkText = bracketed(fgHex(LATTE.blue, `PR #${pr.number}`))
 	return hyperlink(linkText, pr.url)
 }
 
