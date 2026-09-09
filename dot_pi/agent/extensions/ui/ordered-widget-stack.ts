@@ -13,6 +13,7 @@ export const ABOVE_EDITOR_PRIORITY = {
 	goal: 100,
 	backgroundTasks: 200,
 	activity: 300,
+	attachments: 400,
 } as const
 
 export type OrderedWidgetEntry = {

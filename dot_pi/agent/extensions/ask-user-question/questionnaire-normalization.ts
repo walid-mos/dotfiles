@@ -1,5 +1,13 @@
+import { Value } from 'typebox/value'
+
+import { AskResultSchema } from './schema.ts'
+
 import type { Static } from 'typebox'
-import type { Question, QuestionOption } from './questionnaire-model.ts'
+import type {
+	AskResult,
+	Question,
+	QuestionOption,
+} from './questionnaire-model.ts'
 import type { AskParams } from './schema.ts'
 
 export type RawQuestion = Static<typeof AskParams>['questions'][number]
@@ -66,4 +74,18 @@ export function normalizeQuestions(raw: RawQuestion[]): Question[] {
 			multiSelect: options.length > 0 && question.multiSelect === true,
 		}
 	})
+}
+
+/**
+ * Replay boundary: details round-trip through the session file and may
+ * predate the current shape. Every field rule lives once in schema.ts, so
+ * this boundary only applies those rules and refuses unusable payloads;
+ * callers fall back to plain text output instead of crashing every frame.
+ */
+export function parseAskResult(raw: unknown): AskResult | undefined {
+	try {
+		return Value.Parse(AskResultSchema, Value.Default(AskResultSchema, raw))
+	} catch {
+		return undefined
+	}
 }

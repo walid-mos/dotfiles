@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { parseAskResult } from '../extensions/ask-user-question/questionnaire-normalization.ts'
 import {
 	renderCallLines,
 	renderResultLines,
@@ -177,4 +178,50 @@ void test('cancelled and chat results keep the block frame', () => {
 	const chatPlain = chat.map(stripAnsi).join('\n')
 	assertWithinWidth(chat, 80)
 	assert.match(chatPlain, /ask · chat/)
+})
+
+void test('result replay renders schema-coerced details and refuses the rest', () => {
+	// Regression: details missing fields crashed renderResultLines and killed
+	// the whole TUI on session load. The schema parse refuses unusable payloads
+	// and coerces schema-valid ones through the declared defaults.
+	assert.equal(parseAskResult({ cancelled: false }), undefined)
+
+	const parsed = parseAskResult({
+		questions: [
+			{
+				id: 'scope',
+				label: 'Scope',
+				prompt: 'Which scope should this pass cover?',
+				options: [],
+			},
+			{
+				id: 'checks',
+				label: 'Checks',
+				prompt: 'Run the test suite?',
+				options: [],
+			},
+		],
+		answers: [
+			{
+				kind: 'multi',
+				id: 'scope',
+				value: 'everything but tests',
+				label: 'everything but tests',
+				wasCustom: false,
+				labels: ['everything but tests'],
+				optionValues: [],
+				customText: 'everything but tests',
+			},
+		],
+	})
+	assert.ok(parsed)
+
+	const lines = renderResultLines(parsed, 40)
+	const plain = lines.map(stripAnsi).join('\n')
+	assertWithinWidth(lines, 40)
+	assert.match(plain, /✔ ask · 1 answer/)
+	assert.match(plain, /\[Scope\]/)
+	assert.match(plain, /✎ everything but tests/)
+	assert.match(plain, /\[Checks\]/)
+	assert.match(plain, /· no answer/)
 })

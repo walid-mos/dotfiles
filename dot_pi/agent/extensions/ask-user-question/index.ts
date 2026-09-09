@@ -4,7 +4,10 @@
 import { Text } from '@earendil-works/pi-tui'
 
 import { runQuestionnaire } from './questionnaire-component.ts'
-import { normalizeQuestions } from './questionnaire-normalization.ts'
+import {
+	normalizeQuestions,
+	parseAskResult,
+} from './questionnaire-normalization.ts'
 import {
 	chatFollowUp,
 	formatAnswerLines,
@@ -38,7 +41,7 @@ interface AskRowState {
 }
 
 const TOOL_DESCRIPTION =
-	'Ask the user one or more questions with selectable options in interactive TUI mode. ALWAYS prefer this tool over questions in plain text; if TUI is unavailable, stop and report that clarification requires it. Group related questions in one call. The user can pick options (number keys), select multiple when multiSelect is true, or type a custom answer. Mark the best option with recommended: true when you have a preference. Omit options entirely for open-ended questions and do not suggest answers. If the user cancels, choose the most reasonable default and report that choice.'
+	'Ask the user one or more questions with selectable options in interactive TUI mode. ALWAYS prefer this tool over questions in plain text; if TUI is unavailable, stop and report that clarification requires it. Group related questions in one call. Every question requires a short, unique, stable id (never omitted; reused as the answer key), e.g. id: "scope". The user can pick options (number keys), select multiple when multiSelect is true, or type a custom answer. Mark the best option with recommended: true when you have a preference. Omit options entirely for open-ended questions and do not suggest answers. If the user cancels, choose the most reasonable default and report that choice.'
 
 /** No cached output: each render uses the current viewport and row state. */
 class TranscriptComponent implements Component {
@@ -81,7 +84,9 @@ export default function askUserQuestion(pi: ExtensionAPI): void {
 				// Do not reenter Pi's in-flight display update synchronously.
 				queueMicrotask(() => context.invalidate())
 			}
-			const { details } = toolResult
+			// Replayed details round-trip through the session file and may predate
+			// the current schema: parse before rendering, else fall back to text.
+			const details = parseAskResult(toolResult.details)
 			if (details)
 				return new TranscriptComponent(width =>
 					renderResultLines(details, width),

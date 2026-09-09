@@ -11,12 +11,13 @@ import { isSkillTokenContext } from './token.ts'
  * are reached through one isolated, documented cast - the single point of
  * coupling to editor internals.
  */
-import type { CustomEditor } from '@earendil-works/pi-coding-agent'
+import type { EditorComponent } from '@earendil-works/pi-tui'
 
 /** Private Editor internals this trigger needs. */
 type EditorInternals = {
 	state: { lines: string[]; cursorLine: number; cursorCol: number }
 	tryTriggerAutocomplete: () => void
+	isShowingAutocomplete?: () => boolean
 }
 
 const PRINTABLE_ASCII_START = 0x20
@@ -29,7 +30,9 @@ function isPrintableAsciiChar(keyInput: string): boolean {
 	return code >= PRINTABLE_ASCII_START && code <= PRINTABLE_ASCII_END
 }
 
-export function installInlineSkillTrigger(editor: CustomEditor): void {
+export function installInlineSkillTrigger(
+	editor: EditorComponent,
+): EditorComponent {
 	const originalHandleInput = editor.handleInput.bind(editor)
 	// pi-tui exposes no accessor for editor internals; the duck-typed window
 	// mirrors CustomEditor's private surface and is asserted deliberately.
@@ -47,9 +50,10 @@ export function installInlineSkillTrigger(editor: CustomEditor): void {
 		const textBeforeCursor = currentLine.slice(0, internals.state.cursorCol)
 		if (
 			isSkillTokenContext(textBeforeCursor) &&
-			!editor.isShowingAutocomplete()
+			!internals.isShowingAutocomplete?.()
 		) {
 			internals.tryTriggerAutocomplete()
 		}
 	}
+	return editor
 }
