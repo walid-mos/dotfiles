@@ -1,6 +1,7 @@
 import { mkdir, readFile, readdir } from 'node:fs/promises'
-import { isAbsolute, join, relative } from 'node:path'
-import { digest } from './identity.ts'
+import { join, relative } from 'node:path'
+import { digest, safeRelative } from './identity.ts'
+import { defaultRecipe } from './default-recipe.ts'
 import { CONFIG_FILE } from './model.ts'
 import { atomicJson, hasCode, stateRoot } from './store.ts'
 import type { Project, ProjectRecipe } from './model.ts'
@@ -23,10 +24,7 @@ function strings(value: unknown, label: string): string[] {
   return value.map(entry => text(entry, label))
 }
 
-export function safeRelative(path: string): string {
-  if (isAbsolute(path) || path.split('/').includes('..') || path.startsWith('.git')) throw new Error(`Unsafe project-relative path: ${path}`)
-  return path
-}
+export { safeRelative } from './identity.ts'
 
 export function parseRecipe(source: string): ProjectRecipe {
   const recipe = object(JSON.parse(source))
@@ -54,12 +52,14 @@ export function parseRecipe(source: string): ProjectRecipe {
 }
 
 export async function loadRecipe(project: Project, worktree?: string): Promise<ProjectRecipe> {
-  const primary = join(worktree ?? project.root, CONFIG_FILE)
-  try { return parseRecipe(await readFile(primary, 'utf8')) }
-  catch (error) {
-    if (!worktree || !hasCode(error, 'ENOENT')) throw error
-    return parseRecipe(await readFile(join(project.root, CONFIG_FILE), 'utf8'))
+  const root = worktree ?? project.root
+  try { return parseRecipe(await readFile(join(root, CONFIG_FILE), 'utf8')) }
+  catch (error) { if (!hasCode(error, 'ENOENT')) throw error }
+  if (worktree && root !== project.root) {
+    try { return parseRecipe(await readFile(join(project.root, CONFIG_FILE), 'utf8')) }
+    catch (error) { if (!hasCode(error, 'ENOENT')) throw error }
   }
+  return defaultRecipe(root)
 }
 
 export function recipeRevision(recipe: ProjectRecipe): string { return digest(JSON.stringify(recipe)) }
@@ -75,7 +75,7 @@ export async function requireTrustedRecipe(project: Project, recipe: ProjectReci
   try { await readFile(approved) }
   catch (error) {
     if (!hasCode(error, 'ENOENT')) throw error
-    throw new Error('Project environment is not trusted, or its recipe changed. Review .workspace.json, then run wt trust from that checkout. No project commands were executed.')
+    throw new Error('Project environment is not trusted, or its recipe changed. Review the project development configuration, then run wt trust from that checkout. No project commands were executed.')
   }
 }
 

@@ -20,6 +20,11 @@ test('container mounts preserve worktree and common Git metadata absolute paths'
   assert.equal(args.includes('--privileged'), false)
 })
 
+test('Turbo caches stay inside the mounted feature rather than the unmounted Git main checkout', () => {
+  const args = containerArguments(workspace, {})
+  assert.ok(args.includes('TURBO_CACHE_DIR=/host/worktrees/feature/.turbo/cache'))
+})
+
 test('container ownership mismatch cannot be bypassed by matching its name', () => {
   assert.throws(() => requireOwner({ configuration: { labels: { 'dev.herdr.workspace': 'different-id' }, image: { reference: 'node:24' } }, status: { state: 'running', networks: [] } }, workspace), /unowned/)
 })

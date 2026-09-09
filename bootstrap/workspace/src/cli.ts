@@ -5,7 +5,8 @@ import { openWorkspace, ensureWorkspace, findWorkspace, stopWorkspace, removeWor
 import { approveRecipe, loadRecipe } from './recipe.ts'
 import { resolveProject } from './identity.ts'
 import { execute } from './execution.ts'
-import { listWorkspaces, stateRoot, workspaceAt } from './store.ts'
+import { listWorkspaces, stateRoot } from './store.ts'
+import { locateExecutionWorkspace } from './discovery.ts'
 import { inspectContainer } from './runtime.ts'
 import { updateGateway } from './gateway.ts'
 
@@ -52,7 +53,7 @@ async function shell(args: string[]): Promise<void> {
 const commands: Record<string, (args: string[]) => Promise<void>> = {
   async open(args) { output(await openWorkspace(process.cwd(), argument(args, 'feature branch'), args.includes('--no-ui') ? 'headless' : 'herdr', args.includes('--no-focus') ? 'preserve' : 'workspace')) },
   async ensure() { output(await ensureWorkspace(process.cwd())) },
-  async locate() { output(await workspaceAt(await realpath(process.cwd())) ?? null) },
+  async locate() { output(await locateExecutionWorkspace(process.cwd())) },
   async trust() {
     const project = await resolveProject(process.cwd())
     const recipe = await loadRecipe(project, await realpath(process.cwd()))

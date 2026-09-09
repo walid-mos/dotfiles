@@ -5,10 +5,12 @@ import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
+import { DEVELOPMENT_IMAGE } from '../src/model.ts'
+
 const assets = join(dirname(fileURLToPath(import.meta.url)), '../assets')
-const image = 'studio-dev:node24-pnpm11'
+const image = DEVELOPMENT_IMAGE
 const state = join(process.env.WT_STATE_HOME ?? join(homedir(), '.local/share/studio-workspace'), 'images')
-const inputs = ['Containerfile', 'guest-runner.mjs', 'fitapp-dev.sh', 'serve.sh']
+const inputs = ['Containerfile', 'guest-runner.mjs', 'serve.sh']
 const hash = createHash('sha256')
 for (const input of inputs) hash.update(input).update(await readFile(join(assets, input)))
 const revision = hash.digest('hex')

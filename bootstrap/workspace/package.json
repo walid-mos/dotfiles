@@ -3,6 +3,8 @@
   "private": true,
   "type": "module",
   "engines": { "node": ">=24" },
+  "dependencies": { "jsonc-parser": "3.3.1" },
+  "devDependencies": { "@types/node": "24.13.3", "typescript": "5.9.3" },
   "scripts": {
     "test": "node --test tests/*.test.ts",
     "check": "tsc --noEmit"

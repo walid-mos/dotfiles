@@ -8,10 +8,11 @@ configure_studio_workspaces() {
     source_root=$(chezmoi source-path)
     workspace_source="$source_root/bootstrap/workspace"
     if is_dry_run; then
-        would "build the development image, install wt, private DNS/HTTPS and the official Pi integration"
+        would "install workspace dependencies, build the development image, install wt, private DNS/HTTPS and the official Pi integration"
         return 0
     fi
     [[ -f "$workspace_source/src/cli.ts" ]] || die "Workspace sources are missing from the dotfiles checkout"
+    act "install workspace manager dependencies" npm ci --prefix "$workspace_source" --ignore-scripts --no-audit --no-fund
     act "build/reuse the Linux development image" node "$workspace_source/scripts/build-image.mjs"
     act "install the official Pi/Herdr integration" herdr integration install pi
     act "install private Studio gateway and CLI" python3 "$workspace_source/scripts/install-host.py" --admin sudo

@@ -40,6 +40,11 @@ export function parseWorktrees(listing: string): { path: string; branch?: string
   })
 }
 
+export function safeRelative(path: string): string {
+  if (isAbsolute(path) || path.split('/').includes('..') || path.startsWith('.git')) throw new Error(`Unsafe project-relative path: ${path}`)
+  return path
+}
+
 export function containsPath(parent: string, candidate: string): boolean {
   const root = resolve(parent)
   const path = resolve(candidate)

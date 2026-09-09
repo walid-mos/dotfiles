@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && npm install -g pnpm@11.21.0 \
     && groupadd --gid 501 dev \
     && useradd --uid 501 --gid 501 --create-home --shell /bin/bash dev
-COPY guest-runner.mjs fitapp-dev.sh serve.sh /opt/studio-workspace/
+COPY guest-runner.mjs serve.sh /opt/studio-workspace/
 USER dev
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0 PNPM_HOME=/home/dev/.local/share/pnpm
 ENTRYPOINT ["/usr/bin/tini", "--"]
