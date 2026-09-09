@@ -6,6 +6,7 @@ resume_agents_on_restore = false
 
 [keys]
 prefix = "ctrl+space"
+open_notification_target = "alt+o"   # one keystroke, no prefix: focus the pane that raised the notification
 
 # Tabs
 new_tab = "prefix+n"
