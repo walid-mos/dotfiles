@@ -1,8 +1,11 @@
+import { PI_PALETTE as LATTE } from '../ui/design-system/palette.ts'
+import { foregroundHex as fgHex } from '../ui/design-system/terminal-color.ts'
+
 import { PERCENT_SCALE } from './gauge.ts'
 // Context gauge segment: pi ContextUsage rendered as a meter bar with
 // tint thresholds and optional exact token counts. Pure, no IO.
-import { fmtTokens, fgHex } from './text.ts'
-import { BAR_EMPTY, BAR_FULL, BAR_WIDTH, ICONS, LATTE } from './theme.ts'
+import { fmtTokens } from './text.ts'
+import { BAR_EMPTY, BAR_FULL, BAR_WIDTH, ICONS } from './theme.ts'
 
 import type { ContextUsage } from '@earendil-works/pi-coding-agent'
 

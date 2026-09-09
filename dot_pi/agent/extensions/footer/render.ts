@@ -1,3 +1,9 @@
+import { visibleWidth } from '@earendil-works/pi-tui'
+
+import { PI_PALETTE as LATTE } from '../ui/design-system/palette.ts'
+import { foregroundHex as fgHex } from '../ui/design-system/terminal-color.ts'
+import { truncateTerminalLine as truncateToWidth } from '../ui/terminal-text.ts'
+
 import { BRANCH_DEGRADED_CHARS, BRANCH_MINIMAL_CHARS } from './git-scale.ts'
 import { contextGroup } from './render-context.ts'
 import { gitLine, gitWithPr } from './render-git.ts'
@@ -8,13 +14,10 @@ import { quotaStrip } from './render-quota.ts'
 import {
 	compactPath,
 	fmtTokens,
-	fgHex,
 	thinSep,
-	truncateToWidth,
-	visibleWidth,
 	PATH_COMPACT_MAX_CHARS,
 } from './text.ts'
-import { ICONS, LATTE, SEP_THIN, THINKING_COLORS } from './theme.ts'
+import { ICONS, SEP_THIN, THINKING_COLORS } from './theme.ts'
 
 import type { ContextUsage } from '@earendil-works/pi-coding-agent'
 import type { GitPr, GitStatus } from './git-data.ts'

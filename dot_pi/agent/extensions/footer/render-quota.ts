@@ -1,10 +1,13 @@
+import { PI_PALETTE as LATTE } from '../ui/design-system/palette.ts'
+import { foregroundHex as fgHex } from '../ui/design-system/terminal-color.ts'
+
 import { balanceColor, fmtReset, quotaGauge, PERCENT_SCALE } from './gauge.ts'
 import { XAI_POOL_LABELS } from './quotas.ts'
 // Right-side quota strip rendering: one segment per billing backend plus the
 // dispatcher that selects the parts of the active provider. Compact mode
 // trades the reset stamps for width on degraded screens.
-import { fgHex, thinSep } from './text.ts'
-import { ICONS, LATTE } from './theme.ts'
+import { thinSep } from './text.ts'
+import { ICONS } from './theme.ts'
 
 import type {
 	KimiQuota,

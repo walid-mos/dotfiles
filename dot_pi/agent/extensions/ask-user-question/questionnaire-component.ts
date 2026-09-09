@@ -1,51 +1,203 @@
 /**
- * Interactive questionnaire component to run through ctx.ui.custom(): owns
- * the render cache and the submit/cancel/advance/chat lifecycle, while input
- * routing is delegated to the router in questionnaire-inputs.ts and drawing
+ * The interactive questionnaire TUI component, run through ctx.ui.custom().
+ * Thin wiring: keyboard input -> QuestionnaireState transitions -> effects
+ * (render/advance/submit/cancel) applied against the TUI; rendering itself
  * lives in questionnaire-render.ts.
  */
 
-import { Editor as EditorWidget } from '@earendil-works/pi-tui'
+import { Editor } from '@earendil-works/pi-tui'
 
-import { QuestionnaireInputRouter } from './questionnaire-inputs.ts'
+import { uiTheme } from '../ui/design-system/theme.ts'
+
+import { QuestionnaireInputController } from './questionnaire-input.ts'
 import { renderQuestionnaire } from './questionnaire-render.ts'
 import { QuestionnaireState } from './questionnaire-state.ts'
 
-import type { EditorTheme } from '@earendil-works/pi-tui'
-import type { KeybindingsManager } from '@earendil-works/pi-tui'
-import type { TUI } from '@earendil-works/pi-tui'
-import type { Editor } from '@earendil-works/pi-tui'
+import type { Theme } from '@earendil-works/pi-coding-agent'
+import type {
+	Component,
+	EditorTheme,
+	Focusable,
+	TUI,
+} from '@earendil-works/pi-tui'
+import type { UiTheme } from '../ui/design-system/theme.ts'
+import type { SelectionKeybindings } from './questionnaire-input.ts'
 import type {
 	AskResult,
 	Question,
-	QuestionnaireSnapshot,
+	QuestionnaireInitialState,
 } from './questionnaire-model.ts'
-import type {
-	QuestionnairePalette,
-	QuestionnaireView,
-} from './questionnaire-render-kit.ts'
-import type { EditorPort, QuestionnaireEffect } from './questionnaire-state.ts'
+import type { QuestionnaireEffect } from './questionnaire-navigation-state.ts'
 
-/** The factory ctx.ui.custom() receives: builds the questionnaire component. */
-interface CustomComponent {
-	render(width: number): string[]
-	invalidate(): void
-	handleInput(input: string): void
+interface CustomComponent extends Component, Focusable {
+	handleInput(data: string): void
 }
 
-type ConfirmQuestionnaire = (result: AskResult) => void
-
-/** The only custom-UI invocation the questionnaire needs: always yields AskResult. */
-export type AskCustomUI = (factory: QuestionnaireFactory) => Promise<AskResult>
-
-type QuestionnaireFactory = (
+type CustomFactory<T> = (
 	tui: TUI,
-	palette: QuestionnairePalette,
-	keybindings: KeybindingsManager,
-	confirm: ConfirmQuestionnaire,
+	theme: Theme,
+	keybindings: SelectionKeybindings,
+	done: (result: T) => void,
 ) => CustomComponent
 
-function editorThemeFrom(palette: QuestionnairePalette): EditorTheme {
+export function runQuestionnaire(
+	custom: <T>(factory: CustomFactory<T>) => Promise<T>,
+	questions: Question[],
+	initialState?: QuestionnaireInitialState,
+): Promise<AskResult> {
+	return custom<AskResult>(
+		(tui, _theme, keybindings, done) =>
+			// House tokens only: the interactive dialog matches the transcript
+			// frames, regardless of the runtime theme.
+			new QuestionnaireDialog(tui, {
+				keybindings,
+				done,
+				questions,
+				initialState,
+			}),
+	)
+}
+
+/** Live-dialog dependencies: the selection keybindings, the completion
+ * callback, the question session and any paused state to restore. */
+interface DialogTargets {
+	readonly keybindings: SelectionKeybindings
+	readonly done: (result: AskResult) => void
+	readonly questions: Question[]
+	readonly initialState?: QuestionnaireInitialState | undefined
+}
+
+/** Live dialog widget: owns the editor, state machine and effect dispatch. */
+class QuestionnaireDialog implements CustomComponent {
+	private readonly tui: TUI
+	private readonly done: (result: AskResult) => void
+	private readonly state: QuestionnaireState
+	private readonly editor: Editor
+	private readonly inputController: QuestionnaireInputController
+	private cachedLines: string[] | undefined
+	private cachedWidth: number | undefined
+
+	constructor(tui: TUI, targets: DialogTargets) {
+		this.tui = tui
+		this.done = targets.done
+		this.editor = new Editor(tui, themeEditorTheme(uiTheme), {
+			paddingX: 0,
+		})
+		this.state = new QuestionnaireState(
+			targets.questions,
+			this.editor,
+			targets.initialState,
+		)
+		// Enter inside the always-visible free-text editor.
+		this.editor.onSubmit = answerText =>
+			this.applyEffects(this.state.submitEditorText(answerText))
+		this.inputController = new QuestionnaireInputController({
+			state: this.state,
+			editor: this.editor,
+			keybindings: targets.keybindings,
+			switchTab: delta => this.switchTab(delta),
+			applyEffects: effects => this.applyEffects(effects),
+		})
+	}
+
+	get focused(): boolean {
+		return this.editor.focused
+	}
+
+	set focused(isFocused: boolean) {
+		this.editor.focused = isFocused
+	}
+
+	render(width: number): string[] {
+		if (!this.cachedLines || this.cachedWidth !== width) {
+			this.cachedLines = renderQuestionnaire(
+				this.state,
+				this.editor,
+				width,
+			)
+			this.cachedWidth = width
+		}
+		return this.cachedLines
+	}
+
+	invalidate(): void {
+		this.editor.invalidate()
+		this.cachedLines = undefined
+		this.cachedWidth = undefined
+	}
+
+	handleInput(keystrokes: string): void {
+		this.inputController.handleInput(keystrokes)
+	}
+
+	private refresh(): void {
+		this.cachedLines = undefined
+		this.cachedWidth = undefined
+		this.tui.requestRender()
+	}
+
+	private finish(outcome: 'submit' | 'cancel'): void {
+		this.done({
+			questions: [...this.state.allQuestions()],
+			answers: this.state.collectedAnswers(),
+			cancelled: outcome === 'cancel',
+		})
+	}
+
+	private finishChat(): void {
+		const chat = this.state.chatRequest()
+		if (!chat) return
+		this.done({
+			questions: [...this.state.allQuestions()],
+			answers: this.state.collectedAnswers(),
+			cancelled: false,
+			chat,
+		})
+	}
+
+	private switchTab(delta: -1 | 1): void {
+		this.state.enterTab(
+			(this.state.tab + delta + this.state.totalTabs) %
+				this.state.totalTabs,
+		)
+		this.refresh()
+	}
+
+	private applyEffects(effects: QuestionnaireEffect[]): void {
+		for (const effect of effects) {
+			this.applyEffect(effect)
+			if (TERMINAL_EFFECTS.has(effect)) return // terminal
+		}
+	}
+
+	private applyEffect(effect: QuestionnaireEffect): void {
+		switch (effect) {
+			case 'render':
+				return this.refresh()
+			case 'advance': {
+				const target = this.state.advanceTarget()
+				if (target === 'submit') return this.finish('submit')
+				this.state.enterTab(target)
+				return this.refresh()
+			}
+			case 'submit':
+				return this.finish('submit')
+			case 'cancel':
+				return this.finish('cancel')
+			case 'chat':
+				return this.finishChat()
+		}
+	}
+}
+
+/** Effects that end the questionnaire interaction. */
+const TERMINAL_EFFECTS = new Set<QuestionnaireEffect>([
+	'submit',
+	'cancel',
+	'chat',
+])
+
+function themeEditorTheme(palette: UiTheme): EditorTheme {
 	return {
 		borderColor: text => palette.fg('accent', text),
 		selectList: {
@@ -56,171 +208,4 @@ function editorThemeFrom(palette: QuestionnairePalette): EditorTheme {
 			noMatch: text => palette.fg('warning', text),
 		},
 	}
-}
-
-/** Owns rendering and the questionnaire lifecycle; input routing is external. */
-class QuestionnaireComponent {
-	private readonly hooks: {
-		theme: QuestionnairePalette
-		requestRender(): void
-	}
-	private readonly confirm: ConfirmQuestionnaire
-	private readonly questions: readonly Question[]
-	private readonly state: QuestionnaireState
-	private readonly editor: Editor
-	private readonly inputRouter: QuestionnaireInputRouter
-
-	private cachedLines: string[] | undefined
-	private cachedWidth: number | undefined
-
-	constructor(config: {
-		tui: TUI
-		palette: QuestionnairePalette
-		keybindings: KeybindingsManager
-		confirm: ConfirmQuestionnaire
-		questions: readonly Question[]
-		snapshot: QuestionnaireSnapshot | undefined
-	}) {
-		this.hooks = {
-			theme: config.palette,
-			requestRender: () => config.tui.requestRender(),
-		}
-		this.confirm = config.confirm
-		this.questions = config.questions
-		this.editor = new EditorWidget(
-			config.tui,
-			editorThemeFrom(config.palette),
-			{ paddingX: 0 },
-		)
-		const editorPort: EditorPort = {
-			getText: () => this.editor.getText(),
-			setText: text => this.editor.setText(text),
-		}
-		this.state = new QuestionnaireState(
-			config.questions,
-			editorPort,
-			config.snapshot,
-		)
-		this.editor.onSubmit = submitted =>
-			this.applyEffects(this.state.submitEditorText(submitted))
-		this.inputRouter = new QuestionnaireInputRouter({
-			state: this.state,
-			editor: this.editor,
-			keybindings: config.keybindings,
-			actions: {
-				refresh: () => this.refresh(),
-				applyEffects: effects => this.applyEffects(effects),
-			},
-		})
-	}
-
-	refresh(): void {
-		this.cachedLines = undefined
-		this.cachedWidth = undefined
-		this.hooks.requestRender()
-	}
-
-	render(width: number): string[] {
-		if (!this.cachedLines || this.cachedWidth !== width) {
-			this.cachedLines = renderQuestionnaire(this.view(width))
-			this.cachedWidth = width
-		}
-		return this.cachedLines
-	}
-
-	handleInput(input: string): void {
-		this.inputRouter.handleInput(input)
-	}
-
-	invalidate(): void {
-		this.cachedLines = undefined
-		this.cachedWidth = undefined
-	}
-
-	private view(width: number): QuestionnaireView {
-		return {
-			state: this.state,
-			questions: this.questions,
-			editor: this.editor,
-			theme: this.hooks.theme,
-			width,
-		}
-	}
-
-	private applyEffects(effects: QuestionnaireEffect[]): void {
-		for (const effect of effects) {
-			this.applyEffect(effect)
-			if (effect === 'submit' || effect === 'cancel' || effect === 'chat')
-				return // terminal
-		}
-	}
-
-	private applyEffect(effect: QuestionnaireEffect): void {
-		switch (effect) {
-			case 'render':
-				this.refresh()
-				return
-			case 'advance':
-				this.advance()
-				return
-			case 'submit':
-				this.finish(false)
-				return
-			case 'cancel':
-				this.finish(true)
-				return
-			case 'chat':
-				this.finishChat()
-				return
-		}
-	}
-
-	private advance(): void {
-		const target = this.state.advanceTarget()
-		if (target === 'submit') {
-			this.finish(false)
-			return
-		}
-		this.state.enterTab(target)
-		this.refresh()
-	}
-
-	private finish(isCancelled: boolean): void {
-		this.confirm({
-			answers: this.state.collectedAnswers(),
-			cancelled: isCancelled,
-		})
-	}
-
-	private finishChat(): void {
-		const chat = this.state.chatRequest()
-		if (chat)
-			this.confirm({
-				answers: this.state.collectedAnswers(),
-				cancelled: false,
-				chat,
-			})
-	}
-}
-
-export function runQuestionnaire(
-	custom: AskCustomUI,
-	questions: readonly Question[],
-	snapshot?: QuestionnaireSnapshot,
-): Promise<AskResult> {
-	return custom((tui, palette, keybindings, confirm) => {
-		const component = new QuestionnaireComponent({
-			tui,
-			palette,
-			keybindings,
-			confirm,
-			questions,
-			snapshot,
-		})
-		return {
-			render: width => component.render(width),
-			invalidate: () => component.invalidate(),
-			handleInput: input => component.handleInput(input),
-		}
-	})
 }

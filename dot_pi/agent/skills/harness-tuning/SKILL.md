@@ -1,13 +1,18 @@
 ---
 name: harness-tuning
-description: Create and maintain Pi skills, extensions, and agent instructions (AGENTS.md). MUST be loaded whenever any of them is created or modified, to prevent rule duplication, place behavior in the right location, and verify the change correctly.
+description: Create and maintain Pi skills, extensions, agent instructions (AGENTS.md), and persistent agent-facing docs (ARCHITECTURE.md, PRODUCT.md, …). MUST be loaded whenever any of them is created or modified, to prevent rule duplication, place behavior in the right location, and keep every doc wired so agents actually read it.
 ---
 
 # Harness Tuning
 
-Guide for creating Pi skills and maintaining agent instructions (AGENTS.md) in an optimal, reliable way.
+Placement discipline for agent instructions: where a rule lives decides whether it gets followed, diluted, or silently lost.
 
-**Load this skill before any creation/modification of a skill or AGENTS.md.**
+**Load this skill before any creation/modification of a skill, extension, AGENTS.md, or agent-facing doc (ARCHITECTURE.md, PRODUCT.md, …).**
+
+Each artifact kind has its own artifact spec — read it before authoring that kind:
+
+- Skills: `~/.pi/agent/skills/AGENTS.md`
+- Extensions: `~/.pi/agent/extensions/AGENTS.md`
 
 ## Decision matrix: where does an instruction go?
 
@@ -20,7 +25,13 @@ Guide for creating Pi skills and maintaining agent instructions (AGENTS.md) in a
 
 **Golden rule**: if an instruction only matters in a specific context, it must NOT be in AGENTS.md.
 
-**Extension code conventions**: the writing structure for `~/.pi/agent/extensions/` lives in `~/.pi/agent/extensions/AGENTS.md`. Read and follow it before creating or modifying any extension file.
+## Additive docs must be wired
+
+An agent-facing reference doc (ARCHITECTURE.md, PRODUCT.md, …) that nothing points to is dead text. Never create one standalone:
+
+1. If this skill's description lacks the creation trigger, widen it — descriptions are always in context; that is the wire.
+2. Add a one-line read-pointer ("Read X before …") in the artifact spec, skill, or AGENTS.md governing when it must be read. Never duplicate the doc's content there.
+3. Verify the chain: `rg -n '<doc name>'` from context files to the doc — every hop must exist on disk.
 
 ## Anti-duplication (the most important principle)
 
@@ -34,57 +45,6 @@ Guide for creating Pi skills and maintaining agent instructions (AGENTS.md) in a
 - **Imperative, no softeners** — "Always X", "Never Y", not "it would be good to". Soft rules get ignored.
 - **Negative + positive alternative** — "Never ask open-ended questions" followed by "...use `ask_user_question`". A prohibition without an exit is poorly followed.
 
-## Skill template
-
-```
-~/.pi/agent/skills/<skill-name>/
-├── SKILL.md              # Required: frontmatter + instructions
-├── scripts/              # Optional: executable scripts
-└── references/           # Optional: detailed docs loaded on demand
-```
-
-**Minimal SKILL.md:**
-
-````markdown
----
-name: skill-name
-description: What the skill does and WHEN to use it. Be specific — this text triggers loading.
----
-
-# Skill Name
-
-## Setup (if needed, once)
-
-```bash
-install command
-```
-
-## Usage
-
-Direct, actionable instructions. Reference files with relative paths:
-[details](references/REFERENCE.md), ./scripts/run.sh
-````
-
-**Frontmatter constraints:**
-- `name`: 1-64 chars, lowercase letters, digits, hyphens (no leading/trailing or consecutive hyphens)
-- `description`: max 1024 chars, **required** (skill not loaded otherwise)
-- Good: *"Web search and content extraction via Brave Search API. Use for searching documentation, facts, or any web content."*
-- Bad: *"Helps with search."*
-
-## Keeping skills lean
-
-- SKILL.md holds essential instructions only; depth goes into `references/` files.
-- A single SKILL.md is fine while the skill stays small.
-- If a skill grows or covers distinct topics (e.g., AGENTS.md authoring vs. skill authoring), split that guidance into `references/*.md` and point to it from SKILL.md.
-
-## Checklist: create/update a skill
-
-- [ ] `description`: what + **when to use** (the trigger)
-- [ ] SKILL.md lean: essential instructions, pointers to `references/` for depth; split into `references/` if it grows or covers distinct topics
-- [ ] No overlap with an existing skill or an AGENTS.md rule
-- [ ] Referenced scripts exist and are tested
-- [ ] Relative paths (never absolute) for internal references
-
 ## Checklist: add/modify AGENTS.md
 
 - [ ] The rule applies to **all** sessions (otherwise → skill)
@@ -92,14 +52,9 @@ Direct, actionable instructions. Reference files with relative paths:
 - [ ] One line if possible, imperative, actionable
 - [ ] Positive alternative provided if it's a prohibition
 
-## Verification after modification
+## Verify after modification
 
-- Skill, extension, or AGENTS.md modified → verify it loads and behaves:
-  - Run repo-specific config tests if the repo defines any.
-  - Extension: `/reload` in the current session
-  - AGENTS.md, skills: new session
-  - Force-load a skill for testing: `/skill:<name>`
-- Extension syntax check: `npx esbuild <file>.ts --outfile=/dev/null --format=esm --packages=external`
+Follow the Verify section of the artifact spec you touched (`~/.pi/agent/skills/AGENTS.md` or `~/.pi/agent/extensions/AGENTS.md`). Root `~/.pi/agent/AGENTS.md`: confirm loading in a new session.
 
 ## Lint & format
 
@@ -108,7 +63,7 @@ Any code file created or modified under `~/.pi/agent` (extensions, tests, config
 ```bash
 pnpm run lint                    # oxlint
 pnpm exec oxfmt --write <files>  # format exactly the files you touched
-pnpm run test                    # node --test tests/ — when tests cover the change
+pnpm run test                    # node --test 'tests/**/*.test.ts' — when tests cover the change
 ```
 
 - Fix every error and warning in the files you create or modify. Pre-existing issues in untouched files: leave alone (no unrelated churn).

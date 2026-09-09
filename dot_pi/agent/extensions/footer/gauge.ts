@@ -1,7 +1,11 @@
-import { fgHex, rgb } from './text.ts'
+import { PI_PALETTE as LATTE } from '../ui/design-system/palette.ts'
+import {
+	blendHex,
+	foregroundHex as fgHex,
+} from '../ui/design-system/terminal-color.ts'
+
 // Quota and balance gauges: ratio → color ramps, meter glyphs and reset
 // time shorthand. Pure mapping, no IO.
-import { LATTE } from './theme.ts'
 
 /**
  * Smooth RGB color ramp by remaining ratio. Anchored stops sorted high → low;
@@ -57,8 +61,6 @@ const DIAL_THREE_QUARTER_THRESHOLD = 0.62
 const DIAL_HALF_THRESHOLD = 0.37
 const DIAL_QUARTER_THRESHOLD = 0.12
 
-const HEX_BYTE_SCALE = 16
-const HEX_BYTE_WIDTH = 2
 const RATIO_MIN = 0
 const RATIO_MAX = 1
 
@@ -66,24 +68,10 @@ const RATIO_MAX = 1
 export const PERCENT_SCALE = 100
 export const PERCENT_FLOOR = 0
 
-/** Rounding precision of one hex color channel byte. */
-function toHexByte(channel: number): string {
-	return channel.toString(HEX_BYTE_SCALE).padStart(HEX_BYTE_WIDTH, '0')
-}
-
-function lerpChannel(from: number, to: number, weight: number): number {
-	return Math.round(from + (to - from) * weight)
-}
-
 function blendStops(upper: QuotaStop, lower: QuotaStop, ratio: number): string {
 	const span = upper.ratio - lower.ratio
 	const weight = span === 0 ? 0 : (ratio - lower.ratio) / span
-	const [upperRed, upperGreen, upperBlue] = rgb(upper.color)
-	const [lowerRed, lowerGreen, lowerBlue] = rgb(lower.color)
-	const red = lerpChannel(lowerRed, upperRed, weight)
-	const green = lerpChannel(lowerGreen, upperGreen, weight)
-	const blue = lerpChannel(lowerBlue, upperBlue, weight)
-	return `#${toHexByte(red)}${toHexByte(green)}${toHexByte(blue)}`
+	return blendHex(lower.color, upper.color, weight)
 }
 
 /** Leftover-ratio color: brackets interpolate, extremes hold their stop. */

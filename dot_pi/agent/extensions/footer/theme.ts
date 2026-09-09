@@ -1,21 +1,4 @@
-// ── Catppuccin Latte palette (light terminals) ────────────────────────
-// Primary text is strong on light backgrounds; surface1 renders empty bar
-// cells (visible yet quiet); subtext0 is the quiet-label tier; overlay1 the
-// faintest tier, reserved for resets and hints.
-export const LATTE = {
-	mauve: '#8839ef',
-	blue: '#1e66f5',
-	sapphire: '#209fb5',
-	teal: '#179299',
-	green: '#40a02b',
-	yellow: '#df8e1d',
-	peach: '#fe640b',
-	red: '#d20f39',
-	text: '#4c4f69',
-	surface1: '#9ca0b0',
-	subtext0: '#6c6f85',
-	overlay1: '#8c8fa1',
-} as const
+import { PI_PALETTE as LATTE } from '../ui/design-system/palette.ts'
 
 // ── Icons (Nerd Font code points) ─────────────────────────────────────
 export const ICONS = {

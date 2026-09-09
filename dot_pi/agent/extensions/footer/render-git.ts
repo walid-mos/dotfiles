@@ -1,11 +1,16 @@
+import { hyperlink } from '@earendil-works/pi-tui'
+
+import { PI_PALETTE as LATTE } from '../ui/design-system/palette.ts'
+import { foregroundHex as fgHex } from '../ui/design-system/terminal-color.ts'
+
 import {
 	BRANCH_MAX_CHARS,
 	CHURN_BAR_FULL_CHURN,
 	GIT_BAR_WIDTH,
 } from './git-scale.ts'
 // Line-2 git/PR rendering: churn meter, counters and the branch pill.
-import { clampText, fgHex, hyperlink, quietText, thinSep } from './text.ts'
-import { BAR_EMPTY, BAR_FULL, ICONS, LATTE } from './theme.ts'
+import { clampText, quietText, thinSep } from './text.ts'
+import { BAR_EMPTY, BAR_FULL, ICONS } from './theme.ts'
 
 import type { GitPr, GitStatus } from './git-data.ts'
 

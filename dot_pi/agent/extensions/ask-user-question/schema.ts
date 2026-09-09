@@ -1,21 +1,18 @@
-/**
- * Typebox schema for the ask_user_question tool parameters.
- *
- * The boundary is deliberately tolerant of LLM payload quirks: question.id
- * is optional (an obvious positional default exists downstream) because
- * models routinely omit redundant fields; `label` does the job of the old
- * `value`, so the duality was dropped entirely. Defaults are applied by
- * normalizeQuestions() in questionnaire-model.ts, kept typebox-free so the
- * boundary logic is testable without hoisted dependencies.
- */
+/** TypeBox schema for the ask_user_question tool parameters. */
 
 import { Type } from 'typebox'
 
-import type { Static } from 'typebox'
-
 const QuestionOptionSchema = Type.Object({
+	value: Type.Optional(
+		Type.String({
+			description:
+				'The value returned when selected (defaults to label when omitted)',
+			minLength: 1,
+		}),
+	),
 	label: Type.String({
-		description: 'Display label; doubles as the returned value',
+		description: 'Short display label for the option',
+		minLength: 1,
 	}),
 	description: Type.Optional(
 		Type.String({ description: 'Optional explanation shown below label' }),
@@ -23,25 +20,27 @@ const QuestionOptionSchema = Type.Object({
 	recommended: Type.Optional(
 		Type.Boolean({
 			description:
-				'Mark this option as the recommended choice (cursor preselects it)',
+				'Mark this option as the recommended choice (shows a badge)',
 		}),
 	),
 })
 
 const QuestionSchema = Type.Object({
-	id: Type.Optional(
-		Type.String({
-			description:
-				'Unique identifier for this question (defaults to q1, q2 by position)',
-		}),
-	),
+	id: Type.String({
+		description: 'Unique identifier for this question',
+		minLength: 1,
+	}),
 	label: Type.Optional(
 		Type.String({
 			description:
-				"Short contextual label, e.g. 'Scope', 'Priority' (defaults to Q1, Q2)",
+				"Short contextual label for tab bar, e.g. 'Scope', 'Priority' (defaults to Q1, Q2)",
+			minLength: 1,
 		}),
 	),
-	prompt: Type.String({ description: 'The full question text to display' }),
+	prompt: Type.String({
+		description: 'The full question text to display',
+		minLength: 1,
+	}),
 	options: Type.Optional(
 		Type.Array(QuestionOptionSchema, {
 			description:
@@ -65,8 +64,7 @@ export const AskParams = Type.Object({
 	questions: Type.Array(QuestionSchema, {
 		description:
 			"Questions to ask the user. Ask only what's needed: 2-3 is usually enough, 5 max.",
-		maxItems: 8,
+		minItems: 1,
+		maxItems: 5,
 	}),
 })
-
-export type AskParamsInput = Static<typeof AskParams>

@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
+import { stripTerminalSequences } from '@earendil-works/pi-tui'
+
 import { createSurfaceRegistry } from '../extensions/ui/surface.ts'
 
 import type { SurfaceEntry } from '../extensions/ui/surface.ts'
@@ -30,8 +32,8 @@ void test('renders targets in priority order and clips each line to the width', 
 	registry.register(entry({ id: 'below', placement: 'belowEditor' }))
 
 	assert.deepEqual(
-		[...registry.render('aboveEditor', 8)],
-		['first l…', 'second'],
+		registry.render('aboveEditor', 8).map(stripTerminalSequences),
+		['first l…', 'second'] as const,
 	)
 	assert.deepEqual([...registry.render('belowEditor', 80)], ['below'])
 	assert.deepEqual([...registry.render('aboveEditor', 0)], [])
@@ -105,7 +107,7 @@ void test('isolates render failures per entry without dropping siblings', () => 
 		['[surface] broken: render failed (boom)', 'ok'],
 	)
 	const [fallback] = registry.render('aboveEditor', 10)
-	assert.equal(fallback?.endsWith('…'), true)
+	assert.equal(stripTerminalSequences(fallback ?? ''), '[surface]…')
 })
 
 void test('unregister removes an entry by id and reports whether it existed', () => {
