@@ -5,11 +5,11 @@
 # pick it up automatically. Each installer is safe to call on an
 # already-set-up machine: it reports and skips when the tool is present.
 
-BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch fzf zsh-syntax-highlighting)
+BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch fzf zsh-syntax-highlighting terminal-notifier)
 BREW_CASKS=(ghostty brave-browser hex)
 BREW_TAPS=(anomalyco/tap)
 LAPTOP_CASKS=(tailscale-app)
-SERVER_FORMULAS=(tailscale container)
+SERVER_FORMULAS=(tailscale container caddy dnsmasq socat)
 
 NERD_FONTS_SOURCE="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Fonts/Nerd Font"
 PI_PACKAGE="@earendil-works/pi-coding-agent"
@@ -95,7 +95,8 @@ install_herdr() {
 # needs one manual `sudo tailscale up` (browser) - see configure_server_reminders.
 install_tailscale_daemon() {
     install_brew_list formula "${SERVER_FORMULAS[@]}"
-    if brew services list | awk '{print $1, $2}' | grep -q '^tailscale started$'; then
+    # User-scoped `brew services list` does not describe a root LaunchDaemon.
+    if launchctl print system/sh.brew.tailscale 2>/dev/null | grep -q 'state = running'; then
         skip "tailscaled service already running"
         return 0
     fi
