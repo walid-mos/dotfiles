@@ -27,11 +27,12 @@ split_vertical = "alt+n"
 split_horizontal = "alt+v"
 
 # Desktop notifications when a background pi agent finishes (idle) or needs input (blocked).
-# "system" = macOS Notification Center via terminal-notifier (no osascript fallback,
-# terminal-notifier is installed). Click the notification, then prefix+o focuses the
-# pane that raised it.
+# "terminal" = Ghostty itself shows the notification (native OSC 9), 100% AppleScript-free.
+# terminal-notifier is NOT usable here: unsigned CLI tool, macOS denies it notification
+# permission (falls back to osascript = Script Editor icon). Click the notification to
+# activate Ghostty, then prefix+o focuses the pane that raised it.
 [ui.toast]
-delivery = "system"
+delivery = "terminal"
 delay_seconds = 1
 
 [theme]
