@@ -1,0 +1,83 @@
+/** X/Twitter status URLs: parse, rewrite to the FxTwitter API, scan messages. */
+
+const STATUS_HOSTS = new Set([
+	'fxtwitter.com',
+	'twitter.com',
+	'vxtwitter.com',
+	'x.com',
+])
+const STATUS_PATH_PATTERN =
+	/^\/(?:i\/(?:web\/)?status|[^/?#]+\/status)\/(\d+)(?:[/?#]|$)/i
+const STATUS_IN_TEXT_PATTERN = new RegExp(
+	String.raw`(?<![A-Za-z0-9.-])(?:https?:\/\/)?(?:www\.|mobile\.)?(?:x\.com|twitter\.com|fxtwitter\.com|vxtwitter\.com)\/(?:(?:i\/web|i)\/status|[^/?#\s]+\/status)\/(\d+)`,
+	'gi',
+)
+
+const FXTWITTER_API_HOST = 'api.fxtwitter.com'
+
+function normalizedStatusUrl(rawUrl: string): URL | undefined {
+	try {
+		const candidate = rawUrl.match(/^https?:\/\//i)
+			? rawUrl
+			: `https://${rawUrl}`
+		return new URL(candidate)
+	} catch {
+		return undefined
+	}
+}
+
+function fxtwitterApiUrl(endpointPath: string): string {
+	return `https://${FXTWITTER_API_HOST}/${endpointPath}`
+}
+
+export function statusApiUrl(statusId: string): string {
+	return fxtwitterApiUrl(`2/status/${statusId}`)
+}
+
+/** The FxTwitter API endpoint that lists the replies to one status. */
+export function conversationApiUrl(statusId: string): string {
+	return fxtwitterApiUrl(`2/conversation/${statusId}`)
+}
+
+/** The numeric status id of an x.com/twitter.com status URL, if any. */
+export function statusIdFromUrl(rawUrl: unknown): string | undefined {
+	if (typeof rawUrl !== 'string') return undefined
+	const parsedUrl = normalizedStatusUrl(rawUrl)
+	if (!parsedUrl || parsedUrl.username || parsedUrl.password) return undefined
+	const hostname = parsedUrl.hostname
+		.toLowerCase()
+		.replace(/^(?:www|mobile)\./, '')
+	if (!STATUS_HOSTS.has(hostname)) return undefined
+	const [, statusId] = parsedUrl.pathname.match(STATUS_PATH_PATTERN) ?? []
+	return statusId
+}
+
+/** An original status URL rewritten to its FxTwitter API endpoint. */
+export function rewriteTwitterStatusUrl(rawUrl: unknown): string | undefined {
+	const statusId = statusIdFromUrl(rawUrl)
+	if (!statusId) return undefined
+	return statusApiUrl(statusId)
+}
+
+export function statusIdsInText(text: string, maximumIds: number): string[] {
+	const statusIds = new Set<string>()
+	for (const [, statusId] of text.matchAll(STATUS_IN_TEXT_PATTERN)) {
+		if (statusId) statusIds.add(statusId)
+	}
+	return [...statusIds].slice(0, maximumIds)
+}
+
+/** True for URLs pointing directly at this extension's FxTwitter endpoints. */
+export function isFxTwitterApiUrl(rawUrl: unknown): boolean {
+	if (typeof rawUrl !== 'string') return false
+	try {
+		const parsedUrl = new URL(rawUrl)
+		return (
+			parsedUrl.protocol === 'https:' &&
+			parsedUrl.hostname === FXTWITTER_API_HOST &&
+			/^\/2\/status\/\d+\/?$/.test(parsedUrl.pathname)
+		)
+	} catch {
+		return false
+	}
+}
