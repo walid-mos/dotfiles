@@ -172,10 +172,13 @@ configure_server_reminders() {
 }
 
 # configure_studio_client - laptop profile only: wire the MacBooks to the
-# Studio with an SSH Host alias and a one-key herdr attach. Idempotent,
-# dry-run aware; appends to ~/.ssh/config and ~/.config/zsh/local.zsh.
+# Studio with an SSH Host alias, a one-key herdr attach, and a saved herdr
+# machine profile (herdr 0.9+ Machines). The profile is saved on the laptop
+# side - the laptop runs the client (its sidebar shows Local + Mac Studio),
+# while the Studio never stores a profile of itself. Idempotent, dry-run
+# aware; appends to ~/.ssh/config and ~/.config/zsh/local.zsh.
 configure_studio_client() {
-    step "Mac Studio client (herdr remote attach)"
+    step "Mac Studio client (herdr)"
     if grep -qs "Host $STUDIO_SSH_ALIAS" "$HOME/.ssh/config"; then
         skip "~/.ssh/config already has Host $STUDIO_SSH_ALIAS"
     else
@@ -206,6 +209,19 @@ configure_studio_client() {
             } >> "$HOME/.config/zsh/local.zsh"
             ok "added 'h' alias to ~/.config/zsh/local.zsh"
         fi
+    fi
+    # Save the Studio as a herdr machine the same window can switch to. The
+    # SSH Host alias above resolves the Tailnet name, so this must come after
+    # it. Not fatal when unreachable (fresh laptop not yet on the tailnet):
+    # the profile is simply left unsaved and the manual command is printed.
+    if herdr machine list --json 2>/dev/null | grep -qs "\"target\": *\"$STUDIO_SSH_ALIAS\""; then
+        skip "herdr machine '$STUDIO_SSH_ALIAS' already saved"
+    elif is_dry_run; then
+        would "save Mac Studio as a herdr machine (herdr machine add $STUDIO_SSH_ALIAS)"
+    elif herdr machine add "$STUDIO_SSH_ALIAS" --label "Mac Studio"; then
+        ok "saved herdr machine $STUDIO_SSH_ALIAS - shows next to Local in the sidebar"
+    else
+        run "could not save machine '$STUDIO_SSH_ALIAS' from here (tailnet connected?) - finish later with: herdr machine add $STUDIO_SSH_ALIAS"
     fi
 }
 
