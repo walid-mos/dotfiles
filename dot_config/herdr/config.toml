@@ -1,12 +1,6 @@
 onboarding = false
-
-[session]
-# Restore terminal topology first; wt open resumes the selected Pi/environment.
-resume_agents_on_restore = false
-
 [keys]
 prefix = "ctrl+space"
-open_notification_target = "alt+o"   # one keystroke, no prefix: focus the pane that raised the notification
 
 # Tabs
 new_tab = "prefix+n"
@@ -26,15 +20,6 @@ close_tab = "prefix+x"
 close_pane = "alt+x"
 split_vertical = "alt+n"
 split_horizontal = "alt+v"
-
-# Desktop notifications when a background pi agent finishes (idle) or needs input (blocked).
-# "terminal" = Ghostty itself shows the notification (native OSC 9), 100% AppleScript-free.
-# terminal-notifier is NOT usable here: unsigned CLI tool, macOS denies it notification
-# permission (falls back to osascript = Script Editor icon). Click the notification to
-# activate Ghostty, then prefix+o focuses the pane that raised it.
-[ui.toast]
-delivery = "terminal"
-delay_seconds = 1
 
 [theme]
 # Follow host terminal light/dark appearance, like Ghostty and Neovim
