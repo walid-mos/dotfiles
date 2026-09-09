@@ -5,7 +5,7 @@
 # pick it up automatically. Each installer is safe to call on an
 # already-set-up machine: it reports and skips when the tool is present.
 
-BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch fzf zsh-syntax-highlighting terminal-notifier)
+BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch fzf zsh-syntax-highlighting )
 BREW_CASKS=(ghostty brave-browser hex)
 BREW_TAPS=(anomalyco/tap)
 LAPTOP_CASKS=(tailscale-app)
