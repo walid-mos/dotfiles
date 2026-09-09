@@ -1,8 +1,8 @@
 // Shared mutable state of the footer extension. The extension is a process
 // singleton per pi session; module state mirrors the adapter-map pattern used
 // by the other pi extensions (e.g. ordered-widget-stack). Mutable handles are
-// nullable, never optional: clearing sets null (see runtimeState in the
-// container-sandbox extension for the same idiom).
+// nullable, never optional: clearing sets null (see runtimeState in a sibling
+// extension for the same idiom).
 import type { GitPr, GitStatus } from './git-data.ts'
 import type { QuotaCache } from './quotas.ts'
 
