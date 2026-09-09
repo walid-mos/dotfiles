@@ -18,8 +18,9 @@ const fakeKeybindings = (): KeybindingsManager =>
 	// oxlint-disable-next-line nextnode/no-type-assertion typescript/no-unsafe-type-assertion
 	({
 		matches: (keyInput: string, keybinding: string) =>
-			keybinding === 'tui.editor.deleteCharBackward' &&
-			keyInput === 'backspace',
+			(keybinding === 'tui.editor.deleteCharBackward' &&
+				keyInput === 'backspace') ||
+			(keybinding === 'tui.input.submit' && keyInput === 'enter'),
 	}) as KeybindingsManager
 
 type StubEditor = EditorComponent & {
@@ -28,8 +29,9 @@ type StubEditor = EditorComponent & {
 }
 
 /**
- * Editor stub exposing only what attachPromptImageEditor needs. Backspace
- * mimics the pi editor: it removes exactly one trailing character.
+ * Editor stub exposing only what attachPromptImageEditor needs. Key handling
+ * mimics the pi editor: backspace removes one trailing character, ctrl+u
+ * deletes to line start, and every handled key fires onChange at the end.
  */
 function stubEditor(
 	initialText: string,
@@ -53,7 +55,24 @@ function stubEditor(
 			editor.onChange?.(nextText)
 		},
 		handleInput: (keyInput: string): void => {
-			if (keyInput === 'backspace') editor.text = editor.text.slice(0, -1)
+			if (keyInput === 'backspace') {
+				if (!editor.text.length) return
+				editor.text = editor.text.slice(0, -1)
+				editor.onChange?.(editor.text)
+				return
+			}
+			if (keyInput === 'ctrl+u') {
+				editor.text = ''
+				editor.onChange?.('')
+				return
+			}
+			if (keyInput === 'enter') {
+				const submitted = editor.text
+				editor.text = ''
+				// pi-tui submitValue(): onChange('') BEFORE onSubmit(result).
+				editor.onChange?.('')
+				editor.onSubmit?.(submitted)
+			}
 		},
 		render: () => [`line: ${editor.text}`],
 		invalidate: () => {},
@@ -130,13 +149,57 @@ void test('the submit clear keeps pending captures for the input event', () => {
 	assert.equal(session.store.items.length, 1)
 
 	// pi-tui submitValue() fires onChange('') BEFORE onSubmit(result).
-	session.editor.onChange?.('')
+	session.editor.handleInput('enter')
 
 	assert.equal(
 		session.store.imageAttachments(toImageAlias(1)).length,
 		1,
 		'a cleared draft is a submit, not a deletion of every capture',
 	)
+})
+
+void test('clearing the draft with a delete key drops its captures immediately', () => {
+	const directory = mkdtempSync(join(tmpdir(), 'attach-editor-'))
+	const imagePath = singleImage(directory)
+	const session = stubEditor('')
+
+	session.editor.onChange?.(`see ${imagePath}`)
+	assert.equal(session.store.items.length, 1)
+
+	session.editor.handleInput('ctrl+u')
+
+	assert.equal(
+		session.store.items.length,
+		0,
+		'a draft emptied by deleting must not keep its capture pending',
+	)
+})
+
+void test('a programmatic editor clear drops its captures immediately', () => {
+	const directory = mkdtempSync(join(tmpdir(), 'attach-editor-'))
+	const imagePath = singleImage(directory)
+	const session = stubEditor('')
+
+	session.editor.onChange?.(`see ${imagePath}`)
+	session.editor.setText('')
+
+	assert.equal(
+		session.store.items.length,
+		0,
+		'an editor cleared outside a keypress is a deletion too',
+	)
+})
+
+void test('a cleared draft frees the alias numbering for the next capture', () => {
+	const directory = mkdtempSync(join(tmpdir(), 'attach-editor-'))
+	const imagePath = singleImage(directory)
+	const session = stubEditor('')
+
+	session.editor.onChange?.(`see ${imagePath}`)
+	session.editor.handleInput('ctrl+u')
+	session.editor.onChange?.(`next ${imagePath}`)
+
+	assert.equal(session.editor.text, `next ${toImageAlias(1)}`)
 })
 
 void test('editing all text away except on submit still drops captures', () => {

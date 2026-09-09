@@ -1,11 +1,15 @@
 /** Prompt-text scanning side of captures: shell words, spaces-tolerant spans. */
 
-import { looksLikePath, readImageCapture } from './image-paths.ts'
+import { readImageCapture } from './image-paths.ts'
+import {
+	decodeShellWord,
+	isMergeableWord,
+	pathEndIndexes,
+	pathStartIndexes,
+	PROMPT_WORD_PATTERN,
+} from './path-word.ts'
 
 import type { PromptCapture } from './image-paths.ts'
-
-/** Unquoted shell word: double/single quoted strings or escaped bare words. */
-const SHELL_WORD = /"(?:\\.|[^"\\])*"|'[^']*'|(?:\\.|[^\s])+/gu
 
 /** +1 token per extra path fragment; a merge stops after this many words. */
 const MAX_MERGED_TOKENS = 12
@@ -44,7 +48,7 @@ export function scanImageCaptures(
 	firstNumber: number,
 ): ScannedImageCaptures {
 	const context: ScanContext = {
-		matches: [...text.matchAll(SHELL_WORD)],
+		matches: [...text.matchAll(PROMPT_WORD_PATTERN)],
 		text,
 		cwd,
 	}
@@ -210,11 +214,11 @@ function stepAtLast(
 	const match = context.matches[last]
 	if (!match) return undefined
 	const [word = ''] = match
-	for (const spanEnd of endVariants(word, match.index ?? 0)) {
-		const capture = captureAtEnd(
-			context,
-			plan.spanStart,
-			spanEnd,
+	for (const end of pathEndIndexes(word, 0)) {
+		const spanEnd = (match.index ?? 0) + end
+		const capture = readImageCapture(
+			context.text.slice(plan.spanStart, spanEnd),
+			context.cwd,
 			aliasNumber,
 		)
 		if (!capture) continue
@@ -229,64 +233,4 @@ function stepAtLast(
 		}
 	}
 	return undefined
-}
-
-/** Reads the raw slice as a path; undefined when it is no image file. */
-function captureAtEnd(
-	context: ScanContext,
-	spanStart: number,
-	spanEnd: number,
-	aliasNumber: number,
-): PromptCapture | undefined {
-	return readImageCapture(
-		context.text.slice(spanStart, spanEnd),
-		context.cwd,
-		aliasNumber,
-	)
-}
-
-/** Ends inside the last mergeable word: full word first, then punct trims. */
-function endVariants(word: string, tokenStart: number): number[] {
-	const variants = [tokenStart + word.length]
-	let end = word.length
-	while (end > 0 && /[,.;:!?\])}]/u.test(word[end - 1] ?? '')) {
-		end -= 1
-		variants.push(tokenStart + end)
-	}
-	return variants
-}
-
-/** A merge joins raw words: quoted or escaped words would misalign offsets. */
-function isMergeableWord(match: RegExpMatchArray): boolean {
-	const [word = ''] = match
-	if (!word) return false
-	const [first] = word
-	return first !== '"' && first !== "'" && decodeShellWord(word) === word
-}
-
-/** Strip one level of shell quoting and backslash escaping. */
-function decodeShellWord(token: string): string {
-	if (token.startsWith("'") && token.endsWith("'")) return token.slice(1, -1)
-	if (token.startsWith('"') && token.endsWith('"')) return token.slice(1, -1)
-	return token.replace(/\\(.)/gu, '$1')
-}
-
-/** Offsets where a decoded token plausibly starts a path. */
-function pathStartIndexes(pathText: string): number[] {
-	const indexes: number[] = []
-	for (let index = 0; index < pathText.length; index += 1) {
-		if (looksLikePath(pathText.slice(index))) indexes.push(index)
-	}
-	return indexes
-}
-
-/** Path end offsets inside a token, longest first, trimming trailing punct. */
-function pathEndIndexes(pathText: string, start: number): number[] {
-	const indexes = [pathText.length]
-	let end = pathText.length
-	while (end > start && /[,.;:!?\])}]/u.test(pathText[end - 1] ?? '')) {
-		end -= 1
-		indexes.push(end)
-	}
-	return indexes
 }
