@@ -1,6 +1,0 @@
-# Fails fast when fzf is missing (needed for interactive pickers only).
-emulate -L zsh
-
-command -v fzf >/dev/null 2>&1 && return 0
-print -u2 "❌ fzf is required for interactive selection. Install it with: brew install fzf"
-return 1

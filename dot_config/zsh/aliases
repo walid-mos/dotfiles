@@ -38,15 +38,6 @@ alias gst="git stash"
 alias gstp="git stash pop"
 alias grs="git restore --staged"
 
-# Worktrees (wt)
-alias ws="wt spawn"
-alias wtn="wt new"
-alias wts="wt switch"
-alias wtl="wt list"
-alias wtc="wt clean"
-alias wtp="wt prune"
-alias wtst="wt status"
-
 # Editor
 alias v="nvim"
 
