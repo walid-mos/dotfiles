@@ -129,11 +129,11 @@ configure_development_dirs() {
 # --- herdr remote: Mac Studio as the always-on server ---
 #
 # Server = Mac Studio (headless, runs everything). Clients = MacBooks, which
-# only run a thin `herdr --remote studio` client. The MagicDNS name must match
-# the device hostname set by `tailscale up --hostname=...` on the server.
+# only run a thin `herdr --remote studio` client. The MagicDNS name must match the device name Tailscale actually registered for
+# the Studio (verified live: mac-studio.tail4df91e.ts.net -> 100.95.191.41).
 STUDIO_SSH_ALIAS="studio"
-STUDIO_TAILNET_HOST="macstudio-de-walid.tail4df91e.ts.net"
-STUDIO_TAILNET_DEVICE="macstudio-de-walid"
+STUDIO_TAILNET_HOST="mac-studio.tail4df91e.ts.net"
+STUDIO_TAILNET_DEVICE="mac-studio"
 
 # configure_headless_server - keep the Studio always reachable without a
 # display or a logged-in session: never sleep, restart after power failure,
