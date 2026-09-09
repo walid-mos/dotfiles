@@ -1,10 +1,7 @@
 /** Prompt attachment state: aliases stay live only while the prompt references them. */
 
-import {
-	ingestImagePathToken,
-	IMAGE_ALIAS_PATTERN,
-	SHELL_WORD,
-} from './image-paths.ts'
+import { IMAGE_ALIAS_PATTERN } from './image-paths.ts'
+import { scanImageCaptures } from './path-scan.ts'
 
 import type { ImageContent } from '@earendil-works/pi-ai'
 import type { PromptCapture } from './image-paths.ts'
@@ -27,19 +24,14 @@ export class AttachmentStore {
 		return this.offset
 	}
 
-	/** Replace image file paths in prompt text with [img:N] aliases. */
+	/** Replace image paths in prompt text with [img:N] aliases. */
 	ingestImagePaths(text: string, cwd: string): string {
-		let hasIngested = false
-		const rewritten = text.replace(SHELL_WORD, (token): string => {
-			const ingest = ingestImagePathToken(token, cwd, this.nextNumber)
-			if (!ingest) return token
-			this.nextNumber += 1
-			this.captures = [...this.captures, ingest.capture]
-			hasIngested = true
-			return ingest.replacement
-		})
-		if (hasIngested) this.notifyChange()
-		return rewritten
+		const scan = scanImageCaptures(text, cwd, this.nextNumber)
+		if (!scan.captures.length) return text
+		this.captures = [...this.captures, ...scan.captures]
+		this.nextNumber += scan.captures.length
+		this.notifyChange()
+		return scan.rewritten
 	}
 
 	/** Drop captures whose alias is no longer present in the prompt text. */
@@ -62,6 +54,15 @@ export class AttachmentStore {
 		return this.captures
 			.filter(capture => text.includes(capture.alias))
 			.map(({ data, mimeType }) => ({ type: 'image', data, mimeType }))
+	}
+
+	/** Consume the captures for a submitted prompt: strip and numbering reset. */
+	clearCaptures(): void {
+		if (!this.captures.length) return
+		this.captures = []
+		this.nextNumber = 1
+		this.offset = 0
+		this.notifyChange()
 	}
 
 	/** Scroll the strip preview; clamped when there is nothing to move. */

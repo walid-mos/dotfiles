@@ -1,4 +1,4 @@
-/** File-system side of prompt image captures: path heuristics + format sniffing. */
+/** File-system side of prompt image captures: alias format + format sniffing. */
 
 import { readFileSync, statSync } from 'node:fs'
 import { homedir } from 'node:os'
@@ -8,9 +8,6 @@ import type { ImageContent } from '@earendil-works/pi-ai'
 
 /** Alias format inserted into prompt text in place of a file path. */
 export const IMAGE_ALIAS_PATTERN = /\[img:\d+\]/gu
-
-/** Unquoted shell word: double/single quoted strings or escaped bare words. */
-export const SHELL_WORD = /"(?:\\.|[^"\\])*"|'[^']*'|(?:\\.|[^\s])+/gu
 
 export function toImageAlias(number: number): string {
 	return `[img:${number}]`
@@ -44,52 +41,8 @@ const IMAGE_SIGNATURES = {
 /** WebP puts its format tag after the 8-byte RIFF header plus 4 size bytes. */
 const WEBP_TAG_OFFSET = 8
 
-export type ImagePathIngest = {
-	readonly capture: PromptCapture
-	/** The token with the captured path subrange replaced by the alias. */
-	readonly replacement: string
-}
-
-/**
- * Decode one command-like token and turn the first image path it contains
- * into a capture. The replacement reproduces the token with only the path
- * subrange swapped, keeping surrounding quotes and punctuation in place.
- */
-export function ingestImagePathToken(
-	token: string,
-	cwd: string,
-	aliasNumber: number,
-): ImagePathIngest | undefined {
-	const decoded = decodeShellWord(token)
-	for (const start of pathStartIndexes(decoded)) {
-		const ingest = ingestAtStartEnd(decoded, start, cwd, aliasNumber)
-		if (ingest) return ingest
-	}
-	return undefined
-}
-
-function ingestAtStartEnd(
-	decoded: string,
-	start: number,
-	cwd: string,
-	aliasNumber: number,
-): ImagePathIngest | undefined {
-	for (const end of pathEndIndexes(decoded, start)) {
-		const capture = readImageCapture(
-			decoded.slice(start, end),
-			cwd,
-			aliasNumber,
-		)
-		if (!capture) continue
-		return {
-			capture,
-			replacement: `${decoded.slice(0, start)}${toImageAlias(aliasNumber)}${decoded.slice(end)}`,
-		}
-	}
-	return undefined
-}
-
-function readImageCapture(
+/** Reads an image file into a capture; undefined when it is no image file. */
+export function readImageCapture(
 	pathText: string,
 	cwd: string,
 	aliasNumber: number,
@@ -116,42 +69,6 @@ function readImageCapture(
 	}
 }
 
-/** Offsets where a decoded token plausibly starts a path. */
-function pathStartIndexes(pathText: string): number[] {
-	const indexes = new Set<number>()
-	for (let index = 0; index < pathText.length; index += 1) {
-		if (looksLikePath(pathText.slice(index))) indexes.add(index)
-	}
-	return [...indexes]
-}
-
-/** Path end offsets inside a token, longest first, trimming trailing punctuation. */
-function pathEndIndexes(pathText: string, start: number): number[] {
-	const indexes = [pathText.length]
-	let end = pathText.length
-	while (end > start && /[,.;:!?\])}]/u.test(pathText[end - 1] ?? '')) {
-		end -= 1
-		indexes.push(end)
-	}
-	return indexes
-}
-
-/** Strip one level of shell quoting and backslash escaping. */
-function decodeShellWord(token: string): string {
-	if (token.startsWith("'") && token.endsWith("'")) return token.slice(1, -1)
-	if (token.startsWith('"') && token.endsWith('"')) return token.slice(1, -1)
-	return token.replace(/\\(.)/gu, '$1')
-}
-
-function looksLikePath(pathText: string): boolean {
-	return (
-		pathText.startsWith('/') ||
-		pathText.startsWith('./') ||
-		pathText.startsWith('../') ||
-		pathText.startsWith('~/')
-	)
-}
-
 /** '~/' prefix length, stripped before resolving against the home directory. */
 const HOMEDIR_PREFIX_LENGTH = 2
 
@@ -160,6 +77,16 @@ function resolvePath(pathText: string, cwd: string): string {
 		return resolve(homedir(), pathText.slice(HOMEDIR_PREFIX_LENGTH))
 	}
 	return isAbsolute(pathText) ? resolve(pathText) : resolve(cwd, pathText)
+}
+
+/** A path when it plausibly starts one: absolute, relative, or home ref. */
+export function looksLikePath(pathText: string): boolean {
+	return (
+		pathText.startsWith('/') ||
+		pathText.startsWith('./') ||
+		pathText.startsWith('../') ||
+		pathText.startsWith('~/')
+	)
 }
 
 function detectImageMimeType(bytes: Uint8Array): string | undefined {

@@ -121,6 +121,36 @@ void test('pi reassigning onChange keeps ingestion and call-through', () => {
 	assert.equal(session.editor.upstreamChangeTexts.length, 1)
 })
 
+void test('the submit clear keeps pending captures for the input event', () => {
+	const directory = mkdtempSync(join(tmpdir(), 'attach-editor-'))
+	const imagePath = singleImage(directory)
+	const session = stubEditor('')
+
+	session.editor.onChange?.(`see ${imagePath}`)
+	assert.equal(session.store.items.length, 1)
+
+	// pi-tui submitValue() fires onChange('') BEFORE onSubmit(result).
+	session.editor.onChange?.('')
+
+	assert.equal(
+		session.store.imageAttachments(toImageAlias(1)).length,
+		1,
+		'a cleared draft is a submit, not a deletion of every capture',
+	)
+})
+
+void test('editing all text away except on submit still drops captures', () => {
+	const directory = mkdtempSync(join(tmpdir(), 'attach-editor-'))
+	const imagePath = singleImage(directory)
+	const session = stubEditor('')
+
+	session.editor.onChange?.(`see ${imagePath} now`)
+
+	session.editor.onChange?.('nothing here anymore')
+
+	assert.equal(session.store.items.length, 0)
+})
+
 void test('backspacing into a trailing alias removes the whole alias', () => {
 	const session = stubEditor(`draft ${toImageAlias(1)}`)
 

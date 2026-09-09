@@ -3,14 +3,16 @@
  *
  * Image paths typed or pasted into the prompt are replaced with short aliases
  * ("~/d/diagram.png" -> "[img:1]") and attached to the message as real
- * multimodal images. A thumbnail strip above the prompt previews each capture
+ * multimodal images on submission, which consumes the draft (strip clears,
+ * numbering resets). A thumbnail strip above the prompt previews each capture
  * next to its alias (Ctrl+Shift+Left/Right scroll it); terminals without an
  * image protocol collapse the strip to the alias list. In the editor, aliases
  * render in accent bold and backspacing into a trailing alias removes it
  * whole.
  *
  * Modules:
- *   image-paths.ts       - file-system capture side: path parsing, mime sniffing
+ *   image-paths.ts       - file-system capture side: mime sniffing, capture read
+ *   path-scan.ts         - path parsing: token scan, spaced-path merging
  *   attachment-store.ts  - capture state; aliases live while the text keeps them
  *   attachment-editor.ts - pi editor hooks (ingestion, alias deletion, styling)
  *   attachment-strip.ts  - thumbnail strip renderer
@@ -75,9 +77,12 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 		styleAlias = identityAlias
 	})
 
-	// Attach every alias the submitted prompt still references.
+	// Attach every alias the submitted prompt still references, then consume
+	// the draft: the capture strip belongs to the editor submission lifecycle.
 	pi.on('input', event => {
+		if (event.source !== 'interactive') return { action: 'continue' }
 		const images = store.imageAttachments(event.text)
+		store.clearCaptures()
 		if (!images.length) return { action: 'continue' }
 		return {
 			action: 'transform',

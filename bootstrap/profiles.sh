@@ -8,6 +8,7 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$script_dir/lib.sh"
 . "$script_dir/packages.sh"
 . "$script_dir/configure.sh"
+. "$script_dir/workspace.sh"
 
 # Profile composition - add a new step by calling the installer or
 # configuration function in the right profile.
@@ -45,8 +46,9 @@ setup_laptop() {
 
 setup_server() {
     setup_common
-    start_container_system
     install_tailscale_daemon
+    start_container_system
+    configure_studio_workspaces
     configure_headless_server
     configure_server_reminders
 }
