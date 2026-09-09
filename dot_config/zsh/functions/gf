@@ -137,28 +137,12 @@ else
     esac
 fi
 
-# If worktrees were detected, suggest using wt prune
+# If worktrees were detected, list them and explain the manual way out
 if [ ${#worktree_branches[@]} -gt 0 ]; then
     echo ""
     echo "⚠️  ${#worktree_branches[@]} branch(es) with worktrees detected:"
     printf "  - %s\n" "${worktree_branches[@]}"
     echo ""
     echo "💡 These branches cannot be deleted with 'git branch -D' because they have active worktrees."
-    echo "   Use 'wt prune' to remove both the worktrees and branches for deleted remotes."
-    echo ""
-    echo -n "Run 'wt prune' now? (Y/n): "
-    read -r wt_response
-    case $wt_response in
-        [Nn]|no)
-            echo "Skipped. You can run 'wt prune' or 'wt prune -i' manually later."
-            ;;
-        *)
-            echo ""
-            if [ "$interactive_mode" = true ]; then
-                wt prune -i
-            else
-                wt prune
-            fi
-            ;;
-    esac
+    echo "   Remove them manually with: git worktree remove <path> && git branch -D <branch>"
 fi
