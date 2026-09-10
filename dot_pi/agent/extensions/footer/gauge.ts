@@ -38,17 +38,37 @@ const RESET_SOON_LIMIT_HOURS = 24
 const MS_PER_HOUR = 3_600_000
 const FRENCH_LOCALE = 'fr-FR'
 
+/** Clock stamp for anything happening today: HH:MM in the house locale. */
+export function fmtClock(time: Date): string {
+	return time.toLocaleTimeString(FRENCH_LOCALE, {
+		hour: '2-digit',
+		minute: '2-digit',
+	})
+}
+
+/** Local calendar day of an instant, for same-day comparisons. */
+function localDay(time: Date): string {
+	return time.toLocaleDateString(FRENCH_LOCALE)
+}
+
+/**
+ * When a change lands: the clock time while it is still today, otherwise the
+ * weekday it falls on - a bare clock time would read as "tonight" for a change
+ * two days out.
+ */
+export function fmtBoundary(time: Date, now: Date): string {
+	const clock = fmtClock(time)
+	if (localDay(time) === localDay(now)) return clock
+	const weekday = time.toLocaleDateString(FRENCH_LOCALE, { weekday: 'short' })
+	return `${weekday} ${clock}`
+}
+
 /** Reset time: HH:MM if <24h away, else short date. */
 export function fmtReset(iso: string): string {
 	const stamped = new Date(iso)
 	if (Number.isNaN(stamped.getTime())) return '?'
 	const hoursUntilReset = (stamped.getTime() - Date.now()) / MS_PER_HOUR
-	if (hoursUntilReset < RESET_SOON_LIMIT_HOURS) {
-		return stamped.toLocaleTimeString(FRENCH_LOCALE, {
-			hour: '2-digit',
-			minute: '2-digit',
-		})
-	}
+	if (hoursUntilReset < RESET_SOON_LIMIT_HOURS) return fmtClock(stamped)
 	return stamped.toLocaleDateString(FRENCH_LOCALE, {
 		weekday: 'short',
 		day: 'numeric',

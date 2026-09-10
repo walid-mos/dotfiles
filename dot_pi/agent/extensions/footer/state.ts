@@ -5,12 +5,14 @@
 // extension for the same idiom).
 import type { GitPr, GitStatus } from './git-data.ts'
 import type { QuotaCache } from './quotas.ts'
+import type { DeepseekTariff } from './tariff-deepseek.ts'
 
 export type FooterState = {
 	isEnabled: boolean
 	requestRender: (() => void) | null
 	quotaCache: QuotaCache
 	quotaTimer: ReturnType<typeof setInterval> | null
+	tariffCache: DeepseekTariff | null
 	gitCache: GitStatus | null
 	gitTimer: ReturnType<typeof setInterval> | null
 	gitCwd: string | null
@@ -26,6 +28,7 @@ export const footerState: FooterState = {
 	requestRender: null,
 	quotaCache: {},
 	quotaTimer: null,
+	tariffCache: null,
 	gitCache: null,
 	gitTimer: null,
 	gitCwd: null,

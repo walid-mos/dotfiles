@@ -1,7 +1,13 @@
 import { PI_PALETTE as LATTE } from '../ui/design-system/palette.ts'
 import { foregroundHex as fgHex } from '../ui/design-system/terminal-color.ts'
 
-import { balanceColor, fmtReset, quotaGauge, PERCENT_SCALE } from './gauge.ts'
+import {
+	balanceColor,
+	fmtBoundary,
+	fmtReset,
+	quotaGauge,
+	PERCENT_SCALE,
+} from './gauge.ts'
 import { currencySymbol, deepseekBalanceUsd } from './quota-deepseek.ts'
 import { XAI_POOL_LABELS } from './quotas.ts'
 // Right-side quota strip rendering: one segment per billing backend plus the
@@ -18,8 +24,15 @@ import type {
 	QuotaCache,
 	XaiQuota,
 } from './quotas.ts'
+import type { TariffTier } from './tariff-deepseek.ts'
 
-export type QuotaRenderOptions = { compact?: boolean }
+export type QuotaRenderOptions = {
+	compact?: boolean | undefined
+	/** Peak/off-peak tier of the active DeepSeek model, when it has one. */
+	tier?: TariffTier | undefined
+	/** Instant the tier's boundary stamp is read against. */
+	now?: Date | undefined
+}
 
 const QUIET = (text: string): string => fgHex(LATTE.subtext0, text)
 
@@ -53,11 +66,33 @@ function kimiSegment(quota: KimiQuota, options: QuotaRenderOptions): string {
 	return segment
 }
 
+/**
+ * DeepSeek's tier as a badge: the tier always shows, the clock time it changes
+ * is the first thing to go when the strip is compressed.
+ */
+function tariffBadge(
+	tier: TariffTier | undefined,
+	options: QuotaRenderOptions,
+): string {
+	if (!tier) return ''
+	const label = tier.peak ? '\u25b2 peak' : '\u25bc off-peak'
+	const tint = tier.peak ? LATTE.peach : LATTE.green
+	const badge = fgHex(tint, label)
+	if (options.compact || !tier.until) return badge
+	const until = fmtBoundary(tier.until, options.now ?? new Date())
+	return `${badge} ${QUIET(`until ${until}`)}`
+}
+
 /** DeepSeek prints the currency it bills in, tinted by its USD equivalent. */
-function deepseekSegment(quota: DeepseekQuota): string {
+function deepseekSegment(
+	quota: DeepseekQuota,
+	options: QuotaRenderOptions,
+): string {
 	const tint = balanceColor(deepseekBalanceUsd(quota))
 	const amount = `${currencySymbol(quota.currency)}${quota.balance.toFixed(CREDITS_DECIMALS)}`
-	return `${QUIET('deepseek')} ${fgHex(tint, '\u25c9')} ${fgHex(tint, amount)}`
+	const badge = tariffBadge(options.tier, options)
+	const balance = `${QUIET('deepseek')} ${fgHex(tint, '\u25c9')} ${fgHex(tint, amount)}`
+	return badge ? `${balance} ${thinSep()} ${badge}` : balance
 }
 
 function openRouterSegment(quota: OpenRouterQuota): string {
@@ -177,7 +212,7 @@ function activeProviderParts(
 		parts.push(xaiSegment(xai, options))
 	}
 	if (deepseek && activeProvider.includes('deepseek')) {
-		parts.push(deepseekSegment(deepseek))
+		parts.push(deepseekSegment(deepseek, options))
 	}
 	return parts
 }

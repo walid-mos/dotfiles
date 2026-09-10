@@ -30,9 +30,10 @@
  *   attachment-strip.ts  - thumbnail strip renderer (warm previews + placeholders)
  *   transcript-entry.ts  - submitted-capture snapshot + transcript entry renderer
  */
-import { CustomEditor } from '@earendil-works/pi-coding-agent'
-
-import { registerEditorDecorator } from '../ui/editor-decorator.ts'
+import {
+	createDefaultEditor,
+	registerEditorDecorator,
+} from '../ui/editor-decorator.ts'
 import {
 	ABOVE_EDITOR_PRIORITY,
 	setOrderedAboveEditorWidget,
@@ -56,9 +57,7 @@ import type {
 	ExtensionUIContext,
 	InputEvent,
 	InputEventResult,
-	KeybindingsManager,
 } from '@earendil-works/pi-coding-agent'
-import type { EditorComponent, EditorTheme, TUI } from '@earendil-works/pi-tui'
 import type { AliasStylist } from './attachment-editor.ts'
 import type { TranscriptAttachments } from './transcript-entry.ts'
 
@@ -113,13 +112,18 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 		return transformPrompt(event, images)
 	})
 
-	// The transcript replays the captures under the message that carried them:
-	// by the first turn pi has persisted that message, so the entry lands after
-	// it in the transcript and in the session file alike.
-	pi.on('turn_start', (_event, context) => {
+	// The transcript replays the captures under the message that carried them.
+	// Not at `turn_start`: pi emits it before the prompt's own `message_end`, so
+	// the branch still ends on the previous message there. `context` fires for
+	// the provider call that follows the prompt's persistence - the message is
+	// the leaf, and the entry still lands above the assistant's reply.
+	pi.on('context', (_event, context) => {
 		const carried = submitted.take(context.sessionManager.getBranch())
 		if (carried) pi.appendEntry(TRANSCRIPT_ENTRY_TYPE, carried)
 	})
+
+	// A run that never reaches a provider call leaves the snapshot unclaimed.
+	pi.on('agent_end', () => submitted.clear())
 
 	registerStripScrollShortcuts(pi, store)
 }
@@ -168,7 +172,7 @@ function registerPromptEditorDecorators(
 	cwd: string,
 	styleAlias: AliasStylist,
 ): void {
-	registerEditorDecorator(pi, defaultPromptEditor, (base, keybindings) => {
+	registerEditorDecorator(pi, createDefaultEditor, (base, keybindings) => {
 		attachPromptImageEditor(
 			base,
 			{
@@ -184,14 +188,6 @@ function registerPromptEditorDecorators(
 
 function accentAlias(context: ExtensionContext): AliasStylist {
 	return alias => context.ui.theme.fg('accent', context.ui.theme.bold(alias))
-}
-
-function defaultPromptEditor(
-	tui: TUI,
-	theme: EditorTheme,
-	keybindings: KeybindingsManager,
-): EditorComponent {
-	return new CustomEditor(tui, theme, keybindings)
 }
 
 /** Mount the strip widget; the returned repaint refreshes/clears it live. */

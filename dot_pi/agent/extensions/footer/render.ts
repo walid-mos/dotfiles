@@ -22,6 +22,7 @@ import { ICONS, SEP_THIN, THINKING_COLORS } from './theme.ts'
 import type { ContextUsage } from '@earendil-works/pi-coding-agent'
 import type { GitPr, GitStatus } from './git-data.ts'
 import type { QuotaCache } from './quotas.ts'
+import type { TariffTier } from './tariff-deepseek.ts'
 
 /** Visible gap kept between left and right column bounds. */
 const LINE_GAP = 2
@@ -46,6 +47,10 @@ export type FooterRenderInput = {
 	pr: GitPr | null
 	quotas: QuotaCache
 	provider: string | undefined
+	// DeepSeek's peak/off-peak tier, rendered inside the credit segment
+	tier: TariffTier | undefined
+	// The instant the tier and its boundary stamp are read at
+	now: Date
 }
 
 type LayoutVariant = {
@@ -125,16 +130,20 @@ function composeQuotaLine(
 	hero: string,
 	width: number,
 ): string {
+	const strip = { tier: input.tier, now: input.now }
 	for (const variant of HOVER_VARIANTS) {
 		const left = heroLeftEdge(variant, input, hero)
-		const right = quotaStrip(input.quotas, input.provider)
+		const right = quotaStrip(input.quotas, input.provider, strip)
 		if (visibleWidth(left) + visibleWidth(right) + LINE_GAP <= width) {
 			return justifyLine(left, right, width)
 		}
 	}
 	// Degraded: silent path edge and compact quota strip truncate instead
 	const left = heroLeftEdge(DEGRADED_HOVER_VARIANT, input, hero)
-	const right = quotaStrip(input.quotas, input.provider, { compact: true })
+	const right = quotaStrip(input.quotas, input.provider, {
+		...strip,
+		compact: true,
+	})
 	const fits = visibleWidth(left) + visibleWidth(right) + LINE_GAP <= width
 	return fits
 		? justifyLine(left, right, width)
@@ -233,10 +242,10 @@ export function renderFooterLines(input: FooterRenderInput): string[] {
 		LATTE.subtext0,
 		`↑${fmtTokens(input.tokens.input)} ↓${fmtTokens(input.tokens.output)}`,
 	)
-	const costGroup = fgHex(
+	const spent = fgHex(
 		LATTE.text,
 		`$${input.tokens.cost.toFixed(COST_DECIMALS)}`,
 	)
-	const line2 = composeStatusLine(input, arrowsGroup, costGroup, width)
+	const line2 = composeStatusLine(input, arrowsGroup, spent, width)
 	return [line1, line2]
 }

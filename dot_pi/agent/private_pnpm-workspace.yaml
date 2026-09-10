@@ -1,7 +1,11 @@
+# pnpm 12 requires an explicit decision for any package shipping install scripts.
+# esbuild: postinstall installs its platform-specific binary (required).
+# protobufjs: postinstall only prints version-scheme warnings; writes nothing.
+# '@google/genai': publishes no scripts/ directory, so install-time is a no-op.
 allowBuilds:
-    '@google/genai': set this to true or false
-    esbuild: set this to true or false
-    protobufjs: set this to true or false
+    '@google/genai': false
+    esbuild: true
+    protobufjs: true
 minimumReleaseAgeExclude:
     - '@oxfmt/binding-android-arm-eabi@0.67.0'
     - '@oxfmt/binding-android-arm64@0.67.0'

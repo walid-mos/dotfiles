@@ -5,6 +5,10 @@
  * terminal background; groups are separated by thin verticals.
  * Line 1: 󰚩 model │ ✻ thinking │ path │····· statuses │ context gauge ▰▰▱▱ │ arrows │ cost
  * Line 2:  branch │ churn ▰▰▱▱ + counters + [PR #n] │····· provider quotas
+ *
+ * The cost group prices DeepSeek Flash turns at their own peak/off-peak tariff,
+ * and the credit segment names the tier in effect and when it moves
+ * (tariff-deepseek.ts).
  */
 
 import { footerComponent } from './component.ts'
@@ -13,6 +17,8 @@ import { GIT_POLL_MS, PR_POLL_MS, QUOTA_POLL_MS } from './poll-pace.ts'
 import { pollQuotas } from './poll-quotas.ts'
 import { clampFooterLines, renderFooterLines } from './render.ts'
 import { footerState } from './state.ts'
+import { pollDeepseekTariff } from './tariff-catalogue.ts'
+import { deepseekTier } from './tariff-deepseek.ts'
 import { shortPath } from './text.ts'
 import { tokenTotals } from './tokens.ts'
 
@@ -53,6 +59,23 @@ function startQuotaPolling(): void {
 		QUOTA_POLL_MS,
 	)
 	footerState.quotaTimer.unref()
+}
+
+/**
+ * Load the DeepSeek tariff once per session: the schedule moves with DeepSeek's
+ * price list, not with the clock, and the tier is read at render time.
+ */
+async function refreshTariff(): Promise<void> {
+	const lifecycle = footerState.lifecycleGeneration
+	try {
+		const tariff = await pollDeepseekTariff()
+		if (lifecycle !== footerState.lifecycleGeneration) return
+		if (!tariff) return
+		footerState.tariffCache = tariff
+		requestRenderSafely()
+	} catch {
+		// Pricing is decorative; pi's own single-rate cost stays in place.
+	}
 }
 
 async function refreshGit(cwd: string): Promise<void> {
@@ -144,11 +167,16 @@ function safeInput(
 		missingUsage(),
 	)
 	const tokens = readThrough(
-		() => tokenTotals(branchEntries),
+		() => tokenTotals(branchEntries, footerState.tariffCache),
 		missingTokens(),
 	)
 	const modelId = readThrough(() => ctx.model?.id, undefined)
+	const provider = readThrough(
+		() => ctx.model?.provider,
+		undefined,
+	)?.toLowerCase()
 	const cwd = readThrough(() => ctx.cwd, process.cwd())
+	const now = new Date()
 	return {
 		width: 0,
 		// an empty model id is not a real state; truthiness covers both shapes
@@ -169,10 +197,9 @@ function safeInput(
 		git: footerState.gitCache,
 		pr: footerState.prCache,
 		quotas: footerState.quotaCache,
-		provider: readThrough(
-			() => ctx.model?.provider,
-			undefined,
-		)?.toLowerCase(),
+		provider,
+		tier: deepseekTier(footerState.tariffCache, now, provider, modelId),
+		now,
 	}
 }
 
@@ -192,6 +219,7 @@ function footerLines(
 function installFooter(ctx: ExtensionContext): void {
 	if (!footerState.isEnabled) return
 	startQuotaPolling()
+	void refreshTariff()
 	startGitPolling(ctx.cwd)
 	startPrPolling(ctx.cwd)
 

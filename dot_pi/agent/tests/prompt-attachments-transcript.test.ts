@@ -176,22 +176,37 @@ void test('a submitted snapshot retires with the turn that replays it', () => {
 	assert.equal(submitted.take(branch), undefined, 'the slot is now empty')
 })
 
-void test('a snapshot whose message never carried it is dropped', () => {
+void test('a snapshot survives a branch that does not hold its message yet', () => {
 	const submitted = new SubmittedCaptures()
 	submitted.snapshot({ captures: [snapshot(1)] })
 
+	// pi persists a prompt only at its own message_end, and some events - the
+	// prompt's own turn_start included - are emitted before it.
 	assert.equal(
 		submitted.take([messageEntry('a prompt without aliases')]),
 		undefined,
+		'the previous message cannot claim it',
 	)
-
-	submitted.snapshot({ captures: [snapshot(1)] })
 	assert.equal(submitted.take([]), undefined, 'no user message to hold it')
-	assert.equal(
-		submitted.take([messageEntry('see [img:1]')]),
-		undefined,
-		'the dropped snapshot is gone for good',
+	assert.deepEqual(
+		submitted
+			.take([
+				messageEntry('an earlier prompt'),
+				messageEntry('see [img:1]'),
+			])
+			?.captures.map(attached => attached.alias),
+		['[img:1]'],
+		'once the carrying message is on the branch, the snapshot is claimed',
 	)
+	assert.equal(submitted.take([messageEntry('see [img:1]')]), undefined)
+})
+
+void test('an unclaimed snapshot is dropped by the end of the run', () => {
+	const submitted = new SubmittedCaptures()
+	submitted.snapshot({ captures: [snapshot(1)] })
+	submitted.clear()
+
+	assert.equal(submitted.take([messageEntry('see [img:1]')]), undefined)
 })
 
 /** Session entry fixture: one user message on the branch. */

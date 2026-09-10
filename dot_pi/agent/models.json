@@ -35,6 +35,19 @@
         }
       }
     },
+    "deepseek": {
+      "modelOverrides": {
+        "deepseek-v4-flash": {
+          "input": ["text", "image"],
+          "cost": {
+            "input": 0.15,
+            "output": 0.6,
+            "cacheRead": 0.003,
+            "cacheWrite": 0
+          }
+        }
+      }
+    },
     "openrouter": {
       "modelOverrides": {
         "z-ai/glm-5.3-flash": {

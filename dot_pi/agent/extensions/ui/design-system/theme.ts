@@ -25,13 +25,18 @@ export interface UiTheme {
 	fg(color: keyof typeof UI_COLOR, text: string): string
 	bg(color: 'selectedBg', text: string): string
 	bold(text: string): string
+	/** Quiet a color without changing its hue: the same tone, one step back. */
+	faint(text: string): string
 }
 
 const BOLD = '\x1b[1m'
 const BOLD_OFF = '\x1b[22m'
+const FAINT = '\x1b[2m'
+const FAINT_OFF = '\x1b[22m'
 
 export const uiTheme: UiTheme = {
 	fg: (color, text) => foregroundHex(UI_COLOR[color], text),
 	bg: (color, text) => backgroundHex(UI_COLOR[color], text),
 	bold: text => `${BOLD}${text.replaceAll(BOLD_OFF, BOLD)}${BOLD_OFF}`,
+	faint: text => `${FAINT}${text.replaceAll(FAINT_OFF, FAINT)}${FAINT_OFF}`,
 }

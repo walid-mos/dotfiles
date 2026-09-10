@@ -1,6 +1,7 @@
-import { CustomEditor } from '@earendil-works/pi-coding-agent'
-
-import { registerEditorDecorator } from '../ui/editor-decorator.ts'
+import {
+	createDefaultEditor,
+	registerEditorDecorator,
+} from '../ui/editor-decorator.ts'
 
 import { installInlineSkillTrigger } from './editor-trigger.ts'
 import {
@@ -47,11 +48,8 @@ export default function (pi: ExtensionAPI): void {
 		// Editor decorator: auto-opens the popup on mid-line `/skill:` typing.
 		// Goes through the shared decorator composition so other editor
 		// decorators (e.g. prompt-attachments) keep working alongside it.
-		registerEditorDecorator(
-			pi,
-			(tui, theme, keybindings) =>
-				new CustomEditor(tui, theme, keybindings, {}),
-			editor => installInlineSkillTrigger(editor),
+		registerEditorDecorator(pi, createDefaultEditor, editor =>
+			installInlineSkillTrigger(editor),
 		)
 	})
 

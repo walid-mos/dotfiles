@@ -16,6 +16,6 @@ pinned=$(jq -s 'if length == 0 then $pinned else .[0] * $pinned end' --argjson p
   "treeFilterMode": "no-tools",
   "tuiMode": "fullscreen",
   "fullscreenExitOutput": "transcript",
-  "packages": ["npm:pi-web-access"]
+  "packages": ["npm:pi-web-access", "git:github.com/walid-mos/pi-subagents@v0.67.0-wm.1"]
 }')
 printf '%s' "$pinned"

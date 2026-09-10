@@ -11,7 +11,6 @@ import {
 	settleTelemetry,
 	startTelemetry,
 	startTurn,
-	stopTelemetry,
 	streamedMs,
 } from '../extensions/prompt-telemetry/state.ts'
 
@@ -142,8 +141,8 @@ void test('settling freezes the clock and closes the streaming window', () => {
 	assert.equal(settled.streamedCharacters, 0)
 })
 
-void test('stopTelemetry drops the prompt from the line', () => {
-	const stopped = stopTelemetry()
-	assert.equal(stopped.active, false)
-	assert.equal(elapsedMs(stopped, 90_000), 0)
+void test('an idle line drops the prompt it was tracking', () => {
+	const idle = idleTelemetry()
+	assert.equal(idle.active, false)
+	assert.equal(elapsedMs(idle, 90_000), 0)
 })

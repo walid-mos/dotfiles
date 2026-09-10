@@ -67,11 +67,11 @@ void test('line 2 couples the PR link at the git edge', () => {
 		pr: { number: 12, url: 'https://github.com/acme/app/pull/12' },
 		quotas: {},
 		provider: undefined,
+		tier: undefined,
+		now: new Date('2026-09-10T12:00:00.000Z'),
 	}
 	const [line1 = '', line2 = ''] = renderFooterLines(input)
 	assert.ok(line1.length > 0)
 	const plain = stripTerminalSequences(line2)
-	assert.ok(
-		plain.includes(`main \u2502 no git \u2502 [PR #12]`),
-	)
+	assert.ok(plain.includes(`main \u2502 no git \u2502 [PR #12]`))
 })

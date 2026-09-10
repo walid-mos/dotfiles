@@ -60,18 +60,22 @@ export class SubmittedCaptures {
 
 	/**
 	 * Attachments to replay under the newest user message of `entries`, or
-	 * nothing. The slot is retired either way, so a snapshot never outlives the
-	 * message it was taken for.
+	 * nothing while that message is not on the branch yet: pi persists a prompt
+	 * only at its own `message_end`, which some events precede, so an early call
+	 * must cost nothing. Only the message that carried the snapshot retires it.
 	 */
 	take(entries: readonly SessionEntry[]): TranscriptAttachments | undefined {
-		const { pending } = this
-		this.pending = NO_CAPTURES
-		if (!pending.captures.length) return undefined
 		const message = latestUserMessage(entries)
 		if (!message) return undefined
-		const carried = capturesForMessage(message, pending)
+		const carried = capturesForMessage(message, this.pending)
 		if (!carried.captures.length) return undefined
+		this.pending = NO_CAPTURES
 		return carried
+	}
+
+	/** Drop an unclaimed snapshot, e.g. when a run ends without reaching a provider. */
+	clear(): void {
+		this.pending = NO_CAPTURES
 	}
 }
 
