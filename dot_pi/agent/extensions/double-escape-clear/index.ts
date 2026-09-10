@@ -11,21 +11,18 @@
  *   escape-editor.ts - editor handleInput interception
  */
 
-import { CustomEditor } from '@earendil-works/pi-coding-agent'
-
-import { registerEditorDecorator } from '../ui/editor-decorator.ts'
+import {
+	createDefaultEditor,
+	registerEditorDecorator,
+} from '../ui/editor-decorator.ts'
 
 import { attachDoubleEscapeClear } from './escape-editor.ts'
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 export default function doubleEscapeClear(pi: ExtensionAPI): void {
-	registerEditorDecorator(
-		pi,
-		(tui, theme, keybindings) => new CustomEditor(tui, theme, keybindings),
-		(base, keybindings) => {
-			attachDoubleEscapeClear(base, keybindings)
-			return base
-		},
-	)
+	registerEditorDecorator(pi, createDefaultEditor, (base, keybindings) => {
+		attachDoubleEscapeClear(base, keybindings)
+		return base
+	})
 }

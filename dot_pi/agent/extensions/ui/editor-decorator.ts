@@ -1,8 +1,10 @@
+import { CustomEditor } from '@earendil-works/pi-coding-agent'
+
+/** Compose editor decorators from several extensions exactly once per session. */
 import type {
 	ExtensionAPI,
 	KeybindingsManager,
 } from '@earendil-works/pi-coding-agent'
-/** Compose editor decorators from several extensions exactly once per session. */
 import type { EditorComponent, EditorTheme, TUI } from '@earendil-works/pi-tui'
 
 /** Same shape pi's `ui.setEditorComponent` accepts. */
@@ -22,6 +24,36 @@ export type EditorDecorator = (
 	keybindings: KeybindingsManager,
 	tui: TUI,
 ) => EditorComponent
+
+/**
+ * The base editor every decorator chains onto: pi's `CustomEditor` with the
+ * working status embedded in the prompt's top border.
+ *
+ * A custom editor keeps the standalone working row unless it opts in, which
+ * prints the loader on its own line above the prompt with a blank line under
+ * it. Every `registerEditorDecorator` caller must pass this factory: only the
+ * first registered decorator builds the base, and extensions load in
+ * filesystem order.
+ */
+export function createDefaultEditor(
+	tui: TUI,
+	theme: EditorTheme,
+	keybindings: KeybindingsManager,
+): CustomEditor {
+	return new CustomEditor(tui, theme, keybindings, {
+		embedWorkingStatus: true,
+	})
+}
+
+/**
+ * Columns the embedded working loader can occupy in the prompt's top border:
+ * pi's `── ` prefix, the spinner, the message and the space before the dashes
+ * resume. The house word list's longest message is 19 columns.
+ *
+ * Anything else drawn in that border must reserve this field, so a rotating
+ * message can neither overlay it nor move it (see `prompt-telemetry`).
+ */
+export const EMBEDDED_LOADER_FIELD_WIDTH = 25
 
 const decoratorsByFactory = new WeakMap<
 	EditorFactory,

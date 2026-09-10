@@ -16,7 +16,7 @@ Single source of truth for restyling pi's TUI. Read this before migrating ANY re
 ## Current state (baseline)
 
 Migrated already: footer (vector gauges/quotas), the ask-user-question questionnaire (transcript + dialog),
-and the working indicator (`thinking-working` rotation/shuffle-bag words).
+and the prompt top border (rotating working loader + the activity block sharing that border line).
 
 NOT yet touched: pi's built-in tool rows (the 8 tools), transcript message surfaces, `!` bash row,
 notify lines, built-in dialogs, editor border/chrome details.
@@ -29,6 +29,7 @@ notify lines, built-in dialogs, editor border/chrome details.
 - [x] Text policy: `ui/terminal-text.ts` owns clipping/wrapping/hanging indent (pi TUI stays the only tokenizer).
 - [x] Frames/surfaces: `ui/align.ts`, `ui/frame.ts`, `ui/selection-marker.ts`, `ui/surface.ts` + `ui/ordered-widget-stack.ts`.
 - [x] Editor decorator composition: `ui/editor-decorator.ts` chains on pi's `getEditorComponent` exactly once per session.
+- [x] Base editor: `ui/editor-decorator.ts` also exports `createDefaultEditor` (pi's `CustomEditor` with `embedWorkingStatus: true`), the base every decorator chains onto.
 - [ ] Restyle extension skeleton (`extensions/tool-restyle/` or similar): registers renderer-only overrides for built-in tools (`registerTool` same-name, no `execute` → keeps built-in execution, replaces `renderCall`/`renderResult` per slot). Pi shows an interactive warning on override — accepted, documented.
 - [ ] Decision per tool row: `renderShell` default (boxed `toolPendingBg/SuccessBg/ErrorBg`) vs `"self"` (tool draws its own frame from `ui/frame.ts`). Default candidate: `"self"` for full frame control.
 - [ ] Export shared row-chrome helpers from `ui/` (header line, muted-hint line, truncation footer, status glyph) so all tool renderers reuse one implementation.
@@ -92,6 +93,10 @@ Exact current values (v0.85.1) so regressions are detectable. All collapsed prev
 - [ ] Thinking: `thinkingText`; hidden = italic label (customizable via `setHiddenThinkingLabel`).
 - [ ] Custom message cards: `Box` + bold `[customType]` (`customMessageLabel`) + `customMessageText` (`registerMessageRenderer`).
 - [ ] Custom entry cards: `customMessageBg` (`registerEntryRenderer`, TUI-only, not in LLM context).
+- Event order fact (pi 0.85.1): `agent_start` → `turn_start` → the prompt's `message_start`/`message_end`, and a
+  session entry is written **at that `message_end`**. Anything that must land *after* a submitted prompt
+  (e.g. `prompt-attachments`' transcript strip) therefore claims its slot on the following `context`
+  event, the first hook where the prompt is the branch leaf and the reply has not been appended yet.
 - [ ] `!` bash row (`bash-execution.js`): `bashMode` bold header pad-1; output `muted`; status muted / `(cancelled)` warning / `(exit N)` error; truncated → full-output path notice. Not overridable — restyle = theme tokens (`bashMode`, `muted`) or rebuild via `registerEntryRenderer`? (verify feasibility before scheduling; may be `- [~]`).
 - [ ] notify lines: NOT toasts — transcript lines: `dim` (consecutive dedupes into one line), `warning`, `Error: msg` in `error`; each after `Spacer(1)`.
 - [ ] Compaction summary / branch summary / skill invocation cards: boxed markdown, `customMessage*` + `dim` + `keyText` hints. Fixed components; restyle = theme tokens only. Mark `- [~]` unless palette demands more.
@@ -99,7 +104,17 @@ Exact current values (v0.85.1) so regressions are detectable. All collapsed prev
 ## 5. Chrome (editor + footer + status)
 
 - [x] Footer (own implementation; vector quota gauges, `ui/ordered-widget-stack` mounting).
-- [x] Working indicator (word rotation/shuffle-bag).
+- [x] Working indicator (word rotation/shuffle-bag), embedded in the prompt's top border — never a standalone row above it.
+- [x] Editor top border: `prompt-telemetry/activity-border.ts` right-aligns its activity block after the
+  loader reserve (`EMBEDDED_LOADER_FIELD_WIDTH`), never over the loader or pi's `↑ N more` scroll label.
+  Readings wear the loading color (pi gives the embedded spinner and its message the editor's own
+  `borderColor`, so numbers, tally icons and the clock mark take that same hue) while their words stay muted
+  (house `muted` ink mixed toward the background at `CHROME_QUIET_RATIO`; `DATA_QUIET_RATIO` is only the
+  numbers' fallback for an editor without a border color). Until the provider reports a count the track
+  sweeps through the readings' columns with the wait named at the row's right edge - nothing blank - and the
+  renderer fixes block width, so neither a landing count nor the loader rotation can move it. A settled
+  block stays frozen (`✓ mm:ss`) until the next prompt: no retire timer exists. Layout depends on pi's
+  `── <status> ──…` border; re-diff on upgrade (§10).
 - [ ] Editor: border color = `getThinkingBorderColor(level)` (`thinkingOff`→`thinkingMax`), `bashMode` in `!` mode; border glyphs `── label ──`. Editor is replaceable via `setEditorComponent`/editor-decorator — decide scope (border tint vs full owner-drawn editor).
 - [ ] Widgets: todo/progress widgets above/below editor via `setWidget` (`ui/surface.ts` already owns registrations) — add house-styled content when a widget feature lands (no current surface → open).
 - [ ] Autocomplete menu: in-editor `SelectList` (`accent` selection, `muted` descriptions) + `borderMuted` border. Only reachable via theme tokens unless the editor is fully owned. Mark `- [~]` initially.
@@ -116,6 +131,7 @@ Exact current values (v0.85.1) so regressions are detectable. All collapsed prev
 Confirmed glyphs/dims in pi 0.85.1 — record decisions here instead of re-discovering:
 
 - [ ] `Spacer(1)` spacings + `Box(1,1)` paddings (user msg, tool rows, custom cards) → only via `renderShell: "self"` / owned components.
+- [x] Working status: pi prints the loader as a standalone row above the widget container — whose `Spacer(1)` then reads as a blank gap above the prompt — unless the editor opts into the border with `embedWorkingStatus: true`.
 - [ ] Markdown glyphs: quote border `│ ` (+ italic quote), fences ` ```lang `, hr `"─".repeat(min(w,80))`, bullets `- ` / `1. ` / preserved markers / task `[x] ``[ ] `, tables bordered with `─`, h1 = bold+underline, h2+ = bold, links `mdLink` underline + ` (url)` in `mdLinkUrl` when href ≠ text, `addition/deletion` reusing `toolDiffAdded/Removed`, LaTeX via `renderLatex`, mermaid → ASCII art.
 - [ ] Editor glyphs `── `, ` ──`; settings cursor `accent "→ "`; footer glyphs `↑ ↓ R W CH •` (irrelevant — footer is owned).
 - [ ] Spinner frames `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` @80ms (pi-tui Loader default) — replaced by `setWorkingIndicator` (done).

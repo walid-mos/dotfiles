@@ -141,10 +141,6 @@ export function settleTelemetry(
 }
 
 /** Drop the tracked prompt: the line disappears until the next one. */
-export function stopTelemetry(): PromptTelemetry {
-	return idleTelemetry()
-}
-
 export function elapsedMs(telemetry: PromptTelemetry, nowMs: number): number {
 	if (!telemetry.active) return 0
 	return Math.max(0, (telemetry.settledAtMs || nowMs) - telemetry.startedAtMs)
