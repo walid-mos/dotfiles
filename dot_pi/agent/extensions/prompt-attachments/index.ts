@@ -8,7 +8,9 @@
  * next to its alias (Ctrl+Shift+Left/Right scroll it); terminals without an
  * image protocol collapse the strip to the alias list. In the editor, aliases
  * render in accent bold and backspacing into a trailing alias removes it
- * whole.
+ * whole. The submitted captures are snapshotted into a custom session entry,
+ * so the same strip is replayed under the message in the transcript and comes
+ * back on resume without touching the model context.
  *
  * Modules:
  *   image-paths.ts       - file-system capture side: mime sniffing, capture read
@@ -26,6 +28,7 @@
  *   attachment-store.ts  - capture state; aliases live while the text keeps them
  *   attachment-editor.ts - pi editor hooks (ingestion, alias deletion, styling)
  *   attachment-strip.ts  - thumbnail strip renderer (warm previews + placeholders)
+ *   transcript-entry.ts  - submitted-capture snapshot + transcript entry renderer
  */
 import { CustomEditor } from '@earendil-works/pi-coding-agent'
 
@@ -39,15 +42,25 @@ import { attachPromptImageEditor } from './attachment-editor.ts'
 import { AttachmentStore } from './attachment-store.ts'
 import { renderAttachmentStrip, TILE_PREVIEW_BOX } from './attachment-strip.ts'
 import { PreviewService } from './preview-service.ts'
+import {
+	renderTranscriptAttachments,
+	SubmittedCaptures,
+	TRANSCRIPT_ENTRY_TYPE,
+	transcriptCapture,
+} from './transcript-entry.ts'
 
+import type { ImageContent } from '@earendil-works/pi-ai'
 import type {
 	ExtensionAPI,
 	ExtensionContext,
 	ExtensionUIContext,
+	InputEvent,
+	InputEventResult,
 	KeybindingsManager,
 } from '@earendil-works/pi-coding-agent'
 import type { EditorComponent, EditorTheme, TUI } from '@earendil-works/pi-tui'
 import type { AliasStylist } from './attachment-editor.ts'
+import type { TranscriptAttachments } from './transcript-entry.ts'
 
 const WIDGET_ID = 'prompt-attachments'
 /** Shared no-op so reset code never allocates a new closure. */
@@ -57,7 +70,13 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 	let repaintStrip: () => void = NO_REPAINT
 	let styleAlias: AliasStylist = identityAlias
 	let cwd = process.cwd()
+	// Captures of the prompt being submitted, replayed under its own message.
+	const submitted = new SubmittedCaptures()
 	const store = new AttachmentStore(() => repaintStrip())
+	pi.registerEntryRenderer<TranscriptAttachments>(
+		TRANSCRIPT_ENTRY_TYPE,
+		renderTranscriptAttachments,
+	)
 	// Previews compute off the UI thread: the strip renders warm tiles only,
 	// and every settled computation repaints the strip it was asked for.
 	// A fresh service per session keeps the worker a session-scoped resource.
@@ -84,20 +103,51 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 
 	// Attach every alias the submitted prompt still references, then consume
 	// the draft: the capture strip belongs to the editor submission lifecycle.
+	// The transcript snapshot is taken first, while the previews are still warm.
 	pi.on('input', event => {
 		if (event.source !== 'interactive') return { action: 'continue' }
+		submitted.snapshot(submittedAttachments(store, previews, event.text))
 		const images = store.imageAttachments(event.text)
 		store.clearCaptures()
 		previews.reset()
-		if (!images.length) return { action: 'continue' }
-		return {
-			action: 'transform',
-			text: event.text,
-			images: [...(event.images ?? []), ...images],
-		}
+		return transformPrompt(event, images)
+	})
+
+	// The transcript replays the captures under the message that carried them:
+	// by the first turn pi has persisted that message, so the entry lands after
+	// it in the transcript and in the session file alike.
+	pi.on('turn_start', (_event, context) => {
+		const carried = submitted.take(context.sessionManager.getBranch())
+		if (carried) pi.appendEntry(TRANSCRIPT_ENTRY_TYPE, carried)
 	})
 
 	registerStripScrollShortcuts(pi, store)
+}
+
+/** Fold the captures into the prompt; without any, it passes through. */
+function transformPrompt(
+	event: InputEvent,
+	images: readonly ImageContent[],
+): InputEventResult {
+	if (!images.length) return { action: 'continue' }
+	return {
+		action: 'transform',
+		text: event.text,
+		images: [...(event.images ?? []), ...images],
+	}
+}
+
+/** Snapshot the captures the submitted text references, warm previews first. */
+function submittedAttachments(
+	store: AttachmentStore,
+	previews: PreviewService,
+	text: string,
+): TranscriptAttachments {
+	return {
+		captures: store
+			.referencedCaptures(text)
+			.map(capture => transcriptCapture(capture, previews.peek(capture))),
+	}
 }
 
 /** Ctrl+Shift+Left/Right scrolls the strip preview window. */

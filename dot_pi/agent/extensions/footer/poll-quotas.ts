@@ -4,6 +4,7 @@
 
 import { PERCENT_SCALE } from './gauge.ts'
 import { isRecord, finiteNumber, valOf } from './json.ts'
+import { pollDeepseekQuotas } from './quota-deepseek.ts'
 import { parseOpenAIUsage, chatgptAccountIdFromToken } from './quota-openai.ts'
 import {
 	fetchJson,
@@ -268,6 +269,8 @@ async function pollOpenaiQuotas(): Promise<OpenAIQuota | undefined> {
 	return parseOpenAIUsage(usage)
 }
 
+// ── DeepSeek - prepaid balance ────────────────────────
+
 /** Poll every known billing backend in the classic footer request order. */
 export async function pollQuotas(): Promise<QuotaCache> {
 	const cache: QuotaCache = {}
@@ -279,5 +282,7 @@ export async function pollQuotas(): Promise<QuotaCache> {
 	if (xai) cache.xai = xai
 	const openai = await pollOpenaiQuotas()
 	if (openai) cache.openai = openai
+	const deepseek = await pollDeepseekQuotas()
+	if (deepseek) cache.deepseek = deepseek
 	return cache
 }

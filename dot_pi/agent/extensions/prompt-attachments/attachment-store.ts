@@ -49,11 +49,18 @@ export class AttachmentStore {
 		this.notifyChange()
 	}
 
+	/** Captures the prompt text still references, in capture order. */
+	referencedCaptures(text: string): PromptCapture[] {
+		return this.captures.filter(capture => text.includes(capture.alias))
+	}
+
 	/** Multimodal payloads for every alias the prompt text still references. */
 	imageAttachments(text: string): ImageContent[] {
-		return this.captures
-			.filter(capture => text.includes(capture.alias))
-			.map(({ data, mimeType }) => ({ type: 'image', data, mimeType }))
+		return this.referencedCaptures(text).map(({ data, mimeType }) => ({
+			type: 'image',
+			data,
+			mimeType,
+		}))
 	}
 
 	/** Consume the captures for a submitted prompt: strip and numbering reset. */

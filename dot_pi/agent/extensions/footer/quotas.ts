@@ -55,11 +55,18 @@ export type OpenAIQuota = {
 	resets?: number
 }
 
+/** DeepSeek prepaid credit, in the currency DeepSeek reports it in. */
+export type DeepseekQuota = {
+	balance: number
+	currency: string
+}
+
 export type QuotaCache = {
 	kimi?: KimiQuota
 	openrouter?: OpenRouterQuota
 	xai?: XaiQuota
 	openai?: OpenAIQuota
+	deepseek?: DeepseekQuota
 	error?: boolean
 }
 
@@ -93,8 +100,12 @@ export function readAuthField(
 	return recordEntry
 }
 
+/**
+ * Bearer token for a provider's billing API. OAuth credentials expose
+ * `access`; API-key providers store their secret under `key`.
+ */
 export function readToken(provider: string): string | undefined {
-	return readAuthField(provider, 'access')
+	return readAuthField(provider, 'access') ?? readAuthField(provider, 'key')
 }
 
 export async function fetchJson(url: string, token: string): Promise<unknown> {

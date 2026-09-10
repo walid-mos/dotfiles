@@ -12,10 +12,15 @@ export type EditorFactory = (
 	keybindings: KeybindingsManager,
 ) => EditorComponent
 
-/** Wrap the editor pi currently uses; may rebind instance methods or callbacks. */
+/**
+ * Wrap the editor pi currently uses; may rebind instance methods or callbacks.
+ * The live TUI comes along so a decorator rendering dynamic content can request
+ * its own repaints, instead of reaching for protected editor internals.
+ */
 export type EditorDecorator = (
 	base: EditorComponent,
 	keybindings: KeybindingsManager,
+	tui: TUI,
 ) => EditorComponent
 
 const decoratorsByFactory = new WeakMap<
@@ -43,7 +48,7 @@ export function registerEditorDecorator(
 			const base =
 				previous?.(tui, theme, keybindings) ??
 				createDefault(tui, theme, keybindings)
-			return decorate(base, keybindings)
+			return decorate(base, keybindings, tui)
 		}
 		const applied = new Set(
 			previous ? decoratorsByFactory.get(previous) : undefined,

@@ -2,6 +2,7 @@ import { PI_PALETTE as LATTE } from '../ui/design-system/palette.ts'
 import { foregroundHex as fgHex } from '../ui/design-system/terminal-color.ts'
 
 import { balanceColor, fmtReset, quotaGauge, PERCENT_SCALE } from './gauge.ts'
+import { currencySymbol, deepseekBalanceUsd } from './quota-deepseek.ts'
 import { XAI_POOL_LABELS } from './quotas.ts'
 // Right-side quota strip rendering: one segment per billing backend plus the
 // dispatcher that selects the parts of the active provider. Compact mode
@@ -10,6 +11,7 @@ import { thinSep } from './text.ts'
 import { ICONS } from './theme.ts'
 
 import type {
+	DeepseekQuota,
 	KimiQuota,
 	OpenAIQuota,
 	OpenRouterQuota,
@@ -49,6 +51,13 @@ function kimiSegment(quota: KimiQuota, options: QuotaRenderOptions): string {
 		segment += ` ${thinSep()} ${QUIET(resetRun(stamps))}`
 	}
 	return segment
+}
+
+/** DeepSeek prints the currency it bills in, tinted by its USD equivalent. */
+function deepseekSegment(quota: DeepseekQuota): string {
+	const tint = balanceColor(deepseekBalanceUsd(quota))
+	const amount = `${currencySymbol(quota.currency)}${quota.balance.toFixed(CREDITS_DECIMALS)}`
+	return `${QUIET('deepseek')} ${fgHex(tint, '\u25c9')} ${fgHex(tint, amount)}`
 }
 
 function openRouterSegment(quota: OpenRouterQuota): string {
@@ -140,24 +149,37 @@ export function quotaStrip(
 	options: QuotaRenderOptions = {},
 ): string {
 	const activeProvider = (provider ?? '').toLowerCase()
-	const showsXai = activeProvider.includes('xai')
-	const showsKimi = activeProvider.includes('kimi')
-	const showsOpenRouter = activeProvider.includes('openrouter')
-	const showsOpenai = activeProvider.includes('openai')
-	// Providers without a pollable billing API state their absence rather
-	// than echo unrelated providers' quotas.
-	const showsNothing =
-		!showsXai && !showsKimi && !showsOpenRouter && !showsOpenai
-	if (showsNothing) return quotaContent([noQuotaDataPart(activeProvider)])
+	const parts = activeProviderParts(quotas, activeProvider, options)
+	if (parts.length) return quotaContent(parts)
+	// Providers without a pollable billing API, and backends that returned
+	// nothing, state their absence rather than echo other providers' quotas.
+	return quotaContent([noQuotaDataPart(activeProvider)])
+}
+
+/** Segments of the active provider, in the classic footer order. */
+function activeProviderParts(
+	quotas: QuotaCache,
+	activeProvider: string,
+	options: QuotaRenderOptions,
+): string[] {
+	const { kimi, openrouter, openai, xai, deepseek } = quotas
 	const parts: string[] = []
-	if (quotas.kimi && showsKimi) parts.push(kimiSegment(quotas.kimi, options))
-	if (quotas.openrouter && showsOpenRouter) {
-		parts.push(openRouterSegment(quotas.openrouter))
+	if (kimi && activeProvider.includes('kimi')) {
+		parts.push(kimiSegment(kimi, options))
 	}
-	if (quotas.openai && showsOpenai)
-		parts.push(openaiSegment(quotas.openai, options))
-	if (quotas.xai && showsXai) parts.push(xaiSegment(quotas.xai, options))
-	return quotaContent(parts)
+	if (openrouter && activeProvider.includes('openrouter')) {
+		parts.push(openRouterSegment(openrouter))
+	}
+	if (openai && activeProvider.includes('openai')) {
+		parts.push(openaiSegment(openai, options))
+	}
+	if (xai && activeProvider.includes('xai')) {
+		parts.push(xaiSegment(xai, options))
+	}
+	if (deepseek && activeProvider.includes('deepseek')) {
+		parts.push(deepseekSegment(deepseek))
+	}
+	return parts
 }
 
 function quotaContent(parts: string[]): string {
