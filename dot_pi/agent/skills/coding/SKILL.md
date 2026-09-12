@@ -3,10 +3,11 @@ name: coding
 description: >-
     Language-agnostic coding judgment that MUST be loaded whenever writing,
     modifying, or reviewing code in ANY language. Covers judgment no tool
-    can make: abstraction levels, naming by domain, DRY vs AHA, SOLID,
-    purity, error design, test quality (falsifiable, non-tautological
-    tests) - plus baseline mechanical caps to enforce even when no linter
-    does.
+    can make: the minimum-change ladder (delete, simplify, reuse before
+    ever adding code; one line over fifty), abstraction levels, naming by
+    domain, DRY vs AHA, SOLID, purity, error design, test quality
+    (falsifiable, non-tautological tests) - plus baseline mechanical caps
+    to enforce even when no linter does.
 ---
 
 # Coding Rules - Mandatory, Language-Agnostic
@@ -33,11 +34,28 @@ Sub-files, load on demand:
 - [ops-discipline.md](ops-discipline.md) - operational discipline: context economy when exploring code, and never using routing/scope rules as an excuse to skip a worthwhile change. Load when exploring an unfamiliar codebase, or when tempted to drop a change as "out of scope".
 - [testing.md](testing.md) - test quality in depth: the falsifiability litmus, tautology patterns and fixes, behavior-over-implementation, fakes vs mocks, determinism, coverage. Load when writing or modifying tests, or when a test smells like a mirror of the code.
 
-## Assumptions, Simplicity, and Scope
+## The Laziest Change That Works
+
+Before writing code, step back and stop at the first rung that holds:
+
+1. **Does this need to exist?** Speculative need = skip it, say so in one line (YAGNI).
+2. **Already in this codebase?** Reuse it, don't rewrite (grep first - see DRY).
+3. **Stdlib does it?** Use it.
+4. **Native platform feature?** Use it: `<input type="date">` over a picker library, CSS over JS, a DB constraint over app code.
+5. **Installed dependency solves it?** Use it. Never add a new dependency for what a few lines do.
+6. **One line?** One line.
+7. **Only then:** the minimum that works - no speculative feature, abstraction, configurability, or impossible-state handling; prefer a direct single-use implementation until reuse is demonstrated.
+
+The ladder is a reflex, not a research project: two rungs work, take the higher one and move on. It runs AFTER understanding the problem - read the code the change touches and trace the real flow first. The ladder shortens the solution, never the reading.
+
+- **Deletion over addition.** For every requested change, first ask whether the answer is to modify, simplify, or delete existing code it touches instead of adding new code alongside it. "Add validation" may mean one guard in the shared function, not a check at every call site. A lazy bug fix targets the root cause, where all callers route through, so every sibling caller gets fixed in the same diff - a small diff in the wrong place isn't lazy, it's a second bug.
+- **A request admits a heavy and a light reading? Ship the light one** and name the upgrade path in one line; never stall on a decision you can default.
+- **Simplest, not dumbest.** Frugality is chosen WITH the full reasoning budget: identify what can be deleted, reused, or simplified, then among the smallest solutions pick the one that is correct on edge cases, boring to read, and hard to misuse. LLMs default to corner-cutting - a flimsy shortcut reached without that reflection is not laziness, it is the same over-building failure wearing a smaller diff, and someone pays for it later.
+- **Never cut corners to stay small:** no skipping input validation at trust boundaries, error handling that prevents data loss, security, accessibility, or anything explicitly requested. The code ends up small because it is necessary, not golfed. If a "simplification" would punch a hole that must be patched later, it is not a simplification.
+
+## Assumptions and Scope
 
 Before coding, surface material assumptions and tradeoffs; never silently choose between interpretations that would produce meaningfully different behavior.
-
-Implement the minimum requested behavior. Add no speculative feature, abstraction, configurability, or handling for impossible states. Prefer a direct single-use implementation until reuse is demonstrated.
 
 Make surgical changes: every changed line must trace to the request. Do not refactor, reformat, or clean up unrelated existing code; remove only the imports, variables, functions, and branches that your change makes obsolete.
 
