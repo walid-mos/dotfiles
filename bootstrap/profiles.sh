@@ -8,7 +8,6 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$script_dir/lib.sh"
 . "$script_dir/packages.sh"
 . "$script_dir/configure.sh"
-. "$script_dir/hermes.sh"
 . "$script_dir/workspace.sh"
 
 # Profile composition - add a new step by calling the installer or
@@ -39,8 +38,6 @@ setup_common() {
 
 setup_laptop() {
     setup_common
-    step "Hermes"
-    setup_hermes
     step "Fonts"
     install_brew_list cask "${LAPTOP_CASKS[@]}"
     install_nerd_fonts
