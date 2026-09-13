@@ -14,6 +14,19 @@
 # Verified 2026-09: the CLI installer itself does not honor that env var, and
 # installs are non-idempotent for links, hence we re-clean on every pass.
 
+# runtime swap used on THIS machine (2026-09, manual one-off; the repo-wide
+# reset-day default remains hermes-managed python via the official installer):
+#   brew install python@3.11
+#   UV_PYTHON_PREFERENCE=only-system UV_PYTHON_DOWNLOADS=never \
+#     ~/.hermes/bin/uv venv --python /opt/homebrew/opt/python@3.11/bin/python3.11 \
+#     ~/.hermes/hermes-agent/venv
+#   cd ~/.hermes/hermes-agent && UV_PROJECT_ENVIRONMENT="$PWD/venv" \
+#     ~/.hermes/bin/uv sync --frozen --all-extras --no-extra matrix   # python-olm
+#     (matrix extra fails to build against brew framework python; not used here)
+#   ~/.hermes/bin/uv tool upgrade browser-use --python <brewpython>  # re-home tools
+#   rm -rf ~/.local/share/uv/python   # no hermes-managed python at all
+# Verifies: hermes -z, HERMES_HOME=profiles/comptable hermes -z, gateway status.
+
 # Bots to register. Each must have a full payload in
 # dot_hermes/profiles/<bot>/ (config.yaml, SOUL.md, ...).
 HERMES_BOTS=(comptable)
