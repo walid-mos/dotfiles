@@ -92,3 +92,15 @@ Movies
 Music
 Pictures
 Public
+# hermes bookmarks-agent: runtime state + bookmark archive (data plane)
+.hermes/bookmarks-agent/state
+.hermes/bookmarks-agent/data
+.hermes/bookmarks-agent/logs
+# hermes cron: scheduled jobs mutate at every run (last_run, paus state) - runtime, restored from backup volume
+.hermes/cron
+.hermes/profiles/*/cron
+# hermes data-plane dirs (secrets / attachments caches)
+.hermes/attachments
+.hermes/mcp-tokens
+.hermes/shared
+.hermes/freelance-presence-agent/state
