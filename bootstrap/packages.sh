@@ -5,9 +5,9 @@
 # pick it up automatically. Each installer is safe to call on an
 # already-set-up machine: it reports and skips when the tool is present.
 
-BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch fzf zsh-syntax-highlighting python@3.11)
-BREW_CASKS=(ghostty brave-browser hex hermes-desktop)
-# hermes-desktop: Hermes Agent app (bundles nothing itself; the CLI install
+BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch fzf zsh-syntax-highlighting)
+BREW_CASKS=(ghostty brave-browser hex)
+#: Hermes Agent app (bundles nothing itself; the CLI install
 # lives in bootstrap/hermes.sh). Same ~/.hermes home as the CLI runtime.
 BREW_TAPS=(anomalyco/tap)
 LAPTOP_CASKS=(tailscale-app)
