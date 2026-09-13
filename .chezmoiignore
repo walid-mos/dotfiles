@@ -29,6 +29,38 @@ bootstrap/
 .config/zsh/local.zsh
 .config/zsh/secrets
 
+# hermes: volatile state, credentials and data - never version
+.hermes/.env
+.hermes/auth.json
+.hermes/state.db
+.hermes/state.db-shm
+.hermes/state.db-wal
+.hermes/memories
+.hermes/sessions
+.hermes/logs
+.hermes/cache
+.hermes/tmp
+.hermes/attachments
+.hermes/kanban.db
+.hermes/kanban/
+.hermes/runtime
+.hermes/gateway*
+.hermes/bin
+.hermes/node
+.hermes/profiles/*/.env
+.hermes/profiles/*/auth.json
+.hermes/profiles/*/state.db
+.hermes/profiles/*/state.db-shm
+.hermes/profiles/*/state.db-wal
+.hermes/profiles/*/memories
+.hermes/profiles/*/sessions
+.hermes/profiles/*/logs
+.hermes/profiles/*/cache
+.hermes/profiles/*/scripts/state
+.hermes/scripts/qonto_receipts/qonto_receipts_state.json
+.hermes/scripts/qonto_receipts/qonto_receipts_forwarded.jsonl
+.hermes/scripts/qonto_receipts/backfill_run.log
+
 # ssh: keys and credentials - never version
 .ssh
 
