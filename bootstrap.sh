@@ -14,7 +14,7 @@
 set -eu
 
 MODULES_URL="https://raw.githubusercontent.com/walid-mos/dotfiles/main/bootstrap"
-MODULES=(lib.sh packages.sh configure.sh profiles.sh)
+MODULES=(lib.sh packages.sh configure.sh hermes.sh profiles.sh)
 
 bootstrap_dir="$(mktemp -d "${TMPDIR:-/tmp}/bootstrap.XXXXXX")"
 trap 'rm -rf "$bootstrap_dir"' EXIT

@@ -1,0 +1,5 @@
+name: brain-reminders
+version: 1.0.0
+description: Base de taches/rappels Obsidian (Brain/Tasks) - capture en chat, widget desktop.
+author: Walid + Hermes
+skills: [brain-reminders-capture]
