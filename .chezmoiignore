@@ -39,6 +39,24 @@ bootstrap/
 .pi/agent/node_modules
 .pi/agent/git
 
+# app/tool runtime state (regenerated, machine-local) - never version
+.config/browser-harness
+.config/colima
+.config/swiftpm
+.config/herdr-focus-pane
+.config/herdr/plugins.json
+.config/herdr/plugins
+.config/herdr/local-plugins
+.docker/contexts
+.cua-driver
+.galley
+.storybook
+.xurl
+.pi/agent/missions
+
+# user bin: one-off utility scripts, not synced
+bin/
+
 # macOS home: volatile state, caches and user data - never version
 .DS_Store
 .CFUserTextEncoding
