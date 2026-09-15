@@ -8,11 +8,20 @@ import {
 } from '../extensions/ask-user-question/questionnaire-transcript.ts'
 import { terminalLineWidth } from '../extensions/ui/terminal-text.ts'
 
+import type { Theme } from '@earendil-works/pi-coding-agent'
 import type {
 	AskResult,
 	Answer,
 	Question,
 } from '../extensions/ask-user-question/questionnaire-model.ts'
+
+// Identity theme: colors render as they are; only the strip's fg/bold surface
+// is exercised.
+// oxlint-disable-next-line nextnode/no-type-assertion - Pi Theme is duck-typed through the strip surface
+const plainTheme = {
+	fg: (_role: string, content: string) => content,
+	bold: (content: string) => content,
+} as Theme
 
 const ANSI_PATTERN = /\u001b\[[0-?]*[ -/]*[@-~]/g
 
@@ -123,7 +132,7 @@ void test('result replay fills markers for the selected options only', () => {
 		},
 	]
 	const details: AskResult = { questions, answers, cancelled: false }
-	const lines = renderResultLines(details, 100)
+	const lines = renderResultLines(details, 100, plainTheme)
 	const plain = lines.map(stripAnsi).join('\n')
 
 	assertWithinWidth(lines, 100)
@@ -147,7 +156,7 @@ void test('result replay renders multi answers, custom text and long prompts saf
 		},
 	]
 	const details: AskResult = { questions, answers, cancelled: false }
-	const lines = renderResultLines(details, 40)
+	const lines = renderResultLines(details, 40, plainTheme)
 	const plain = lines.map(stripAnsi).join('\n')
 
 	assertWithinWidth(lines, 40)
@@ -160,6 +169,7 @@ void test('cancelled and chat results keep the block frame', () => {
 	const cancelled = renderResultLines(
 		{ questions, answers: [], cancelled: true },
 		80,
+		plainTheme,
 	)
 	const cancelledPlain = cancelled.map(stripAnsi).join('\n')
 	assertWithinWidth(cancelled, 80)
@@ -174,6 +184,7 @@ void test('cancelled and chat results keep the block frame', () => {
 			chat: { question: questions[0]!, initialState: { answers: [] } },
 		},
 		80,
+		plainTheme,
 	)
 	const chatPlain = chat.map(stripAnsi).join('\n')
 	assertWithinWidth(chat, 80)
@@ -216,7 +227,7 @@ void test('result replay renders schema-coerced details and refuses the rest', (
 	})
 	assert.ok(parsed)
 
-	const lines = renderResultLines(parsed, 40)
+	const lines = renderResultLines(parsed, 40, plainTheme)
 	const plain = lines.map(stripAnsi).join('\n')
 	assertWithinWidth(lines, 40)
 	assert.match(plain, /✔ ask · 1 answer/)

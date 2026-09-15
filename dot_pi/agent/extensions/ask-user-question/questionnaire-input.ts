@@ -1,22 +1,27 @@
 import { Key, matchesKey } from '@earendil-works/pi-tui'
 
+import type { KeybindingsManager } from '@earendil-works/pi-coding-agent'
 import type { Editor } from '@earendil-works/pi-tui'
 import type { Question } from './questionnaire-model.ts'
 import type { QuestionnaireEffect } from './questionnaire-navigation-state.ts'
 import type { QuestionnaireState } from './questionnaire-state.ts'
 
-type SelectionAction =
-	| 'tui.select.up'
-	| 'tui.select.down'
-	| 'tui.select.confirm'
-	| 'tui.select.cancel'
-
-export interface SelectionKeybindings {
-	matches(data: string, action: SelectionAction): boolean
-}
+/** pi's full app keybindings; the questionnaire only calls `matches`. */
+export type SelectionKeybindings = Pick<KeybindingsManager, 'matches'>
 
 type ApplyEffects = (effects: QuestionnaireEffect[]) => void
 type SwitchTab = (delta: -1 | 1) => void
+
+/**
+ * Capture-strip gestures the router interrupts navigation with: prompt parity
+ * for Ctrl+V (paste image, text otherwise) and Ctrl+Shift+Left/Right (strip
+ * scroll), while the strip has captures to act on.
+ */
+export interface StripInput {
+	pasteImage(keyInput: string): boolean
+	canScrollStrip(): boolean
+	scrollStrip(delta: -1 | 1): void
+}
 
 /** Live-dialog dependencies of the keyboard router. */
 export interface QuestionnaireInputTargets {
@@ -25,6 +30,7 @@ export interface QuestionnaireInputTargets {
 	readonly keybindings: SelectionKeybindings
 	readonly switchTab: SwitchTab
 	readonly applyEffects: ApplyEffects
+	readonly captures?: StripInput | undefined
 }
 
 /** Editor cursor position, or undefined when the editor does not have focus. */
@@ -66,6 +72,7 @@ export class QuestionnaireInputController {
 	private readonly keybindings: SelectionKeybindings
 	private readonly switchTab: SwitchTab
 	private readonly applyEffects: ApplyEffects
+	private readonly captures: StripInput | undefined
 
 	constructor(targets: QuestionnaireInputTargets) {
 		this.state = targets.state
@@ -73,9 +80,11 @@ export class QuestionnaireInputController {
 		this.keybindings = targets.keybindings
 		this.switchTab = targets.switchTab
 		this.applyEffects = targets.applyEffects
+		this.captures = targets.captures
 	}
 
 	handleInput(keystrokes: string): void {
+		if (this.handleStripKeys(keystrokes)) return
 		if (matchesKey(keystrokes, Key.ctrl('g'))) {
 			this.applyEffects(this.state.requestChat())
 			return
@@ -87,6 +96,24 @@ export class QuestionnaireInputController {
 		if (this.handleTabKey(keystrokes)) return
 		if (this.handleSubmitTabKey(keystrokes)) return
 		this.handleOptionKey(keystrokes)
+	}
+
+	/** Prompt parity: paste and strip-scroll keys win over editor navigation. */
+	private handleStripKeys(keystrokes: string): boolean {
+		if (!this.captures) return false
+		if (this.state.editorHasFocus() && this.captures.pasteImage(keystrokes))
+			return true
+		const side = this.stripScrollSide(keystrokes)
+		if (!side || !this.captures.canScrollStrip()) return false
+		this.captures.scrollStrip(side)
+		return true
+	}
+
+	/** The scroll direction the keypress carries, or 0 when it is not a scroll. */
+	private stripScrollSide(keystrokes: string): -1 | 0 | 1 {
+		if (matchesKey(keystrokes, Key.ctrlShift('left'))) return -1
+		if (matchesKey(keystrokes, Key.ctrlShift('right'))) return 1
+		return 0
 	}
 
 	private handleEditorKey(keystrokes: string): void {

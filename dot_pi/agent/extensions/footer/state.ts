@@ -3,6 +3,7 @@
 // by the other pi extensions (e.g. ordered-widget-stack). Mutable handles are
 // nullable, never optional: clearing sets null (see runtimeState in a sibling
 // extension for the same idiom).
+import type { GalleyDesk } from './galley-data.ts'
 import type { GitPr, GitStatus } from './git-data.ts'
 import type { QuotaCache } from './quotas.ts'
 import type { DeepseekTariff } from './tariff-deepseek.ts'
@@ -19,6 +20,8 @@ export type FooterState = {
 	prCache: GitPr | null
 	prTimer: ReturnType<typeof setInterval> | null
 	prGeneration: number
+	reviewCache: GalleyDesk | null
+	reviewTimer: ReturnType<typeof setInterval> | null
 	lifecycleGeneration: number
 	isFooterInstalled: boolean
 }
@@ -35,6 +38,17 @@ export const footerState: FooterState = {
 	prCache: null,
 	prTimer: null,
 	prGeneration: 0,
+	reviewCache: null,
+	reviewTimer: null,
 	lifecycleGeneration: 0,
 	isFooterInstalled: false,
+}
+
+/** Ask for a TUI repaint; a dead TUI handle drops instead of throwing. */
+export function requestRenderSafely(): void {
+	try {
+		footerState.requestRender?.()
+	} catch {
+		footerState.requestRender = null
+	}
 }

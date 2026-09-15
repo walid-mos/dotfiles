@@ -6,8 +6,10 @@ description: >-
     discipline (never hand back null when a do-nothing value exists). Load
     WHEN writing try/catch, throwing or rethrowing, designing how a
     function fails, returning error codes or null, wrapping a library's
-    exceptions, or handling validation edge cases. Do NOT load when
-    editing plain feature logic that has no error paths.
+    exceptions, handling validation edge cases, or declaring a field,
+    schema, or type contract nullable — deciding whether data can be
+    absent. Do NOT load when editing plain feature logic that has no
+    error paths.
 ---
 
 # Error Design - Failure Contracts
@@ -64,6 +66,8 @@ A returned null forces every caller into a guard pyramid - each level checking t
 - Absence with a do-nothing value returns that value: no orders -> `[]` (iterating it does nothing, which is exactly what "no orders" means); no discount -> `0`.
 - Absence that is PART of the caller's logic may be null: a signed-out user is legitimately `null` - the callers check it as business logic, not as defense.
 - When something has actually GONE WRONG and null would fail silently, throw instead - a thrown error names the cause and points to where the invariant broke.
+
+**Null wears types too.** A `| null` field on a returned record is returned-null at the type level: every consumer inherits the guard. Genuine business absence may be nullable; data the producing source always carries must be required — and a fallback repeated at every call site (`name ?? code`, again and again) is the guard pyramid rewritten. Fix the contract, not the call sites.
 
 Flatten pyramids by removing what is guarded, never by adding another check.
 

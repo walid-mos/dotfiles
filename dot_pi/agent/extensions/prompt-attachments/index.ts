@@ -1,3 +1,16 @@
+import { attachPromptImageEditor } from '../attachments/attachment-editor.ts'
+import { AttachmentStore } from '../attachments/attachment-store.ts'
+import {
+	renderAttachmentStrip,
+	TILE_PREVIEW_BOX,
+} from '../attachments/attachment-strip.ts'
+import { PreviewService } from '../attachments/preview-service.ts'
+import {
+	renderTranscriptAttachments,
+	SubmittedCaptures,
+	TRANSCRIPT_ENTRY_TYPE,
+	transcriptCapture,
+} from '../attachments/transcript-entry.ts'
 /**
  * prompt-attachments - image file paths in the prompt become [img:N] aliases.
  *
@@ -9,26 +22,13 @@
  * image protocol collapse the strip to the alias list. In the editor, aliases
  * render in accent bold and backspacing into a trailing alias removes it
  * whole. The submitted captures are snapshotted into a custom session entry,
- * so the same strip is replayed under the message in the transcript and comes
- * back on resume without touching the model context.
+ * so the same strip is replayed inside its prompt frame, above the text, and
+ * comes back on resume without touching the model context. Without a matching
+ * prompt frame, it retains its standalone transcript position.
  *
- * Modules:
- *   image-paths.ts       - file-system capture side: mime sniffing, capture read
- *   path-scan.ts         - token scan and spaced-path merging
- *   path-word.ts         - shell words and safe local-path boundaries
- *   png-format.ts        - shared PNG constants and the RGBA image type
- *   png-decode.ts        - bounded inflation and RGBA row traversal
- *   png-scanline.ts      - PNG scanline filter reversal
- *   png-colors.ts        - sample spreading: unfiltered rows to RGBA rows
- *   png-encode.ts        - PNG writer: filter-0 RGBA re-encode
- *   crc32.ts             - CRC-32 for chunk framing (used by png-encode)
- *   image-preview.ts     - preview compute: streamed box-average downscale
- *   preview-worker.ts    - worker-thread entry: job in, preview out
- *   preview-service.ts   - async orchestration: worker queue, warm cache
- *   attachment-store.ts  - capture state; aliases live while the text keeps them
- *   attachment-editor.ts - pi editor hooks (ingestion, alias deletion, styling)
- *   attachment-strip.ts  - thumbnail strip renderer (warm previews + placeholders)
- *   transcript-entry.ts  - submitted-capture snapshot + transcript entry renderer
+ * The scenario-neutral capture machinery lives in the shared `attachments/`
+ * library (paths, PNG codec, previews, store, editor hooks, strip renderer,
+ * snapshot records); this extension only wires it to the prompt lifecycle.
  */
 import {
 	createDefaultEditor,
@@ -39,17 +39,6 @@ import {
 	setOrderedAboveEditorWidget,
 } from '../ui/ordered-widget-stack.ts'
 
-import { attachPromptImageEditor } from './attachment-editor.ts'
-import { AttachmentStore } from './attachment-store.ts'
-import { renderAttachmentStrip, TILE_PREVIEW_BOX } from './attachment-strip.ts'
-import { PreviewService } from './preview-service.ts'
-import {
-	renderTranscriptAttachments,
-	SubmittedCaptures,
-	TRANSCRIPT_ENTRY_TYPE,
-	transcriptCapture,
-} from './transcript-entry.ts'
-
 import type { ImageContent } from '@earendil-works/pi-ai'
 import type {
 	ExtensionAPI,
@@ -58,8 +47,8 @@ import type {
 	InputEvent,
 	InputEventResult,
 } from '@earendil-works/pi-coding-agent'
-import type { AliasStylist } from './attachment-editor.ts'
-import type { TranscriptAttachments } from './transcript-entry.ts'
+import type { AliasStylist } from '../attachments/attachment-editor.ts'
+import type { TranscriptAttachments } from '../attachments/transcript-entry.ts'
 
 const WIDGET_ID = 'prompt-attachments'
 /** Shared no-op so reset code never allocates a new closure. */
@@ -69,7 +58,7 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 	let repaintStrip: () => void = NO_REPAINT
 	let styleAlias: AliasStylist = identityAlias
 	let cwd = process.cwd()
-	// Captures of the prompt being submitted, replayed under its own message.
+	// Captures of the prompt being submitted, replayed with its own message.
 	const submitted = new SubmittedCaptures()
 	const store = new AttachmentStore(() => repaintStrip())
 	pi.registerEntryRenderer<TranscriptAttachments>(
@@ -112,7 +101,7 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 		return transformPrompt(event, images)
 	})
 
-	// The transcript replays the captures under the message that carried them.
+	// Persist captures after the carrying message; raw-transcript/ mounts them inside its frame.
 	// Not at `turn_start`: pi emits it before the prompt's own `message_end`, so
 	// the branch still ends on the previous message there. `context` fires for
 	// the provider call that follows the prompt's persistence - the message is

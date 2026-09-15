@@ -65,6 +65,7 @@ void test('line 2 couples the PR link at the git edge', () => {
 		statuses: [],
 		git: null,
 		pr: { number: 12, url: 'https://github.com/acme/app/pull/12' },
+		review: null,
 		quotas: {},
 		provider: undefined,
 		tier: undefined,

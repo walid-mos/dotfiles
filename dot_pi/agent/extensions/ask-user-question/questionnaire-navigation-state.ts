@@ -68,6 +68,19 @@ export class QuestionnaireNavigationState {
 		return this.questions
 	}
 
+	/**
+	 * Alias-retention texts for the capture store: the live editor text, any
+	 * other question's draft, and recorded answers. The dialog forwards this
+	 * after every change so the strip keeps only referenced captures.
+	 */
+	aliasReferenceTexts(): string[] {
+		const question = this.currentQuestion()
+		return this.responses.aliasReferenceTexts(
+			question?.id,
+			this.editor.getText(),
+		)
+	}
+
 	isOnSubmitTab(): boolean {
 		return this.currentTab === this.questions.length
 	}

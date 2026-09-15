@@ -44,13 +44,13 @@ function openQuestion(): { state: QuestionnaireState; editor: Editor } {
 
 void test('open-ended prompt, placeholder and multiline answer share an inset', () => {
 	const { state, editor } = openQuestion()
-	const empty = renderQuestionnaire(state, editor, 40).map(
+	const empty = renderQuestionnaire(state, editor, 40, undefined).map(
 		stripTerminalSequences,
 	)
 	assert.match(empty.join('\n'), /│  Notes\?/u)
 	assert.match(empty.join('\n'), /│  Type something/u)
 	editor.setText('First line\nSecond line')
-	const typed = renderQuestionnaire(state, editor, 40).map(
+	const typed = renderQuestionnaire(state, editor, 40, undefined).map(
 		stripTerminalSequences,
 	)
 	assert.match(typed.join('\n'), /│  First line/u)
@@ -63,7 +63,7 @@ void test('open-ended down navigation has a visible chat target and returns to e
 	assert.equal(state.isChatAction(), true)
 	assert.equal(state.editorHasFocus(), false)
 	assert.match(
-		renderQuestionnaire(state, editor, 60)
+		renderQuestionnaire(state, editor, 60, undefined)
 			.map(stripTerminalSequences)
 			.join('\n'),
 		/◉ Chat about this/u,
@@ -85,7 +85,7 @@ void test('custom drafts stay visible without rendering an editor on another opt
 	state.moveCursor(-1)
 	assert.equal(state.editorHasFocus(), false)
 	assert.match(
-		renderQuestionnaire(state, editor, 60)
+		renderQuestionnaire(state, editor, 60, undefined)
 			.map(stripTerminalSequences)
 			.join('\n'),
 		/Draft answer/u,
@@ -96,11 +96,11 @@ void test('live editor rendering stays inside narrow and invalid viewport widths
 	const { state, editor } = openQuestion()
 	editor.setText('e\u0301 界 long answer text')
 	for (const width of [0, 1, 2, 4, 8, 16, 40]) {
-		const lines = renderQuestionnaire(state, editor, width)
+		const lines = renderQuestionnaire(state, editor, width, undefined)
 		assert.ok(
 			lines.every(line => visibleWidth(line) <= width),
 			`overflow at ${width}`,
 		)
 	}
-	assert.deepEqual(renderQuestionnaire(state, editor, Number.NaN), [])
+	assert.deepEqual(renderQuestionnaire(state, editor, Number.NaN, undefined), [])
 })

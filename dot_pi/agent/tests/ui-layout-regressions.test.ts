@@ -10,7 +10,16 @@ import {
 	wrapTerminalLine,
 } from '../extensions/ui/terminal-text.ts'
 
+import type { Theme } from '@earendil-works/pi-coding-agent'
 import type { AskResult } from '../extensions/ask-user-question/questionnaire-model.ts'
+
+// Neutral theme: colors render as they are; only the strip's fg/bold surface
+// is exercised.
+// oxlint-disable-next-line nextnode/no-type-assertion - Pi Theme is duck-typed through the strip surface
+const plainTheme = {
+	fg: (_role: string, content: string) => content,
+	bold: (content: string) => content,
+} as Theme
 
 void test('terminal measurement counts graphemes, not individual code points', () => {
 	assert.equal(terminalLineWidth('e\u0301'), 1)
@@ -65,7 +74,7 @@ void test('answer replay preserves all words across wrapped styled lines', () =>
 			},
 		],
 	}
-	const lines = renderResultLines(outcome, 16)
+	const lines = renderResultLines(outcome, 16, plainTheme)
 	const plain = lines.map(stripTerminalSequences).join('\n')
 	assert.match(plain, /abcdefg/)
 	assert.match(plain, /hijklmn/)

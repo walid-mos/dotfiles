@@ -82,6 +82,28 @@ export class QuestionnaireResponses {
 		})
 	}
 
+	/**
+	 * Text parts whose aliases keep captures alive: the live editor text,
+	 * every draft except the current question's (it is the editor text), and
+	 * the recorded answers (they hold submitted custom texts).
+	 */
+	aliasReferenceTexts(
+		currentQuestionId: string | undefined,
+		editorText: string,
+	): string[] {
+		const parts: string[] = [editorText]
+		for (const [questionId, draft] of this.drafts) {
+			if (questionId !== currentQuestionId) parts.push(draft)
+		}
+		for (const answer of this.answers.values()) {
+			parts.push(answer.label)
+			const customText =
+				answer.kind === 'multi' ? answer.customText : undefined
+			if (customText) parts.push(customText)
+		}
+		return parts
+	}
+
 	recordOptionAnswer(
 		question: Question,
 		option: QuestionOption,

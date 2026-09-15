@@ -13,13 +13,22 @@ Single source of truth for restyling pi's TUI. Read this before migrating ANY re
 - `- [x]` migrated (renders through `ui/design-system` or an owned component)
 - `- [~]` intentionally skipped (pi default is accepted)
 
-## Current state (baseline)
+## Current state
 
-Migrated already: footer (vector gauges/quotas), the ask-user-question questionnaire (transcript + dialog),
-and the prompt top border (rotating working loader + the activity block sharing that border line).
+The activity design system now covers **every `ToolExecutionComponent`**, not an allowlist of
+registered tool names. This includes built-ins, package tools such as `subagent`, future/dynamically
+loaded tools, and restored calls whose definition is no longer installed. `compact` tool calls use
+the fallback; Pi's separate compaction-summary card has its own adapter to the same shell.
 
-NOT yet touched: pi's built-in tool rows (the 8 tools), transcript message surfaces, `!` bash row,
-notify lines, built-in dialogs, editor border/chrome details.
+The first dedicated presentations are **read, grep, glob (Pi's `find`), bash**, plus subagent
+identity. Other tools share the fallback header and preserve their native expanded detail renderer.
+No tool schema, execution function, result payload, or activation list is changed.
+
+Already owned elsewhere: footer, questionnaire dialog/content, prompt top border and telemetry,
+attachment strips, and framed literal user prompts. Assistant responses now belong to `renderers/` and use
+the response hierarchy below. Notifications, manual `!` shell
+blocks, compaction/retry loaders, dialogs and general editor chrome are not tool-execution rows;
+those remain separate migrations below. Do not claim the entire TUI is migrated.
 
 ---
 
@@ -30,76 +39,169 @@ notify lines, built-in dialogs, editor border/chrome details.
 - [x] Frames/surfaces: `ui/align.ts`, `ui/frame.ts`, `ui/selection-marker.ts`, `ui/surface.ts` + `ui/ordered-widget-stack.ts`.
 - [x] Editor decorator composition: `ui/editor-decorator.ts` chains on pi's `getEditorComponent` exactly once per session.
 - [x] Base editor: `ui/editor-decorator.ts` also exports `createDefaultEditor` (pi's `CustomEditor` with `embedWorkingStatus: true`), the base every decorator chains onto.
-- [ ] Restyle extension skeleton (`extensions/tool-restyle/` or similar): registers renderer-only overrides for built-in tools (`registerTool` same-name, no `execute` → keeps built-in execution, replaces `renderCall`/`renderResult` per slot). Pi shows an interactive warning on override — accepted, documented.
-- [ ] Decision per tool row: `renderShell` default (boxed `toolPendingBg/SuccessBg/ErrorBg`) vs `"self"` (tool draws its own frame from `ui/frame.ts`). Default candidate: `"self"` for full frame control.
-- [ ] Export shared row-chrome helpers from `ui/` (header line, muted-hint line, truncation footer, status glyph) so all tool renderers reuse one implementation.
+- [x] Renderer adapter: `renderers/install-renderers.ts` binds the running CLI's classes, guarded by its supported Pi version. No duplicate `registerTool` ownership and no execution passthroughs.
+- [x] Shared activity layout: `ui/activity-line.ts` / `ui/activity-details.ts`; semantic colors come from `ui/design-system`.
 
-## 2. Tool rows — pi chrome (context for every tool override)
+## 2. Activity design contract
 
-`tool-execution.js` behavior to replicate or drop when `renderShell: "self"`:
+- **Ordinary tools occupy one collapsed physical line** in every state, except frontend screenshot
+  previews described below. Edit/write instead use
+  standalone file-action panels throughout their lifecycle. Applied mutations show code; pending,
+  cancelled and failed panels show their status/evidence without inventing an applied diff.
+- Quiet continuous branching rail with fading horizontal tips, fixed status slot and bold tool
+  names in the same accent as the Answer title. Tool and count share one tight identity; the tool
+  stays left-aligned and counts align to its right edge—not two independently padded columns. A compact shared minimum
+  aligns ordinary task text; longer names/counts can use more width rather than become ambiguous.
+  Then come task text and the quiet timing/failure group. No right-hand disclosure arrow is drawn.
+  Counts retain compact units (`15l`, `1img`, `12f`); async launch receipts use `async`. Errors/cancellations appear
+  at the right, beside elapsed time, never in the count column. Critical diagnostics/warnings still
+  lead the task rather than disappear. Status color never floods the whole row green/red.
+  Only the last collapsed call in a tool chain closes with `╰─`; earlier calls retain `├─`.
+  Hidden thinking and intermediate assistant updates do not split a chain into per-batch endings.
+  Final answers, user messages, terminal notices and mutation panels end it. Expanded ordinary calls
+  keep their detail rail. Mutation panels have their own full frame with no external activity rail.
+  Ordinary rows have no boxes, duplicate titles or blank separators; mutation code uses the framed
+  template below.
+- Word spacing stays tight even in wide viewports; only the fading branch grows longer. There is no
+  empty count column between the tool name and its result count. Descriptions use
+  quieter body ink; all normal counts and timing recede, while failures retain semantic color.
+  Vertical breathing room comes from terminal cell metrics (Ghostty's font config), never extra tool rows.
+- Clip by terminal columns at the final viewport width; flatten multiline subjects only in the
+  header. Wide graphemes never overrun the terminal. Expanded content retains the full command,
+  path and result, with an aligned detail gutter.
+- Running rows share one lazy repaint pulse; delivered read/search/bash partial output updates its
+  compact count beside the active spinner, without a `live` prefix. Empty partials keep the count
+  lane empty and remain running, never done; native async tools do
+  not claim launch completion from a partial result. Completed clocks freeze. Measured durations
+  survive `/reload` while Pi retains the same result content; newly loaded, unmeasured history gets
+  no invented duration. Remounting an already-completed component never records a fake zero-time run.
+  Elapsed duration and configured timeout are both visible (`2.4s · 120s max`), clearly distinguished.
+  Execution arguments remain untouched. Compact layouts shed timeout information before elapsed
+  time, and preserve failure labels last. Timing vocabulary and budgets live in `ui/activity-timing.ts`.
+- Click the header in fullscreen mode; keyboard expansion uses Pi's `app.tools.expand` state
+  (Ctrl+O by default). No extra keybinding registration. Expanded native controls retain mouse
+  routing; selection/scrolling are not hijacked.
+- `frontend_open`, `frontend_act`, and `frontend_screenshot` display returned screenshots beneath
+  the header even when text details are collapsed, so the human can follow headless testing.
+  Other tool images stay collapsed with their row. Both paths retain Pi's native image
+  rendering/conversion and show-images setting; expansion never duplicates a screenshot.
+  Truncation/limit warnings remain visible in the summary, full-output paths stay available in details.
+- Native custom detail renderers retain their shared state and separate slot caches. Missing,
+  malformed or throwing renderers fall back to readable source output; they never erase evidence.
+- Pi has no public global tool-renderer hook in the pinned release. The private display adapter
+  is deliberate and tested, not a claim of an officially supported API. Upgrade verification is mandatory.
 
-- `Spacer(1)` inserted before every tool row; `Box(1,1)` padding on default shell.
-- Background: `toolPendingBg` → `toolSuccessBg` / `toolErrorBg` (isError) on settle.
-- `MouseRegion`: left-click on result region toggles expanded; hints via `keyHint("app.tools.expand")`.
-- Renderer crash → silent fallback to that slot's fallback (name + JSON args dump + raw output).
-- Images in result content: `Spacer(1)` + `Image` (fallback styled `toolOutput`, `maxWidthCells` 60, kitty converts non-PNG→PNG). Shift to `renderShell: "self"` loses this unless reproduced.
-- Hidden entirely when a renderer yields no content.
+## 3. Tool coverage and first-pass presentations
 
-- [ ] Decide: keep pi collapse/expand (`context.expanded`, click region) vs house policy (auto-expand threshold, own `MouseRegion`). Implement in shared `ui/` helper before touching tools.
+| Surface | Collapsed presentation | Expanded content |
+|---|---|---|
+| `read` | Filename first, optional `Lstart-end`, muted parent directory (`~` for home), actual line/image count | Complete original path/args and returned text; native images |
+| `grep` | Pattern, root/filter, result-line count (zero for no matches) | Args and complete returned search text |
+| `find` / `glob` | `glob` display label, pattern/root, file count | Args and complete returned paths |
+| `bash` | Conservative command preview, inline count, observed duration + explicit timeout/failure status | Complete original script and returned output; full-output path |
+| `subagent` | Action/agent/workflow identity and topic/task, output count | Original package renderer, including guides and execution detail |
+| `galley_agent` | `galley` display label, action + desk session, repository name, `live`/`idle` connection state | Original arguments and attachment description |
+| `frontend_open` | `open` display label, scheme-less host/path, optional wait selector, image/line count | Original arguments, page summary, native images |
+| `frontend_act` | `act` display label, action + target/key, `new tab` and post-action wait note | Original arguments and action result |
+| `frontend_screenshot` | `shot` display label, selector or `full page`/`viewport`, viewport size, image count | Original arguments, caption and captured image |
+| `frontend_console` | `console` display label, level filter, `last N`, entry count | Original arguments and console text |
+| `frontend_eval` | `eval` display label, single-line expression preview, result count | Original arguments and evaluated result |
+| `bg_wait` | `wait` display label, run id or `any`/`all runs`, `non-blocking` note, timeout cap beside the elapsed clock | Original arguments and wait outcome |
+| `subagent_supervisor` | `supervisor` display label, action + child target, single-line message preview | Original arguments and channel output |
+| `edit` / `write` | Independent file-action panel, uppercase heading, filename/status strip and numbered pastel diff preview | Same code template with the preview limit removed; native fallback when unsupported |
+| `ls` | Filename/directory-name first, quiet home-shortened parent directory | Native call/result content with original arguments |
+| Any other tool | Humanized tool name (separators become spaces), first known or first string argument, status/output count | Original call/result slots, else readable args/output |
+| Compaction summary | Compact tool/token-count identity, `context` + `tokens before` annotation | Complete retained summary |
 
-## 3. Built-in tool renderers — migration checklist
+Coverage does not depend on this table: all tool names pass through the common adapter. The table
+only defines specialized vocabulary, which lives in `tool-presentation.ts` for Pi's own tools and in
+`package-presentations.ts` for tools registered by packages. A tool with no entry keeps the generic
+shell: its name is humanized (`new_mcp_tool` → `new mcp tool`) and its subject is the first known
+argument name, then the first string argument, so a raw identifier or an empty row never reaches the
+transcript. `find` keeps its real execution name; `glob` is a display alias.
+Success on an async launch means the tool returned successfully, not that the background job finished;
+its execution details remain authoritative.
 
-Exact current values (v0.85.1) so regressions are detectable. All collapsed previews end with
-`... (N more lines, to expand)` in `muted`; all truncations are `[...]` blocks in `warning`.
+- [x] Dedicated one-line read/grep/glob/bash and subagent identity.
+- [x] Package vocabulary for `galley_agent`, the five browser tools and the supervisor/wait tools.
+- [x] Generic shell for write/edit/ls/powershell, web-access tools and unknown tools; an unknown tool's name is humanized rather than printed as a raw identifier.
+- [x] Separate compaction-summary component adapter.
+- [x] Edit/write share an inline and expanded mutation-code view; no separate tool registration or execution wrapper.
+- [ ] Bespoke search-result detail views: retain native content.
+- [x] Consistent filename-first hierarchy for read/edit/write/ls and home-shortened parent paths, without rewriting stored arguments.
+- [x] `renderers/bash-preview.ts` shows a conservative source excerpt: literal leading `cd` setup becomes
+  context, common chaining/redirection tails are omitted with `…`, and quoted operators are preserved.
+  Nested substitutions fall back to the original first line. It never evaluates or rewrites execution.
+- [ ] Path hyperlinks / syntax-enhanced read details: future polish, not hidden requirements.
 
-- [ ] `read` (`dist/core/tools/renderers/read.js`)
-  - Call: bold `read` + path (`accent`, `~`-shortened, OSC8 link) + `:start-end` range in `warning`.
-  - Compact classification when collapsed: SKILL.md → `[skill] name`; pi docs → `read docs <label>`;
-    AGENTS/CLAUDE.md → `read resource <label>`; hint `keyText("app.tools.expand") to expand`.
-  - Result: syntax-highlighted content (badge in `toolOutput` when language unknown), 10 lines collapsed.
-  - Truncation: `[Truncated: showing N of M lines (limit)]` / `[First line exceeds X limit]`.
-- [ ] `bash` / `powershell` (`renderers/bash.js`, shared via `createShellRenderers("$"|"PS>")`)
-  - Call: bold `${prompt} ${command}` + `(timeout Ns)` in `muted`.
-  - Result: `toolOutput` lines; collapsed = **5 visual lines** (ANSI-aware wrap-truncate) with
-    `... (N earlier lines, to expand)` header; live `Elapsed 3.2s` tick every 1s → `Took 3.2s` on settle.
-  - Truncation: `[Full output: path. Truncated: N of M lines]` or byte-limit form.
-- [ ] `edit` (`renderers/edit.js`) — the special one
-  - Call box owns its own bg fn: **live preview diff computed during argument streaming** (async
-    `computeEditsDiff`, `Spacer(1)` + diff inside the call box). Bg: preview ok→`toolSuccessBg`,
-    preview error→`toolErrorBg`, settled error→`toolErrorBg`, else `toolPendingBg`.
-  - Result: `error` text on failure; final diff (`Spacer(1)` + padX 1) if changed beyond preview.
-  - Migration must reproduce the live-preview-then-settle state machine in the restyle extension.
-- [ ] `write` (`renderers/write.js`)
-  - Call: bold `write` + path + streamed content with incremental highlight cache (50-line rolling re-highlight, per-line after).
-  - Result: only on error (error text). Collapsed 10 lines + `... (N more lines, M total, to expand)`.
-- [ ] `grep` (`renderers/grep.js`)
-  - Call: bold `grep` + `/pattern/` in `accent` + ` in path (glob) limit N` in `toolOutput`.
-  - Result: `toolOutput` lines; collapsed 15.
-- [ ] `find` (`renderers/find.js`)
-  - Call: bold `find` + pattern `accent` + ` in path (limit N)`. Result: 20 lines collapsed.
-- [ ] `ls` (`renderers/ls.js`)
-  - Call: bold `ls` + path `(limit N)`. Result: 20 lines collapsed.
-- [ ] Shared path helper parity: `accent` + `~` shorten + OSC8 hyperlink when supported;
-  invalid arg → `error [invalid arg]`; empty → `toolOutput ...`. Reuse/mirror pi's semantics in `ui/`.
-- [ ] Diff parity (`diff.js`): `-N line` / `+N line` / ` N line`; `toolDiffRemoved/Added/Context`;
-  intra-line word diff with `theme.inverse()` on changed fragments (only 1:1 line substitutions);
-  tabs → 3 spaces. House version must keep intra-line inverse highlighting.
+### Mutation preview contract
+
+- Inspired by the numbered code and pastel rows in [the former mutation view](https://github.com/walid-mos/mac-config/tree/develop-pi/pi/.pi/agent/extensions/mutation-view), not its framing or tool overrides.
+- Successful edits use Pi's persisted, numbered diff. Writes compare against a bounded preflight
+  before-image when available; new files are genuinely all-added. A write without a trustworthy
+  baseline shows labeled neutral written content, not a fictional all-green diff.
+- Edit/write no longer borrow the ordinary bash/read/search header. Their full-width, square file
+  panel has a lilac frame, uppercase `EDIT`/`WRITE` heading, bold filename, quiet directory and a
+  separate status/elapsed strip. The footer owns change counts and fold/expand controls. Pending,
+  failed and unsupported-result views keep the same panel identity; native details remain available.
+  Numbered gutters, `+`/`-` markers and pastel rows retain the house palette. There is no external
+  activity rail, duplicated tool row, rounded corner or far-right disclosure arrow.
+- The default preview is capped by visual rows; expansion uses the same header, widths, colors and
+  exact visible code prefix, only revealing remaining rows. Long lines wrap with continuation gutters.
+  Code/control bytes are displayed safely, not interpreted as Markdown or terminal instructions.
+- The footer carries exact addition/removal counts and the click/Ctrl+O affordance. A single click
+  anywhere on the applied panel opens or folds it; the same code position works in both directions.
+  Press, drag, release and movement events do not toggle. Pi's viewport emits a click only for a
+  stationary gesture, so dragging remains available for selection.
+- No animation timer or asynchronous work runs during rendering. Native renderers previously mounted
+  while a call was pending still receive completion so their resources can settle before replacement.
+- Before-images and diff work are bounded in `change-document.ts` / `write-snapshots.ts`. Special path
+  aliases, unavailable/binary/large baselines, older writes without before-images and oversized replacements use
+  explicit content/native fallbacks. Saved tool arguments/results are untouched; weak caches retain
+  observed write comparisons across `/reload`, not across fresh-process history loading.
 
 ## 4. Transcript message surfaces
 
 - [x] Questionnaire transcript cards (own renderer via `registerMessageRenderer` path).
-- [ ] User message: `Box(y1,x1)` + `userMessageBg`, Markdown `userMessageText`. Colors only — pad/glyphs fixed.
-- [ ] Assistant: pad-1 Markdown (all `md*`/`syntax*` tokens); abort/truncated/error notes hard-coded `error`. Style via theme tokens + `registerMarkdownTransformer`.
-- [ ] Thinking: `thinkingText`; hidden = italic label (customizable via `setHiddenThinkingLabel`).
+- [x] User message: literal source inside the shared rounded house frame through `raw-transcript/`, with a rail-colored **❯** marker, accented **Prompt** label, softly tinted blue border, solid closing rule, preserved paragraph breaks and matching outer gaps. One blank row inside each edge gives the text breathing room; compact viewports omit the marker before sacrificing the label. Frame edges span the same viewport as tool rows; wrapping reserves both rails and inner padding. Extremely narrow viewports drop the frame rather than hide the prompt. Native OSC prompt zones remain intact; reinstall replaces styling closures without stacking frames.
+- [x] Submitted attachments: thumbnails and aliases sit inside the owning prompt frame, above its literal text, with one separating blank row. The native custom entry is relocated, not duplicated; its persisted position and payload are unchanged. Replay and native user rebuilds preserve the placement; unmatched/orphan entries retain their standalone fallback. Draft-editor strip placement is unchanged.
+- [x] Assistant: `renderers/assistant-surface.ts` with centered response landmarks and house Markdown; no raw-source override remains in `raw-transcript/`.
+- [x] Thinking: separate muted content, existing visibility setting and per-run mouse expansion retained; never styled as a final answer.
 - [ ] Custom message cards: `Box` + bold `[customType]` (`customMessageLabel`) + `customMessageText` (`registerMessageRenderer`).
 - [ ] Custom entry cards: `customMessageBg` (`registerEntryRenderer`, TUI-only, not in LLM context).
 - Event order fact (pi 0.85.1): `agent_start` → `turn_start` → the prompt's `message_start`/`message_end`, and a
   session entry is written **at that `message_end`**. Anything that must land *after* a submitted prompt
   (e.g. `prompt-attachments`' transcript strip) therefore claims its slot on the following `context`
   event, the first hook where the prompt is the branch leaf and the reply has not been appended yet.
+  The attachment entry remains after the prompt in storage; the display adapter nests it before the text.
 - [ ] `!` bash row (`bash-execution.js`): `bashMode` bold header pad-1; output `muted`; status muted / `(cancelled)` warning / `(exit N)` error; truncated → full-output path notice. Not overridable — restyle = theme tokens (`bashMode`, `muted`) or rebuild via `registerEntryRenderer`? (verify feasibility before scheduling; may be `- [~]`).
 - [ ] notify lines: NOT toasts — transcript lines: `dim` (consecutive dedupes into one line), `warning`, `Error: msg` in `error`; each after `Spacer(1)`.
-- [ ] Compaction summary / branch summary / skill invocation cards: boxed markdown, `customMessage*` + `dim` + `keyText` hints. Fixed components; restyle = theme tokens only. Mark `- [~]` unless palette demands more.
+- [x] Compaction summary: common activity shell through `renderers/compaction-surface.ts`, with click and keyboard expansion.
+- [ ] Branch-summary / skill-invocation cards and live compaction/retry loaders: separate native surfaces, not covered by the tool adapter.
+
+### Response design contract
+
+- Intermediate updates get a short centered muted rule and a smaller, fainter matching rule below
+  their content, including interruption notices. Final answers retain only their wider accented
+  header, restrained ornament and bold **Answer** label. Header/body spacing stays stable during
+  completion; the intermediate footer retires without moving the answer text.
+  Response messages have matching outer top and bottom gaps to separate them from adjacent tool calls;
+  empty/tool-only messages and thinking controls receive no extra response padding.
+- Assistant error/interruption notices use `ui/activity-notice.ts`: the marker aligns with tool status,
+  text aligns with tool names, and long details wrap at that same inset. Both marker and message use
+  bold semantic ink: red for errors, orange for interruptions. This distinguishes notices from normal
+  tool-body text without adding a box, rail, disclosure, or changing the diagnostic wording.
+- Paragraph breaks provide breathing room; headings and list markers use accent, bold prose stays
+  readable neutral ink, links are distinct, and code/quotes have quieter structure. Pi still owns
+  Markdown parsing, syntax highlighting, tables, links and streamed fence handling. Existing Markdown
+  transformers retain their width, message-type, streaming and exception-isolation contracts.
+- Explicit provider phase metadata separates commentary from final text, including mixed messages.
+  Without it, streaming stays neutral; a settled, tool-free `stop` is final. Interrupted, truncated
+  and failed responses keep their notices and are not promoted to final. No text/keyword heuristics.
+- Empty/tool-only messages get no decorative separators. Thinking stays distinct. User prompts keep
+  their separate literal frame; response styling never changes tool execution or stored content.
+- Shared semantic colors and blending implement the fades; there is no second palette. Width-aware
+  cached components avoid repaint-time parsing/blending. Narrow layouts never overflow.
 
 ## 5. Chrome (editor + footer + status)
 
@@ -153,14 +255,39 @@ House rule per `ARCHITECTURE.md`: `palette.ts` reads `themes/catppuccin-latte.js
 
 1. `pnpm run lint && pnpm run type-check` from `~/.pi/agent`; `pnpm exec oxfmt --write` touched files; `pnpm run test` when covered logic changed.
 2. `/reload` in the session.
-3. Visual pass for the migrated surface only, against §3 exact values (line counts, hint text, tick behavior, preview state machine for `edit`):
-   - read: SKILL.md compact card + expanded highlighting; bash: 5-line preview + Elapsed tick; edit: streamed preview diff → settle; write: incremental highlight; grep/find/ls: collapse limits; diff intra-line inverse.
-4. Fullscreen vs regular mode: mouse expand/collapse only matters in fullscreen (click region); keyboard flow must still work in regular mode.
-5. Session reload: overridden renderers must render identically from restored session entries (renderers are presentation-only; no execution import needed — `withBuiltInRenderers` behavior).
+3. Visual pass for this slice: read/grep/glob/bash and subagent `list`/`guide` in pending,
+   streaming, failed and settled states; narrow terminal; mouse expansion and keyboard expansion;
+   image read; compaction card; unknown tool. One collapsed line, aligned gutter, no flashing status rows.
+   For responses: intermediate/tool-calling text, final answers, mixed provider phases, streaming
+   completion, interruption, Markdown/code/links, thinking expansion, and narrow/resized viewports.
+   For submitted prompts: single/multiline source, paragraphs, code indentation, Unicode, consecutive
+   prompts, surrounding tool/answer alignment, and reload from the former unboxed presentation.
+   For attachments: Kitty/iTerm2 thumbnails, alias-only/narrow fallback, repeated prompts reusing
+   aliases, resume without the original image files, and exactly one strip inside each owning frame.
+4. Fullscreen vs regular: mouse input is fullscreen-only; keyboard expansion must work in both.
+5. Mutation checks: new file, overwrite, multiple edit hunks, empty/whitespace code, long/wide lines,
+   failed/pending calls, missing/large baselines, preview click, expanded selection and Ctrl+O. Verify
+   the code prefix does not move or change color on expansion, repeated clicks fold at the same
+   position, and ordinary tool chains close before independent mutation panels.
+6. Reload: no stacked rails or old timers; measured durations survive native remounting and extension reload.
+   Calls with identical text but different result content/IDs never inherit another call's duration;
+   fresh history without recorded measurements stays unknown.
+7. Automated contracts: `tests/renderers*.test.ts`, `tests/activity-clock.test.ts`, and
+   `tests/raw-transcript.test.ts`, `tests/attachments-frame.test.ts`, plus `tests/response-divider.test.ts`. These exercise real Pi
+   components and gradient/layout contracts, not fabricated private state.
+   The explicit one-line regression was observed failing with the former two-line renderer.
+8. Verify with Pi's real extension loader and bundled runtime, not just TypeScript import success.
+   Automated tests do not establish font-specific visual quality; inspect the live TUI after `/reload`.
 
 ## 10. Version-pinning note
 
-All exact values in §3–§7 are validated for pi 0.85.1. After upgrading pi:
+The private adapter and surface inventory are validated for Pi 0.85.1. After upgrading pi:
 `rg` the new `dist/core/tools/renderers/*.js`, `dist/modes/interactive/components/*.js`, and
 `@earendil-works/pi-tui/dist/components/markdown.js` for drift (line counts, glyph strings, token names),
-then update this file before continuing migration.
+then update this file before continuing migration. Attachment composition also depends on
+`InteractiveMode.addCustomEntryToChat`, `CustomEntryComponent`'s native leading spacer/rebuild,
+and `UserMessageComponent`'s child layout. The thumbnail boundary separates iTerm2 cursor-up
+from its OSC with a style reset: Pi 0.85.1 otherwise mismeasures and can truncate the image payload.
+Mutation rendering also relies on the public numbered-diff format and on execution-end extension
+handlers preceding the TUI's result update. Re-check `createResultRegion` when upgrading: Pi wraps
+renderer content in its own click-to-toggle region, which expanded mutation code must bypass.
