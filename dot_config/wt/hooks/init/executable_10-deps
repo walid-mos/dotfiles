@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+. "${WT_LIB:?Run this hook through wt}/provision.sh"
+[ "$WT_CONTAINER_ACTIVE" = false ] || exit 0
+wt_install_dependencies

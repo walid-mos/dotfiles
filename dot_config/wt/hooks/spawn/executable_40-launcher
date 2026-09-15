@@ -1,0 +1,5 @@
+#!/bin/sh
+set -eu
+[ "${WT_LAUNCH:-false}" = true ] || exit 0
+command -v pi >/dev/null 2>&1 || { printf 'wt: pi is unavailable on PATH.\n' >&2; exit 1; }
+exec pi
