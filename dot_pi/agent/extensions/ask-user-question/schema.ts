@@ -7,6 +7,8 @@
 
 import { Type } from 'typebox'
 
+import { CaptureRecordSchema } from '../attachments/capture-record.ts'
+
 // ── LLM tool input (validated by pi before the tool runs) ──────────────
 
 const RawQuestionOptionSchema = Type.Object({
@@ -136,6 +138,8 @@ export const ChatRequestSchema = Type.Object({
 	initialState: Type.Object({
 		answers: Type.Array(AnswerSchema),
 		drafts: Type.Optional(Type.Record(Type.String(), Type.String())),
+		/** Captures the not-yet-submitted drafts still reference when pausing. */
+		captures: Type.Optional(Type.Array(CaptureRecordSchema)),
 	}),
 })
 
@@ -144,4 +148,6 @@ export const AskResultSchema = Type.Object({
 	answers: Type.Array(AnswerSchema),
 	cancelled: Type.Boolean({ default: false }),
 	chat: Type.Optional(ChatRequestSchema),
+	/** Snapshot captures the submitted answers still reference (tile-sized). */
+	captures: Type.Optional(Type.Array(CaptureRecordSchema)),
 })

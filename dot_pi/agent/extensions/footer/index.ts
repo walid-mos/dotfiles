@@ -4,20 +4,27 @@
  * No filled pills: colored icons and tinted text sit directly on the
  * terminal background; groups are separated by thin verticals.
  * Line 1: 󰚩 model │ ✻ thinking │ path │····· statuses │ context gauge ▰▰▱▱ │ arrows │ cost
- * Line 2:  branch │ churn ▰▰▱▱ + counters + [PR #n] │····· provider quotas
+ * Line 2:  branch │ churn ▰▰▱▱ + counters + [PR #n] + [review] │····· provider quotas
  *
  * The cost group prices DeepSeek Flash turns at their own peak/off-peak tariff,
  * and the credit segment names the tier in effect and when it moves
- * (tariff-deepseek.ts).
+ * (tariff-deepseek.ts). The bracketed [review] link opens the live Galley
+ * review desk for this repo while one runs (galley-data.ts).
  */
 
 import { footerComponent } from './component.ts'
-import { fetchCurrentPr, fetchGitStatus } from './git-data.ts'
-import { GIT_POLL_MS, PR_POLL_MS, QUOTA_POLL_MS } from './poll-pace.ts'
-import { pollQuotas } from './poll-quotas.ts'
+import {
+	refreshGalleyForTurn,
+	refreshPrForBranchChange,
+	refreshQuotas,
+	refreshTariff,
+	startGalleyPolling,
+	startGitPolling,
+	startPrPolling,
+	startQuotaPolling,
+} from './poll-lifecycle.ts'
 import { clampFooterLines, renderFooterLines } from './render.ts'
-import { footerState } from './state.ts'
-import { pollDeepseekTariff } from './tariff-catalogue.ts'
+import { footerState, requestRenderSafely } from './state.ts'
 import { deepseekTier } from './tariff-deepseek.ts'
 import { shortPath } from './text.ts'
 import { tokenTotals } from './tokens.ts'
@@ -30,114 +37,6 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import type { FooterComponentDeps } from './component.ts'
 import type { FooterRenderInput } from './render.ts'
-
-function requestRenderSafely(): void {
-	try {
-		footerState.requestRender?.()
-	} catch {
-		footerState.requestRender = null
-	}
-}
-
-async function refreshQuotas(): Promise<void> {
-	const lifecycle = footerState.lifecycleGeneration
-	try {
-		const quotas = await pollQuotas()
-		if (lifecycle !== footerState.lifecycleGeneration) return
-		footerState.quotaCache = quotas
-		requestRenderSafely()
-	} catch {
-		// Quota APIs are decorative; a provider/network failure must never escape a timer.
-	}
-}
-
-function startQuotaPolling(): void {
-	if (footerState.quotaTimer) return
-	void refreshQuotas()
-	footerState.quotaTimer = setInterval(
-		() => void refreshQuotas(),
-		QUOTA_POLL_MS,
-	)
-	footerState.quotaTimer.unref()
-}
-
-/**
- * Load the DeepSeek tariff once per session: the schedule moves with DeepSeek's
- * price list, not with the clock, and the tier is read at render time.
- */
-async function refreshTariff(): Promise<void> {
-	const lifecycle = footerState.lifecycleGeneration
-	try {
-		const tariff = await pollDeepseekTariff()
-		if (lifecycle !== footerState.lifecycleGeneration) return
-		if (!tariff) return
-		footerState.tariffCache = tariff
-		requestRenderSafely()
-	} catch {
-		// Pricing is decorative; pi's own single-rate cost stays in place.
-	}
-}
-
-async function refreshGit(cwd: string): Promise<void> {
-	const lifecycle = footerState.lifecycleGeneration
-	try {
-		const status = await fetchGitStatus(cwd)
-		if (lifecycle !== footerState.lifecycleGeneration) return
-		footerState.gitCache = status
-		requestRenderSafely()
-	} catch {
-		// Git status is decorative; never reject from an interval callback.
-	}
-}
-
-function startGitPolling(cwd: string): void {
-	footerState.gitCwd = cwd
-	if (footerState.gitTimer) {
-		void refreshGit(cwd)
-		return
-	}
-	void refreshGit(cwd)
-	footerState.gitTimer = setInterval(() => {
-		if (footerState.gitCwd) void refreshGit(footerState.gitCwd)
-	}, GIT_POLL_MS)
-	footerState.gitTimer.unref()
-}
-
-async function refreshPr(cwd: string): Promise<void> {
-	footerState.prGeneration += 1
-	const generation = footerState.prGeneration
-	const lifecycle = footerState.lifecycleGeneration
-	try {
-		const nextPr = await fetchCurrentPr(cwd)
-		const isStale =
-			generation !== footerState.prGeneration ||
-			lifecycle !== footerState.lifecycleGeneration
-		if (isStale) return
-		const unchanged =
-			footerState.prCache?.number === nextPr?.number &&
-			footerState.prCache?.url === nextPr?.url
-		if (unchanged) return
-		footerState.prCache = nextPr
-		requestRenderSafely()
-	} catch {
-		// GitHub status is decorative; never reject from an interval callback.
-	}
-}
-
-function startPrPolling(cwd: string): void {
-	void refreshPr(cwd)
-	if (footerState.prTimer) return
-	footerState.prTimer = setInterval(() => {
-		if (footerState.gitCwd) void refreshPr(footerState.gitCwd)
-	}, PR_POLL_MS)
-	footerState.prTimer.unref()
-}
-
-function refreshPrForBranchChange(): void {
-	footerState.prCache = null
-	requestRenderSafely()
-	if (footerState.gitCwd) void refreshPr(footerState.gitCwd)
-}
 
 function readThrough<T>(read: () => T, fallback: T): T {
 	try {
@@ -196,6 +95,7 @@ function safeInput(
 		),
 		git: footerState.gitCache,
 		pr: footerState.prCache,
+		review: footerState.reviewCache,
 		quotas: footerState.quotaCache,
 		provider,
 		tier: deepseekTier(footerState.tariffCache, now, provider, modelId),
@@ -222,6 +122,7 @@ function installFooter(ctx: ExtensionContext): void {
 	void refreshTariff()
 	startGitPolling(ctx.cwd)
 	startPrPolling(ctx.cwd)
+	startGalleyPolling(ctx.cwd)
 
 	// Only install the footer component once - re-setFooter on every
 	// session_start / toggle stacks ghost rows with the split-footer renderer.
@@ -253,9 +154,12 @@ function teardownFooter(): void {
 	if (footerState.quotaTimer) clearInterval(footerState.quotaTimer)
 	if (footerState.gitTimer) clearInterval(footerState.gitTimer)
 	if (footerState.prTimer) clearInterval(footerState.prTimer)
+	if (footerState.reviewTimer) clearInterval(footerState.reviewTimer)
 	footerState.quotaTimer = null
 	footerState.gitTimer = null
 	footerState.prTimer = null
+	footerState.reviewTimer = null
+	footerState.reviewCache = null
 	footerState.gitCwd = null
 	footerState.requestRender = null
 	footerState.isFooterInstalled = false
@@ -284,8 +188,13 @@ export default function (pi: ExtensionAPI): void {
 	pi.on('session_start', (_event, ctx) => installFooter(ctx))
 	pi.on('session_shutdown', () => teardownFooter())
 
-	// Refresh stats after each turn
-	pi.on('turn_end', () => requestRenderSafely())
+	// Refresh stats after each turn; a desk tends to start or stop mid-turn,
+	// so the review link is re-checked here (like git churn is)
+	pi.on('turn_end', () => {
+		requestRenderSafely()
+		const cwd = footerState.gitCwd
+		if (cwd) refreshGalleyForTurn(cwd)
+	})
 	pi.on('agent_end', () => requestRenderSafely())
 	pi.on('thinking_level_select', () => requestRenderSafely())
 	pi.on('model_select', () => requestRenderSafely())

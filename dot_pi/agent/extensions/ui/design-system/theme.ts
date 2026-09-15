@@ -3,17 +3,38 @@ import { PI_PALETTE } from './palette.ts'
 import { backgroundHex, blendHex, foregroundHex } from './terminal-color.ts'
 
 const SELECTED_BG_TINT_RATIO = 0.85
+const DIFF_BG_TINT_RATIO = 0.1
+const MUTATION_BORDER_STRENGTH = 0.6
 
 export const UI_COLOR = {
 	border: PI_PALETTE.overlay1,
+	/** Chain rail glyph ink: the one structural hue, cooler than muted. */
+	rail: PI_PALETTE.blue,
 	base: PI_PALETTE.base,
+	mutationBorder: blendHex(
+		PI_PALETTE.base,
+		PI_PALETTE.mauve,
+		MUTATION_BORDER_STRENGTH,
+	),
 	accent: PI_PALETTE.mauve,
 	text: PI_PALETTE.text,
 	muted: PI_PALETTE.subtext0,
 	dim: PI_PALETTE.overlay0,
+	/** Tool result bodies: one step brighter than muted, quieter than text. */
+	output: PI_PALETTE.subtext1,
 	success: PI_PALETTE.green,
 	warning: PI_PALETTE.peach,
 	danger: PI_PALETTE.red,
+	diffAddedBg: blendHex(
+		PI_PALETTE.base,
+		PI_PALETTE.green,
+		DIFF_BG_TINT_RATIO,
+	),
+	diffRemovedBg: blendHex(
+		PI_PALETTE.base,
+		PI_PALETTE.red,
+		DIFF_BG_TINT_RATIO,
+	),
 	selectedBg: blendHex(
 		PI_PALETTE.mauve,
 		PI_PALETTE.base,
@@ -23,7 +44,10 @@ export const UI_COLOR = {
 
 export interface UiTheme {
 	fg(color: keyof typeof UI_COLOR, text: string): string
-	bg(color: 'selectedBg', text: string): string
+	bg(
+		color: 'selectedBg' | 'diffAddedBg' | 'diffRemovedBg',
+		text: string,
+	): string
 	bold(text: string): string
 	/** Quiet a color without changing its hue: the same tone, one step back. */
 	faint(text: string): string

@@ -9,3 +9,6 @@ export interface QuestionnaireCanvas {
 	readonly width: number
 	readonly sink: LineSink
 }
+
+/** Bound strip lines at a frame width; the dialog binds the runtime theme. */
+export type CanvasStripLines = (width: number) => readonly string[]

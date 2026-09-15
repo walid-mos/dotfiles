@@ -1,4 +1,9 @@
 /** Pending preview and answer replay: domain content over shared UI primitives. */
+import { renderAttachmentStrip } from '../attachments/attachment-strip.ts'
+import {
+	toPromptCapture,
+	snapshotPreviews,
+} from '../attachments/transcript-entry.ts'
 import { DETAIL_INDENT, INSET } from '../ui/align.ts'
 import { uiTheme } from '../ui/design-system/theme.ts'
 import { blockTitle, framedBlock, frameContentWidth } from '../ui/frame.ts'
@@ -7,6 +12,8 @@ import { pushWrapped } from '../ui/terminal-text.ts'
 
 import { previewLabels } from './questionnaire-transcript-args.ts'
 
+import type { Theme } from '@earendil-works/pi-coding-agent'
+import type { TranscriptCapture } from '../attachments/transcript-entry.ts'
 import type { LineSink } from '../ui/terminal-text.ts'
 import type { Answer, AskResult, Question } from './questionnaire-model.ts'
 
@@ -43,7 +50,11 @@ export function renderCallLines(args: unknown, width: number): string[] {
 	})
 }
 
-export function renderResultLines(details: AskResult, width: number): string[] {
+export function renderResultLines(
+	details: AskResult,
+	width: number,
+	theme: Theme,
+): string[] {
 	if (details.chat) return pendingReplay(details, width, 'chat')
 	if (details.cancelled) return pendingReplay(details, width, 'cancelled')
 	const lines: string[] = ['']
@@ -56,7 +67,17 @@ export function renderResultLines(details: AskResult, width: number): string[] {
 			sink(`${DETAIL_INDENT}${uiTheme.fg('dim', '· no answer')}`)
 			continue
 		}
-		replayAnswerRows(sink, question, answer, contentWidth)
+		replayAnswerRows(sink, {
+			question,
+			answer,
+			width: contentWidth,
+			strip: answerCaptures(
+				answer,
+				details.captures ?? [],
+				theme,
+				contentWidth,
+			),
+		})
 	}
 	lines.push('')
 	return framedBlock({
@@ -94,13 +115,18 @@ function pendingReplay(
 	})
 }
 
-function replayAnswerRows(
-	sink: LineSink,
-	question: Question,
-	answer: Answer,
-	width: number,
-): void {
+/** One answer's replay layout: its rows and the strip directly above its text. */
+interface ReplayAnswer {
+	readonly question: Question
+	readonly answer: Answer
+	readonly width: number
+	readonly strip: readonly string[]
+}
+
+function replayAnswerRows(sink: LineSink, replay: ReplayAnswer): void {
+	const { question, answer, width, strip } = replay
 	if (answer.wasCustom) {
+		for (const row of strip) sink(row)
 		pushCustomRow(sink, answer.label, width)
 		return
 	}
@@ -113,8 +139,41 @@ function replayAnswerRows(
 		const marker = selectionMarker({ kind: answer.kind, isChecked })
 		pushWrapped(sink, `${DETAIL_INDENT}${marker} `, label, width)
 	})
-	if (answer.kind === 'multi' && answer.customText)
+	if (answer.kind === 'multi' && answer.customText) {
+		for (const row of strip) sink(row)
 		pushCustomRow(sink, answer.customText, width)
+	}
+}
+
+/**
+ * Strip rows above the user-written text, exactly like the prompt replays:
+ * the captures whose alias that text cites, as tile-sized snapshot records.
+ */
+function answerCaptures(
+	answer: Answer,
+	snapshot: readonly TranscriptCapture[],
+	theme: Theme,
+	width: number,
+): string[] {
+	const text = answerCapturedText(answer)
+	const captures = snapshot.filter(capture => text.includes(capture.alias))
+	if (!captures.length) return []
+	return pushIndent(
+		renderAttachmentStrip({
+			captures: captures.map(toPromptCapture),
+			scrollOffset: 0,
+			// Reserve this row's own indent so the frame never clips a tile.
+			width: Math.max(0, width - DETAIL_INDENT.length),
+			theme,
+			previews: snapshotPreviews,
+		}),
+	)
+}
+
+/** The user-written text the strip replays beside: any committed custom text. */
+function answerCapturedText(answer: Answer): string {
+	if (answer.kind !== 'multi' || !answer.customText) return answer.label
+	return answer.customText
 }
 
 function pushCustomRow(sink: LineSink, label: string, width: number): void {
@@ -124,4 +183,9 @@ function pushCustomRow(sink: LineSink, label: string, width: number): void {
 		uiTheme.fg('text', label),
 		width,
 	)
+}
+
+/** One detail indent per strip row, aligning capture tiles under their text. */
+function pushIndent(rows: readonly string[]): string[] {
+	return rows.map(row => `${DETAIL_INDENT}${row}`)
 }

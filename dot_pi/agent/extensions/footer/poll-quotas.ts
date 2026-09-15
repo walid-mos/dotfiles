@@ -22,7 +22,6 @@ import type {
 	QuotaCache,
 	XaiQuota,
 } from './quotas.ts'
-
 const KIMI_USAGE_URL = 'https://api.kimi.com/coding/v1/usages'
 const KIMI_PROVIDER_KEY = 'kimi-coding'
 const KIMI_FIVE_HOUR_MINUTES = 300

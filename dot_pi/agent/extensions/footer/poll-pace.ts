@@ -13,3 +13,6 @@ export const GIT_POLL_MS = 4000
 
 /** GitHub PR lookup cadence (gh CLI is cold). */
 export const PR_POLL_MS = 30_000
+
+/** Live Galley review desk lookup (one git toplevel + desk.lock reads). */
+export const GALLEY_POLL_MS = 30_000

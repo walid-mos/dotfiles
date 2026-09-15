@@ -1,8 +1,12 @@
 /** Ask-user-question integration: tool registration and chat-pause lifetime.
  * Domain state/input live in questionnaire-*.ts; shared visual policy lives
- * in ui/. Pending and answered slots share one row-local completion flag. */
+ * in ui/. Pending and answered slots share one row-local completion flag.
+ * Screenshot captures follow the prompt-attachments contract: aliases and a
+ * thumbnail strip in the dialog, full images on the submitted tool result,
+ * tile-sized snapshot records replayed with the answered card. */
 import { Text } from '@earendil-works/pi-tui'
 
+import { QuestionnaireCaptures } from './questionnaire-captures.ts'
 import { runQuestionnaire } from './questionnaire-component.ts'
 import {
 	normalizeQuestions,
@@ -77,7 +81,7 @@ export default function askUserQuestion(pi: ExtensionAPI): void {
 				context.state.answered ? [] : renderCallLines(args, width),
 			)
 		},
-		renderResult(toolResult, _options, _theme, context) {
+		renderResult(toolResult, _options, theme, context) {
 			if (!context.state.answered) {
 				// oxlint-disable-next-line eslint/no-param-reassign - Pi owns this mutable cross-slot state channel
 				context.state.answered = true
@@ -89,7 +93,7 @@ export default function askUserQuestion(pi: ExtensionAPI): void {
 			const details = parseAskResult(toolResult.details)
 			if (details)
 				return new TranscriptComponent(width =>
-					renderResultLines(details, width),
+					renderResultLines(details, width, theme),
 				)
 			const text = toolResult.content
 				.flatMap(part => (part.type === 'text' ? [part.text] : []))
@@ -108,30 +112,43 @@ async function runAskTool(
 		throw new Error('ask_user_question requires interactive TUI mode')
 	const questions = normalizeQuestions(params.questions)
 	const key = questionnaireKey(questions)
-	const outcome = await runQuestionnaire(
-		factory => context.ui.custom(factory),
-		questions,
-		session.resumeStates.get(key),
-	)
-	if (outcome.chat) {
-		session.resumeStates.set(key, outcome.chat.initialState)
-		session.sendFollowUp(chatFollowUp(outcome.chat.question))
-		return {
-			content: [{ type: 'text', text: 'Chat paused' }],
-			details: outcome,
-			terminate: true,
+	const captures = new QuestionnaireCaptures(context.cwd)
+	try {
+		const resumeState = session.resumeStates.get(key)
+		if (resumeState?.captures?.length)
+			captures.restore(resumeState.captures)
+		const outcome = await runQuestionnaire(
+			factory => context.ui.custom(factory),
+			questions,
+			resumeState,
+			captures,
+		)
+		if (outcome.chat) {
+			session.resumeStates.set(key, outcome.chat.initialState)
+			session.sendFollowUp(chatFollowUp(outcome.chat.question))
+			return {
+				content: [{ type: 'text', text: 'Chat paused' }],
+				details: outcome,
+				terminate: true,
+			}
 		}
-	}
-	session.resumeStates.delete(key)
-	return {
-		content: [
-			{
-				type: 'text',
-				text: outcome.cancelled
-					? 'User cancelled the question'
-					: formatAnswerLines(questions, outcome.answers),
-			},
-		],
-		details: outcome,
+		session.resumeStates.delete(key)
+		const resultImages = captures.modelAttachments(
+			(outcome.captures ?? []).map(record => record.alias),
+		)
+		return {
+			content: [
+				{
+					type: 'text',
+					text: outcome.cancelled
+						? 'User cancelled the question'
+						: formatAnswerLines(questions, outcome.answers),
+				},
+				...resultImages,
+			],
+			details: outcome,
+		}
+	} finally {
+		await captures.dispose()
 	}
 }

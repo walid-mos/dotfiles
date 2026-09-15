@@ -1,10 +1,10 @@
 /** Controllable worker boundary; jobs only finish when the test delivers them. */
 import { EventEmitter } from 'node:events'
 
-import { scaledPreviewData } from '../extensions/prompt-attachments/image-preview.ts'
+import { scaledPreviewData } from '../extensions/attachments/image-preview.ts'
 
-import type { WorkerLike } from '../extensions/prompt-attachments/preview-service.ts'
-import type { PreviewJob } from '../extensions/prompt-attachments/preview-worker.ts'
+import type { WorkerLike } from '../extensions/attachments/preview-service.ts'
+import type { PreviewJob } from '../extensions/attachments/preview-worker.ts'
 
 export class StubWorker extends EventEmitter implements WorkerLike {
 	readonly submitted: PreviewJob[] = []

@@ -326,6 +326,7 @@ function footerInput(
 		statuses: [],
 		git: null,
 		pr: null,
+		review: null,
 		quotas: { deepseek: { balance: 110, currency: 'USD' } },
 		provider: 'deepseek',
 		tier,

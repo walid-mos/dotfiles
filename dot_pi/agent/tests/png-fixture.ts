@@ -2,7 +2,7 @@
 
 import { deflateSync, inflateSync } from 'node:zlib'
 
-import { crc32 } from '../extensions/prompt-attachments/crc32.ts'
+import { crc32 } from '../extensions/attachments/crc32.ts'
 import {
 	A_CHANNEL_OFFSET,
 	B_CHANNEL_OFFSET,
@@ -18,7 +18,7 @@ import {
 	PNG_SIGNATURE_HEX,
 	RGBA_CHANNELS,
 	SUPPORTED_BIT_DEPTH,
-} from '../extensions/prompt-attachments/png-format.ts'
+} from '../extensions/attachments/png-format.ts'
 
 /** Sample layouts the fixture can produce, with their format facts. */
 const LAYOUTS = {

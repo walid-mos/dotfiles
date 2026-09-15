@@ -9,14 +9,18 @@ import {
 } from './questionnaire-render-options.ts'
 import { helpText, renderSubmitBody } from './questionnaire-render-submit.ts'
 
-import type { QuestionnaireCanvas } from './questionnaire-render-primitives.ts'
+import type {
+	QuestionnaireCanvas,
+	CanvasStripLines,
+} from './questionnaire-render-primitives.ts'
 import type { QuestionnaireState } from './questionnaire-state.ts'
 
-/** Frame the whole dialog: tab bar (multi), body rows, then edge labels. */
+/** Frame the whole dialog: strip, tab bar (multi), body rows, then labels. */
 export function renderQuestionnaire(
 	state: QuestionnaireState,
 	editor: QuestionnaireCanvas['editor'],
 	fullWidth: number,
+	strip: CanvasStripLines | undefined,
 ): string[] {
 	const inner: string[] = []
 	const canvas: QuestionnaireCanvas = {
@@ -24,6 +28,12 @@ export function renderQuestionnaire(
 		editor,
 		width: frameContentWidth(fullWidth),
 		sink: line => inner.push(line),
+	}
+	if (strip) {
+		const lines = strip(canvas.width)
+		if (lines.length) {
+			inner.push(...lines, '')
+		}
 	}
 	if (state.isMulti) renderTabBar(canvas)
 	if (state.isOnSubmitTab()) renderSubmitBody(canvas)
