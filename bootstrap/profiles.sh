@@ -42,6 +42,8 @@ setup_laptop() {
     step "Laptop extras"
     install_brew_list cask "${LAPTOP_CASKS[@]}"
     install_nerd_fonts
+    step "Remote Login (sshd)"
+    ensure_remote_login
     configure_studio_client
     configure_laptop_reminders
 }
