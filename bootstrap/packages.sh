@@ -100,6 +100,16 @@ install_pi() {
     act "install pi-coding-agent" pnpm add -g --ignore-scripts "$PI_PACKAGE"
 }
 
+# install_npm - pnpm >= 11 installs a Node runtime without npm/npx/corepack,
+# so npm is added explicitly. Lives in $PNPM_HOME/bin, already on PATH.
+install_npm() {
+    if command_exists npm; then
+        skip "npm already installed"
+        return 0
+    fi
+    act "install npm" pnpm add -g npm
+}
+
 install_herdr() {
     if command_exists herdr || [ -x "$HOME/.local/bin/herdr" ]; then
         skip "herdr already installed"
