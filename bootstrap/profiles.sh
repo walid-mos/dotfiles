@@ -23,6 +23,7 @@ setup_common() {
     step "Toolchain"
     install_pnpm
     install_node
+    install_npm
     install_pi
     install_herdr
 
