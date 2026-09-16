@@ -107,6 +107,22 @@ STUDIO_TAILNET_DEVICE="mac-studio"
 STUDIO_SSH_USER="walid-mos"
 STUDIO_SSH_TARGET="${STUDIO_SSH_USER}@${STUDIO_TAILNET_DEVICE}"
 
+# ensure_remote_login - sshd must accept connections on both ends of the
+# Studio pairing: the laptop needs it for the Studio to add it as a machine,
+# the headless server needs it to be reachable at all. Requires sudo
+# (ensure_sudo).
+ensure_remote_login() {
+    if is_dry_run; then
+        would "ensure Remote Login (SSH) enabled"
+        return 0
+    fi
+    if [ "$(sudo systemsetup -getremotelogin 2>/dev/null | awk '{print $NF}')" = "On" ]; then
+        skip "Remote Login (SSH) already enabled"
+    else
+        act "enable Remote Login (SSH)" sudo systemsetup -setremotelogin on
+    fi
+}
+
 # configure_headless_server - keep the Studio always reachable without a
 # display or a logged-in session: never sleep, restart after power failure,
 # SSH and Screen Sharing enabled at boot. Requires sudo (ensure_sudo).
@@ -115,15 +131,10 @@ configure_headless_server() {
     act "pmset: no sleep, restart after power failure, Wake-on-LAN" \
         sudo pmset -a sleep 0 disablesleep 1 hibernatemode 0 \
             displaysleep 10 autorestart 1 womp 1
+    ensure_remote_login
     if is_dry_run; then
-        would "ensure Remote Login (SSH) enabled"
         would "ensure Screen Sharing enabled (headless GUI fallback)"
         return 0
-    fi
-    if [ "$(sudo systemsetup -getremotelogin 2>/dev/null | awk '{print $NF}')" = "On" ]; then
-        skip "Remote Login (SSH) already enabled"
-    else
-        act "enable Remote Login (SSH)" sudo systemsetup -setremotelogin on
     fi
     if sudo launchctl print system/com.apple.screensharing >/dev/null 2>&1; then
         skip "Screen Sharing already enabled"
