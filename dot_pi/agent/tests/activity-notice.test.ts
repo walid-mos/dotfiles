@@ -66,7 +66,7 @@ void test('warning notices share alignment and all notice widths stay bounded', 
 	)
 	assert.match(
 		visible(notice.render(80))[0] ?? '',
-		/^ {4}! Operation aborted$/u,
+		/^ {3}! Operation aborted$/u,
 	)
 	for (let width = 0; width <= 100; width++) {
 		const lines = new ActivityNotice(

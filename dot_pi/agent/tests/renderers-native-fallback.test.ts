@@ -16,7 +16,9 @@ void test('a plugin returning an invalid component cannot swallow its tool outpu
 		const row = toolRow('malformed_plugin', {}, plugin)
 		complete(row, 'Evidence must survive')
 		row.setExpanded(true)
-		assert.ok(visible(row.render(80)).includes('│   Evidence must survive'))
+		assert.ok(
+			visible(row.render(80)).includes('│    Evidence must survive'),
+		)
 	} finally {
 		dispose()
 	}

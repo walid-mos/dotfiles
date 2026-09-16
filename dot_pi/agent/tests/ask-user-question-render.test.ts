@@ -102,5 +102,8 @@ void test('live editor rendering stays inside narrow and invalid viewport widths
 			`overflow at ${width}`,
 		)
 	}
-	assert.deepEqual(renderQuestionnaire(state, editor, Number.NaN, undefined), [])
+	assert.deepEqual(
+		renderQuestionnaire(state, editor, Number.NaN, undefined),
+		[],
+	)
 })

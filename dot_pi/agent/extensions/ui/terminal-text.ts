@@ -1,5 +1,6 @@
 /** Shared terminal layout policy over Pi's grapheme/ANSI-aware primitives. */
 import {
+	sliceByColumn,
 	truncateToWidth,
 	visibleWidth,
 	wrapTextWithAnsi,
@@ -40,6 +41,15 @@ export function wrapTerminalLine(text: string, width: number): string[] {
 		lines.push(truncateTerminalLine(line, budget))
 	}
 	return lines
+}
+
+/** ANSI-safe column slice: Pi owns segmentation, callers stay width-exact. */
+export function sliceTerminalColumns(
+	line: string,
+	startColumn: number,
+	columns: number,
+): string {
+	return sliceByColumn(line, columnWidth(startColumn), columnWidth(columns))
 }
 
 /** Hanging indentation shared by dialogs, previews and answer replays. */

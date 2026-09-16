@@ -7,10 +7,13 @@ import { homedir } from 'node:os'
 
 import { isRecord, finiteNumber, finiteOr, FIELD_NAN } from './json.ts'
 
+import type { IncoQuota } from './quota-inco.ts'
+import type { NebiusQuota } from './quota-nebius.ts'
+
 export const AUTH_PATH = `${homedir()}/.pi/agent/auth.json`
 
 /** HTTP fetch budget: quota polling is decorative, never hang the footer. */
-const FETCH_TIMEOUT_MS = 8000
+export const FETCH_TIMEOUT_MS = 8000
 
 /** Time conversion for epoch-second server stamps. */
 export const MS_PER_SECOND = 1000
@@ -67,6 +70,8 @@ export type QuotaCache = {
 	xai?: XaiQuota
 	openai?: OpenAIQuota
 	deepseek?: DeepseekQuota
+	nebius?: NebiusQuota
+	inco?: IncoQuota
 	error?: boolean
 }
 

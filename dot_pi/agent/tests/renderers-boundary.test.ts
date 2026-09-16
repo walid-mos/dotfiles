@@ -37,7 +37,7 @@ void test('native renderer envelope reassignment cannot mutate the stored tool r
 	row.updateResult(outcome)
 	row.setExpanded(true)
 	assert.equal(outcome.content[0]?.text, 'Stored evidence')
-	assert.ok(visible(row.render(80)).includes('│   Presentation only'))
+	assert.ok(visible(row.render(80)).includes('│    Presentation only'))
 })
 
 void test('malformed render lines from a valid component cannot replace evidence with undefined', () => {
@@ -50,7 +50,7 @@ void test('malformed render lines from a valid component cannot replace evidence
 	)
 	complete(row, 'Evidence must survive')
 	row.setExpanded(true)
-	assert.ok(visible(row.render(80)).includes('│   Evidence must survive'))
+	assert.ok(visible(row.render(80)).includes('│    Evidence must survive'))
 })
 
 void test('a bare string from a native slot is rejected before container flattening', () => {
@@ -59,7 +59,7 @@ void test('a bare string from a native slot is rejected before container flatten
 	const row = toolRow('bare_string', {}, { renderResult: () => component })
 	complete(row, 'Evidence must survive')
 	row.setExpanded(true)
-	assert.ok(visible(row.render(80)).includes('│   Evidence must survive'))
+	assert.ok(visible(row.render(80)).includes('│    Evidence must survive'))
 })
 
 void test('a failure during component rendering falls back to the original output', () => {
@@ -79,7 +79,7 @@ void test('a failure during component rendering falls back to the original outpu
 	)
 	complete(row, 'Failure details')
 	row.setExpanded(true)
-	assert.ok(visible(row.render(80)).includes('│   Failure details'))
+	assert.ok(visible(row.render(80)).includes('│    Failure details'))
 })
 
 void test('native slot validation preserves mouse controls, keyboard focus and input', () => {

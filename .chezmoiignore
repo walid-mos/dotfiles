@@ -10,6 +10,18 @@
 .pi/web-search-cache
 .pi/agent/extensions/herdr-agent-state.ts
 
+# Pi: transient handoffs, run history, restart artifacts and audit reports
+.pi/agent/handoffs
+.pi/agent/run-history.jsonl
+.pi/agent/herdr-restart-orchestrator.log
+.pi/agent/herdr-restart-orchestrator.sh
+.pi/agent/herdr-restart-relaunch-20260916.md
+.pi/agent/audits/tool-call-audit-*.md
+
+# nextnode-qonto: Python cache and backups
+.config/nextnode-qonto/__pycache__
+.config/nextnode-qonto/*.bak
+
 # chezmoi internal state
 .config/chezmoi
 

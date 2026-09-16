@@ -16,20 +16,21 @@ const readView: ActivityLine = {
 	elapsedMs: 1200,
 }
 
-void test('tool and count form one compact identity, not separately padded columns', () => {
+void test('the tool name opens the row and its count closes the shared identity column', () => {
 	const line = stripVTControlCharacters(renderActivityLine(readView, 80, 0))
-	assert.match(line, /^├── ✓ read  10l  file\.ts L1-10/u)
-	assert.equal(line.indexOf('10l'), 12)
-	assert.equal(line.indexOf('file.ts'), 17)
+	assert.equal(line.indexOf('read'), 5)
+	assert.equal(line.indexOf('10l') + '10l'.length, 19)
+	assert.equal(line.indexOf('file.ts'), 22)
 	assert.ok(line.endsWith('1.2s'))
 	assert.equal(line.length, 80)
 	assert.doesNotMatch(line, /[\r\n▸▾]/u)
 })
 
-void test('compact rows right-align counts without widening the identity', () => {
+void test('narrow rows keep the shared identity column and the aligned task', () => {
 	const line = stripVTControlCharacters(renderActivityLine(readView, 64, 0))
-	assert.match(line, /^├─ ✓ read  10l  file\.ts L1-10/u)
-	assert.equal(line.indexOf('file.ts'), 16)
+	assert.equal(line.indexOf('read'), 5)
+	assert.equal(line.indexOf('10l') + '10l'.length, 19)
+	assert.equal(line.indexOf('file.ts'), 22)
 	assert.ok(line.endsWith('1.2s'))
 	assert.equal(line.length, 64)
 })
@@ -39,9 +40,9 @@ void test('counts of different lengths share a right edge and keep the task alig
 		const line = stripVTControlCharacters(
 			renderActivityLine({ ...readView, summary }, 80, 0),
 		)
-		assert.equal(line.indexOf(summary) + summary.length, 15)
-		assert.equal(line.indexOf('file.ts'), 17)
-		assert.equal(line.slice(6, 10), 'read')
+		assert.equal(line.indexOf(summary) + summary.length, 19)
+		assert.equal(line.indexOf('file.ts'), 22)
+		assert.equal(line.slice(5, 9), 'read')
 	}
 })
 
@@ -68,7 +69,7 @@ void test('elapsed duration and compact max label remain together at the right',
 	const plain = stripVTControlCharacters(line)
 	assert.ok(plain.endsWith('1.2s · 120s max'))
 	assert.doesNotMatch(plain, /timeout/u)
-	assert.equal(plain.indexOf('file.ts'), 17)
+	assert.equal(plain.indexOf('file.ts'), 22)
 	assert.ok(line.includes(uiTheme.fg('dim', '120s max')))
 	assert.equal(plain.length, 100)
 })
@@ -99,7 +100,7 @@ for (const phase of ['error', 'cancelled'] as const) {
 		const line = stripVTControlCharacters(
 			renderActivityLine(failure, 100, 0),
 		)
-		assert.equal(line.slice(6, 15).trim(), 'read')
+		assert.equal(line.slice(5, 19).trim(), 'read')
 		assert.ok(line.endsWith(`1.2s · ${phase}`))
 		for (const width of [40, 64]) {
 			const narrow = stripVTControlCharacters(

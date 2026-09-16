@@ -16,21 +16,15 @@ const GUTTER_COLUMNS = terminalLineWidth(ACTIVITY_DETAIL_PREFIX)
 
 export class ActivityDetails implements Component {
 	private readonly content: Component
-	private readonly kind: 'text' | 'image'
 
-	constructor(content: Component, kind: 'text' | 'image' = 'text') {
+	constructor(content: Component) {
 		this.content = content
-		this.kind = kind
 	}
 
 	render(width: number): string[] {
 		const budget = columnWidth(width)
 		const prefix = renderActivityRail('detail')
-		if (this.kind === 'image' && budget <= GUTTER_COLUMNS)
-			return [truncateTerminalLine(prefix, budget)]
 		const lines = this.content.render(Math.max(1, budget - GUTTER_COLUMNS))
-		// Native image sequences carry cursor movement and payloads: never text-clip them.
-		if (this.kind === 'image') return lines.map(line => prefix + line)
 		return lines.map(line => truncateTerminalLine(prefix + line, budget))
 	}
 

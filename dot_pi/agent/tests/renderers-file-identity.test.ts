@@ -19,15 +19,14 @@ for (const name of ['edit', 'write', 'ls']) {
 		complete(row, 'Updated.')
 		const header = visible(row.render(120))[0] ?? ''
 		if (name === 'ls') {
-			assert.equal(header.slice(6, 15).replace(/\s+/gu, ' '), 'ls 1l')
 			assert.match(
 				header,
-				/activity-line\.ts ~\/\.pi\/agent\/extensions\/ui/u,
+				/^├─ ✓ ls\s+1l\s+activity-line\.ts · ~\/\.pi\/agent\/extensions\/ui/u,
 			)
 		} else {
 			assert.ok(
 				header.startsWith(
-					`┌─ ${name.toUpperCase()} · activity-line.ts`,
+					`┌─   ${name.toUpperCase()} · activity-line.ts`,
 				),
 			)
 			assert.match(

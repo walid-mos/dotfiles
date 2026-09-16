@@ -18,8 +18,9 @@ import {
 	refreshPrForBranchChange,
 	refreshQuotas,
 	refreshTariff,
+	refreshGitForTurn,
 	startGalleyPolling,
-	startGitPolling,
+	startGitTracking,
 	startPrPolling,
 	startQuotaPolling,
 } from './poll-lifecycle.ts'
@@ -120,7 +121,7 @@ function installFooter(ctx: ExtensionContext): void {
 	if (!footerState.isEnabled) return
 	startQuotaPolling()
 	void refreshTariff()
-	startGitPolling(ctx.cwd)
+	startGitTracking(ctx.cwd)
 	startPrPolling(ctx.cwd)
 	startGalleyPolling(ctx.cwd)
 
@@ -152,11 +153,9 @@ function teardownFooter(): void {
 	footerState.lifecycleGeneration += 1
 	footerState.prGeneration += 1
 	if (footerState.quotaTimer) clearInterval(footerState.quotaTimer)
-	if (footerState.gitTimer) clearInterval(footerState.gitTimer)
 	if (footerState.prTimer) clearInterval(footerState.prTimer)
 	if (footerState.reviewTimer) clearInterval(footerState.reviewTimer)
 	footerState.quotaTimer = null
-	footerState.gitTimer = null
 	footerState.prTimer = null
 	footerState.reviewTimer = null
 	footerState.reviewCache = null
@@ -188,9 +187,10 @@ export default function (pi: ExtensionAPI): void {
 	pi.on('session_start', (_event, ctx) => installFooter(ctx))
 	pi.on('session_shutdown', () => teardownFooter())
 
-	// Refresh stats after each turn; a desk tends to start or stop mid-turn,
-	// so the review link is re-checked here (like git churn is)
+	// Refresh stats after each turn: branch churn and the review link both move
+	// while the agent works, so neither needs a timer
 	pi.on('turn_end', () => {
+		refreshGitForTurn()
 		requestRenderSafely()
 		const cwd = footerState.gitCwd
 		if (cwd) refreshGalleyForTurn(cwd)

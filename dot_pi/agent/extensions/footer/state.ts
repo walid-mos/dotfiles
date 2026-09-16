@@ -15,7 +15,6 @@ export type FooterState = {
 	quotaTimer: ReturnType<typeof setInterval> | null
 	tariffCache: DeepseekTariff | null
 	gitCache: GitStatus | null
-	gitTimer: ReturnType<typeof setInterval> | null
 	gitCwd: string | null
 	prCache: GitPr | null
 	prTimer: ReturnType<typeof setInterval> | null
@@ -33,7 +32,6 @@ export const footerState: FooterState = {
 	quotaTimer: null,
 	tariffCache: null,
 	gitCache: null,
-	gitTimer: null,
 	gitCwd: null,
 	prCache: null,
 	prTimer: null,

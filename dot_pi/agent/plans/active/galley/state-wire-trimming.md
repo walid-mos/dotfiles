@@ -4,169 +4,178 @@ title: Trim the browser state payload
 project: galley
 status: review
 created: 2026-09-14
-updated: 2026-09-14
+updated: 2026-09-15
 ---
 
 # Trim the browser state payload
 
-**Implemented; ready for human code review on 2026-09-14.** Full-repository gates have unrelated pre-existing blockers, detailed below.
+**Implemented 2026-09-14 — ready for human code review.** Full-repo gates blocked only by unrelated pre-existing failures (see Verification).
 
 ## Goal
 
-Make large desks faster to open and refresh by sending the browser only the review information it needs. Keep the review experience, saved decisions, staging, comments, and agent handoff unchanged.
-
-In plain English: **send the review's index, not another copy of every diff line.** The browser already loads file contents separately when it needs to display a file.
+Large desks open/refresh faster: the browser receives the review's **index, not a second copy of every diff line** — it already fetches file contents separately for display. Review experience, saved decisions, staging, comments, agent handoff: all unchanged.
 
 ## Context
 
-The supplied benchmark reports a roughly **125 MB** state response and **3.9 s** to first rows on the large fixture; medium transfers **28 MB**. Treat the proposed **~1 s** large cold open as a hypothesis to test, not a guaranteed outcome. These measurements have not been rerun for this draft.
+Benchmark (supplied, not rerun at plan time): large ≈ **125 MB** state response, **3.9 s** to first rows; medium **28 MB**. The ~1 s large cold-open target = hypothesis to test, never a gate.
 
-Code inspection at `afce4c4` confirms:
+Code inspection at `afce4c4`:
 
-- `GET /api/state` serializes the entire backend state, including `rawDiff` and every file's parsed hunks.
-- The UI does not read the backend's `rawDiff`. Its renderer builds its own diff from the separately fetched old/new file contents.
-- **The UI does use backend hunks in more than one place:** Markdown chooses Rendered/Source from their presence; completion statistics count their changed lines; walkthrough counts have a hunk fallback. Remove these dependencies before removing the payload.
-- `POST /api/reset` also returns the entire backend state. Slim this response too, or Reset will bring the heavy objects back into the tab.
-- `/api/poll` is already a small heartbeat. Keep its cadence and normal payload small; add the approved refresh notification for a reconnected tab.
-- The backend still needs the full diff for staging and reconciliation. This is a transport change, not a persistence migration.
+- `GET /api/state` serializes all backend state — `rawDiff` + every file's parsed hunks included.
+- UI never reads backend `rawDiff`: the renderer rebuilds diffs from the separately fetched old/new contents.
+- UI **does** read backend hunks in 3 spots: Markdown Rendered/Source default, completion line-counts, walkthrough fallback. Migrate before dropping the field.
+- `POST /api/reset` returns full state too — slim it, or Reset re-imports the heavy objects.
+- `/api/poll` stays a small heartbeat; add the approved refresh event for reconnected tabs.
+- Backend keeps the full diff (staging + reconciliation) — **transport change, not persistence migration**.
 
-### Scope
+Locked decisions (approved in the recovered Galley review, 2026-09-14):
 
-**Include:** a browser-specific state shape, a small server projection, migration of the affected UI readers, both state-returning responses, contract documentation, regression tests, and before/after measurements.
+1. **Reset included** — same slim projection on both response paths.
+2. **Completion counts untouched** — hunkless-file totals stay as-is here; changing them is a separate behavior fix.
+3. **Refresh event over the existing heartbeat** — detects a restarted desk. Persistent, non-destructive refresh-required notice; reviewer refreshes explicitly, after in-flight actions and unsaved text are safe. No forced navigation during stage/unstage/Send. Guard Reset's state adoption like GET state. Bundles predating the mechanism: manual refresh once, on first upgrade.
+4. **No performance gate** — measure and report only; ~1 s / −80 % never block release. Does not address worker tokenization or DOM-cache memory.
 
-**Exclude:** worker parallelism, tokenization changes, bundle splitting, virtualization, cache redesign, pagination, compression, and lazy loading of change records. Those address different costs and should not obscure this improvement.
+## Architecture
 
-## Approach — phases in order
+Caption: what now crosses the boundary, what the UI hunks/readers consume instead.
 
-### 1. Agree on what crosses the boundary
+```mermaid
+flowchart LR
+    RS["ReviewState<br>backend: rawDiff + hunks"] --> PR["projection<br>allowlist · pure · sync"]
+    PR --> GET["GET /api/state"]
+    PR --> RST["POST /api/reset<br>nested state"]
+    GET --> BS["Browser store<br>slim adoption"]
+    RST --> BS
+    BS --> MD["mdfile<br>Rendered/Source ← hasHunks"]
+    BS --> WT["progress + walkthrough<br>totals ← counts"]
+    BS -.-> FC["file fetches"]
+    GET -.-> FC
+```
 
-Define `BrowserReviewState` and `BrowserReviewFile` in `src/types.ts`, alongside the existing backend types. Reuse shared field types rather than duplicating their definitions. Keep the backend `ReviewState` unchanged.
+## Approach — phases
 
-| Information | Proposal | Reason |
-| --- | --- | --- |
-| Review identity used by the screen | Keep `root`, `session`, `mode`, `target`, `staged`, `baseDiffHash` | Titles, review mode, staging rules, reload detection |
-| File summaries | Keep paths, content hash, change kind, added/removed counts, rename/oversized flags, optional size | Navigation, counts, rendering decisions, cache invalidation |
-| Parsed hunks | Replace with required `hasHunks: boolean` | Preserve Markdown's current default without shipping diff lines |
-| Reviewer records | Keep changes, decisions, comments, approval hashes/lists, staging lists, decision-file list | Preserve review behavior and the existing save slice |
-| Guide and live agent status | Keep them; keep status outside the stored browser review | Guided review and agent presence remain unchanged |
-| Raw diff and backend-only metadata | Omit `rawDiff`, `id`, `repoHash`, `head`, `base`, state timestamps, `persistFile` | No current UI reader; preserve these on the backend |
+### 1. Boundary contract
 
-Make added/removed counts reliable at the browser boundary using the existing builder's stamps. Do not recompute line totals or read file contents on every state request. Check alternate file builders, reloads, restored desks, and preview-file construction before making counts required.
+- Define `BrowserReviewState` / `BrowserReviewFile` in `src/types.ts`, next to backend types; reuse shared field types; `ReviewState` untouched.
+- Build responses by **explicit allowlist** — never spread-and-delete; future backend fields must not leak onto the wire.
 
-Use an **explicit allowlist** when building the response, rather than spreading the backend state and deleting a few fields. Future backend fields must not silently become browser payload.
+| Part | Backend → Browser |
+| --- | --- |
+| Review identity (`root`, `session`, `mode`, `target`, `staged`, `baseDiffHash`) | keep |
+| File summaries (paths, hash, kind, ±counts, rename/oversize flags, optional size) | keep — counts required, stamped by existing builder, never recomputed |
+| Parsed hunks | → required `hasHunks: boolean` |
+| Reviewer records (changes, decisions, comments, approvals, staging lists, decision-file list) | keep |
+| Guide + live agent status | keep (status outside stored browser review) |
+| `rawDiff`, `id`, `repoHash`, `head`, `base`, state timestamps, `persistFile` | omit |
 
-**Gate:** every retained field has a consumer or a stated contract reason; every removed field has no remaining browser dependency. Distinguish backend `DiffHunk` objects from the renderer's own hunks, which stay untouched.
+- Before making counts required: check alternate file builders, reloads, restored desks, preview-file construction.
 
-### 2. Switch the server and browser together
+Gate: every kept field has a consumer or contract reason; every dropped field has zero remaining browser readers. Backend `DiffHunk` ≠ renderer hunks — the latter stay untouched.
 
-- Add one pure, synchronous projection from backend state to browser state. Share it between `GET /api/state` and the nested `state` in `POST /api/reset`.
-- Preserve the existing staged-snapshot refresh, mutation serialization, and live-status handling. Never delete fields from the authoritative state or its files.
-- Retype the browser store, initial fetch, reload, reset, previews, and affected helpers against the browser shape. Do not use casts to pretend the slim payload is a full backend state.
-- Replace Markdown's `hunks.length > 0` with `hasHunks`. Read walkthrough totals from the supplied counts and remove its obsolete hunk fallback.
-- Preserve completion-receipt totals exactly: today a hunkless whole-file addition contributes zero lines there, even though its sidebar additions count is nonzero. Use the summary plus `hasHunks` to preserve that distinction; changing it would be a separate behavior fix.
-- Leave per-file contents fetching, rendered hunks, decision replay, anchors, save/send ownership, and `ReviewResult` unchanged.
+### 2. Server and browser move together
 
-**Gate:** backend and UI typechecks pass; both HTTP responses exclude the heavy fields; the same operations still work with the slim state.
+- One pure synchronous projection, shared by `GET /api/state` and the nested `state` in `POST /api/reset`.
+- Preserve staged-snapshot refresh, mutation serialization, live-status handling; never delete from the authoritative state.
+- Retype browser store, initial fetch, reload, reset, previews, affected helpers — no casts pretending slim = full backend state.
+- Markdown reads `hasHunks`; walkthrough totals come from supplied counts, obsolete hunk fallback removed.
+- Completion receipts preserved exactly: hunkless whole-file addition counts **zero lines** there vs nonzero sidebar additions — distinction reconstructed from summary + `hasHunks`.
+- Unchanged: per-file content fetch, rendered hunks, decision replay, anchors, save/send ownership, `ReviewResult`.
 
-### 3. Lock down behavior and document the boundary
+Gate: UI + backend typechecks pass; both responses exclude the heavy fields; all operations work on slim state.
 
-Write failing contract tests before changing the response, then make them pass. Cover:
+### 3. Lock behavior, document the boundary
 
-- Large `rawDiff` and hunk-line sentinels never appear in either response; the backend still retains them afterward.
-- Required fields and meaningful zero/false values survive projection, including an empty desk after reload.
-- Markdown defaults and line totals match the current behavior for modified, added, deleted, hunkless, and pure-rename files.
-- Initial load, reload, and Reset all adopt the same browser shape.
-- Accept/reject, approval/staging, comments/questions/replies, guides/skims, and save/send still preserve their current records and semantics.
+- Contract tests failing-first, then pass:
+  - `rawDiff` / hunk-line sentinels never appear in either response; backend still retains them after.
+  - Required fields and meaningful zero/false values survive projection — incl. empty desk after reload.
+  - Markdown defaults + line totals for modified / added / deleted / hunkless / pure-rename files.
+  - Initial load, reload, Reset all adopt the same browser shape.
+  - Accept/reject, approvals/staging, comments/questions/replies, guides/skims, save/send preserve records and semantics.
+- Concurrency regression: keep its `hash(rawDiff)` invariant — check against backend/persisted snapshot, compare to public response; never just remove the assertion.
+- `src/spec.ts` + contract tests: browser state = **projection, not the persisted review**; CLI events and `ReviewResult` unchanged; non-browser perf smoke strengthened to reject `rawDiff` and per-file hunks on the wire.
 
-Update the existing concurrency regression: it currently checks `hash(rawDiff)` through `/api/state`. Keep that invariant checked against the backend or persisted snapshot and compare its hash with the public response; do not simply remove the assertion.
+Gate: focused regressions + repo lint, type-aware lint, formatting, typecheck, test, build, perf smoke.
 
-Update `src/spec.ts` and its contract tests to explain that browser state is a projection, not the persisted review. Clarify that CLI events and `ReviewResult` have not changed. Strengthen the existing non-browser performance smoke check to reject `rawDiff` and per-file `hunks` on the wire.
+### 4. Measure the improvement
 
-**Gate:** focused regressions and the repository's lint, type-aware lint, formatting, typecheck, test, build, and performance-smoke gates pass.
+- Identical fixture contents, build settings, browser conditions, initial review state, before/after. ≥ 3 cold opens per fixture → medians + ranges. Changed-diff reload exercised separately from browser refresh; fixture state restored between runs.
+- Priority medium + large; tiny = overhead check; bigfile = oversized-card path.
+- Metrics: state response bytes + JSON parse, first rows, reload→updated rows, comparable heap. Oversized card and themed tokens reported separately; never attribute worker or DOM-cache costs here.
+- All browser checks/benchmarks via `pi-frontend-check`; never the repo's standalone Playwright driver.
 
-### 4. Measure the actual improvement
-
-Use identical fixture contents, build settings, browser conditions, and initial review state before/after. Run at least three cold opens per fixture; report medians and ranges. Exercise a changed-diff reload separately from a browser refresh.
-
-Prioritize **medium and large**; use **tiny** as the overhead check and **bigfile** to verify the oversized-card path still works. Restore fixture state between runs so accepting changes cannot bias the next measurement.
-
-Measure state-response bytes and request time, first real rows, reload-to-updated-rows, and comparable browser heap readings. Report the oversized card separately from actual diff rows, and themed tokens separately from first rows. Do not attribute worker or DOM-cache costs to this change.
-
-Use `pi-frontend-check` for all browser checks and benchmarks; do not run the repository's standalone Playwright browser driver. Use the existing fixture generator and non-browser checks where appropriate.
-
-**Gate:** report the measured payload and timing changes with no functional regression. Do not impose a byte-reduction percentage or timing target; the reviewer explicitly requested measurement without a blocking performance goal. Keep unrelated optimizations separate.
+Gate: measured payload + timing reported, no functional regression. **No byte- % / timing target imposed**; unrelated optimizations stay out.
 
 ## Files touched
 
-| Area | Expected files |
+| Area | Files |
 | --- | --- |
-| Shared contract and projection | `src/types.ts`; a small `src/server/browser-state.ts` plus focused tests |
-| HTTP responses | `src/server/routes/desk.ts`, `src/server/routes/review.ts` |
-| Browser shape and adoption | `src/ui/types.ts`, `main.ts`, `store.ts`, `poll.ts`, `save.ts`, `bindings/dialogs.ts`, `bindings/navigate.ts`; other type-only consumers as required |
-| Hunk-dependent UI behavior | `src/ui/mdfile.ts`, `progress.ts`, `walkthrough.ts`, and focused tests/fixtures |
-| Contract and regression gates | `src/spec.ts`, `src/spec.test.ts`, relevant server tests, `scripts/perf-smoke.mjs` |
+| Contract + projection | `src/types.ts`; `src/server/browser-state.ts` + focused tests |
+| HTTP | `src/server/routes/desk.ts`, `src/server/routes/review.ts` |
+| Browser shape + adoption | `src/ui/types.ts`, `main.ts`, `store.ts`, `poll.ts`, `save.ts`, `bindings/dialogs.ts`, `bindings/navigate.ts` + type-only consumers |
+| Hunk-dependent UI | `src/ui/mdfile.ts`, `progress.ts`, `walkthrough.ts` + focused tests/fixtures |
+| Gates | `src/spec.ts`, `src/spec.test.ts`, server tests, `scripts/perf-smoke.mjs` |
 
-Keep changes limited to this boundary. No dependency, persisted-schema, version, or changelog edits.
+Boundary only: no dependency, persisted-schema, version, or changelog edits.
 
-## Risks / open questions
+## Open questions
 
-Approved decisions from the recovered Galley review:
+None — every open point resolved as a locked decision (see Context).
 
-1. **Include Reset.** Apply the same slim projection to both response paths.
-2. **Preserve today's completion counts.** Do not change hunkless-file totals in this optimization.
-3. **Send a refresh event.** Detect a restarted desk through the existing heartbeat before adopting another state shape. Show a persistent, non-destructive refresh-required notice; the reviewer refreshes explicitly after finishing actions and preserving unsaved text. Do not force navigation during stage/unstage/Send requests. Guard Reset's state adoption as well as GET state. Bundles predating this mechanism cannot handle a new event retroactively and need a manual refresh when first upgrading.
-4. **Do not impose performance goals.** Measure and report the optimization without blocking on ~1 s or an 80% reduction. This change does not fix worker tokenization or DOM-cache memory.
+## Steps
+
+✅ Types + allowlist projection (`src/types.ts`, `browser-state.ts`)
+✅ Both endpoints + browser retype + `hasHunks` / counts migration
+✅ Contract tests failing-first; concurrency regression preserved; smoke strengthened; spec docs
+✅ Full gates incl. perf smoke
+✅ Measurement campaign + results recorded below
+🟡 Galley code review — open
 
 ## Verification
 
-| Check | Outcome | Status |
+| Gate | Result | Status |
 | --- | --- | --- |
-| Field-consumer audit and browser contract | Explicit top-level/file allowlists; no missing consumer found by independent review | Passed |
-| State and Reset exclusions; backend preservation | Contract tests exclude raw diff/hunks and retain backend originals; nonempty reviewer/guide records pinned | Passed |
-| Functional and concurrency regressions | 268 tests passed; includes real empty reload, metadata-derived views/counts, and backend/public hash parity | Passed |
-| Build, performance smoke, formatting | All passed; smoke state payload 480,445 bytes, startup 324 ms, reload 266 ms | Passed |
-| Type-aware lint for this change | All files listed in the evidence ownership manifest passed | Passed |
-| Full-repository lint/type checks | Blocked only by the pre-existing files listed below | Existing blockers |
-| Browser flows | Initial load, pending stage/Send, Reset, foreign-instance Reset, changed-diff reload, real restart with draft retained | Passed |
-| Rendering | Notice checked at 1280×900 and 390×844; wide DOM geometry/styles unchanged by formatting; zero console errors/warnings | Passed |
-| Performance measurements | Payload and parse cuts confirmed; no meaningful first-row improvement in these samples | Recorded below |
-| Post-browsing heap / tokenization | No comparable retained-heap or themed-token rerun; do not claim improvements | Not measured |
-
-**Delivery:** one coherent implementation change, a before/after results table with evidence, and a Galley code review.
+| Boundary audit + browser contract | explicit top-level/file allowlists; independent review found no missing consumer | Passed |
+| State/Reset exclusions; backend intact | contract tests exclude raw diff/hunks, retain backend originals + nonempty reviewer/guide records | Passed |
+| Functional + concurrency regressions | 268 tests pass — real empty reload, metadata-derived views/counts, backend/public hash parity | Passed |
+| Build + perf smoke + formatting | all pass; smoke payload 480,445 B, startup 324 ms, reload 266 ms | Passed |
+| Type-aware lint (this change) | all evidence-owned files clean | Passed |
+| Full-repo lint/type checks | blocked by pre-existing failures only (below) | Existing blockers |
+| Browser flows | load, pending stage/Send, Reset, foreign-instance Reset, changed-diff reload, real restart with draft retained | Passed |
+| Rendering | notice at 1280×900 + 390×844; wide-DOM geometry/styles unchanged by formatting; 0 console errors/warnings | Passed |
+| Performance | payload/parse cuts confirmed; no meaningful first-row gain in samples (below) | Recorded |
+| Heap / tokenization | no comparable retained-heap or themed-token rerun — no claims made | Not measured |
 
 ### Execution — 2026-09-14
 
-- Use test-first for the HTTP payload and refresh contracts; keep the UI type migration at refactor pace.
-- Preserve pre-existing working-tree edits in dependencies, renderer files, and `src/agent/`. Baseline patch and build are captured under `/tmp/galley-state-wire-evidence/`.
-- Baseline `pnpm build` passed before implementation.
-- Independent review found two refresh hazards: automatic reload during an in-flight reviewer action, and Reset bypassing the instance check. Both were fixed by the persistent notice and shared instance guard; a bounded follow-up confirmed both findings resolved.
-- Pre-existing tracked edits in `extensions/galley.ts`, `package.json`, `pnpm-lock.yaml`, and the three renderer files match the captured initial patch byte-for-byte.
+- Test-first for HTTP payload + refresh contracts; UI type migration at refactor pace.
+- Pre-existing tree edits (renderer files, `src/agent/`, `pnpm-lock.yaml`, `extensions/galley.ts`, `package.json`) preserved; baseline patch + build captured under `/tmp/galley-state-wire-evidence/`; baseline `pnpm build` green.
+- Independent review found 2 refresh hazards — auto-reload during an in-flight reviewer action; Reset bypassing the instance check. Fixed by the persistent notice + shared instance guard; bounded follow-up confirmed both resolved.
 
 ### Measured results — 2026-09-14
 
-State sizes below are actual UTF-8 response bytes (decimal MB). Both builds used identical isolated fixture copies, including each fixture's extra README entry. Browser timings are medians of three **fresh iframe UI instances**, with HTML fetched before the early injected probe. HTTP cache may warm; these are controlled application-start measurements, not a claim of cold network/navigation timing. First rows and themed tokens remain separate.
+State bytes = actual UTF-8 response sizes (decimal MB). Browser timings = medians of 3 **fresh iframe UI instances**; HTML prefetched before the injected probe; fixture copies identical incl. each extra README entry; HTTP cache may warm — controlled app-start measurements, not cold-network claims.
 
-| Fixture | State bytes before → after | Reduction | JSON parse median before → after | First-row median before → after |
+| Fixture | State bytes before → after | Reduction | JSON parse before → after | First rows before → after |
 | --- | --- | --- | --- | --- |
-| Tiny | 191,323 → 23,150 | 87.9% | 0.2 → <0.1 ms | 241 → 230 ms |
-| Medium | 28,988,186 → 3,167,313 | 89.1% | 22.9 → 5.6 ms | 785 → 797 ms |
-| Large | 127,680,804 → 13,874,611 | 89.1% | 111.8 → 11.5 ms | 3,716 → 3,731 ms |
-| Bigfile | 5,920,810 → 554,928 | 90.6% | 4.3 → 0.5 ms | 403 → 414 ms |
+| Tiny | 191,323 → 23,150 | 87.9 % | 0.2 → <0.1 ms | 241 → 230 ms |
+| Medium | 28,988,186 → 3,167,313 | 89.1 % | 22.9 → 5.6 ms | 785 → 797 ms |
+| Large | 127,680,804 → 13,874,611 | 89.1 % | 111.8 → 11.5 ms | 3,716 → 3,731 ms |
+| Bigfile | 5,920,810 → 554,928 | 90.6 % | 4.3 → 0.5 ms | 403 → 414 ms |
 
-First-row ranges: tiny 214–298 → 216–296 ms; medium 779–819 → 788–800 ms; large 3,648–3,840 → 3,697–3,758 ms; bigfile 390–503 → 394–451 ms. Bigfile's summary-card median was 202 → 186 ms; the probe then clicked “Load diff anyway” and timed actual rows separately.
+First-row ranges (before → after, ms): tiny 214–298 → 216–296; medium 779–819 → 788–800; large 3,648–3,840 → 3,697–3,758; bigfile 390–503 → 394–451. Bigfile summary card 202 → 186 ms; probe then clicked "Load diff anyway" and timed actual rows separately.
 
-**Conclusion:** the transport/parse improvement is real, but the estimated ~1 s large first-row result did not materialize. Retained change records still dominate the remaining response (52,500 changes on large), and rendering/startup work remains outside this slice. No performance target was used as a release gate.
+**Conclusion:** transport/parse improvement real; the estimated ~1 s large first-row did not materialize. Retained change records dominate the rest (52,500 changes on large); rendering/startup cost sits outside this slice. No performance target used as a release gate — per locked decision 4.
 
-A real changed-diff reload on tiny reached the new row in 1,022 ms, including the heartbeat delay, retained the selected path, and adopted only the slim state. Heap samples are available but not GC-normalized and are not evidence of reduced retained memory after browsing.
+Real changed-diff reload on tiny: **1,022 ms** incl. heartbeat delay; selected path retained; only slim state adopted. Heap samples exist but are not GC-normalized — never cite as retained-memory evidence.
 
 ### Remaining gate blockers
 
-- `pnpm check`: pre-existing `src/agent/desk-listener.test.ts:11` uses `Promise.withResolvers` with an older configured TypeScript library.
-- Full lint/type-aware lint: pre-existing violations in `src/agent/*`, `src/ui/render/render-signature.test.ts:129`, and `scripts/browser-bench.mjs:346`. This change's scoped type-aware lint is clean.
-- Existing narrow topbar overflow can occur with the long no-agent status. The new notice is viewport-bounded and readable; the unrelated topbar layout was not redesigned.
+- `pnpm check`: pre-existing — `src/agent/desk-listener.test.ts:11` uses `Promise.withResolvers` with an older configured TS library.
+- Full lint / type-aware lint: pre-existing in `src/agent/*`, `src/ui/render/render-signature.test.ts:129`, `scripts/browser-bench.mjs:346`. This change's scoped type-aware lint is clean.
+- Unrelated: existing narrow topbar overflow with the long no-agent status; the new notice is viewport-bounded; topbar layout not redesigned here.
 
 ### Evidence
 
-- `/tmp/galley-state-wire-evidence/`: `pre-existing.patch`, `owned-files.txt`, `gate-results.json` and per-gate logs, `wire-bytes.json`, `browser-samples.json`, `browser-extra-samples.json`, `frontend-checks.json`, and the reproducible `frame-bench.js` expression used through `frontend_eval`.
-- Independent review/follow-up: `/Users/walid-mos/.pi/agent/sessions/--Users-walid-mos-Development-tools-galley--/subagent-artifacts/outputs/a5b7ae4e-38dd-4616-adaa-f022d72815af/wire-review.md`.
-- No commit, staging, version bump, or publication performed.
+`/tmp/galley-state-wire-evidence/`: `pre-existing.patch`, `owned-files.txt`, `gate-results.json` + per-gate logs, `wire-bytes.json`, `browser-samples.json`, `browser-extra-samples.json`, `frontend-checks.json`, reproducible `frame-bench.js` expression used via `frontend_eval`. Independent review + follow-up: `/Users/walid-mos/.pi/agent/sessions/--Users-walid-mos-Development-tools-galley--/subagent-artifacts/outputs/a5b7ae4e-38dd-4616-adaa-f022d72815af/wire-review.md`. No commit, staging, version bump, or publication performed.
+
+**Delivery:** one coherent implementation change, before/after results table with evidence (above), Galley code review.

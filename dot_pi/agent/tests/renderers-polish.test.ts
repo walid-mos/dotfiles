@@ -39,15 +39,15 @@ void test('read, grep and bash keep fixed counts before aligned tasks and timing
 		lines.map((line, index) =>
 			line.indexOf(['file.ts', 'needle', 'run-tests'][index] ?? ''),
 		),
-		[17, 17, 17],
+		[22, 22, 22],
 	)
 	assert.deepEqual(
 		lines
 			.slice(0, 2)
 			.map((line, index) => line.indexOf(['2l', '0l'][index] ?? '')),
-		[13, 13],
+		[17, 17],
 	)
-	assert.equal(lines[2]?.slice(6, 15).trim(), 'bash')
+	assert.equal(lines[2]?.slice(5, 19).trim(), 'bash')
 	assert.equal(lines[0]?.indexOf('1.2s'), 76)
 	assert.equal(lines[2]?.indexOf('1.2s'), 76)
 	assert.doesNotMatch(lines[1] ?? '', /\d\.\ds/u)
@@ -64,7 +64,7 @@ void test('read keeps the filename and range visible while retaining the full pa
 	const row = toolRow('read', args)
 	complete(row)
 	const line = visible(row.render(100))[0] ?? ''
-	assert.match(line, /^├── ✓ read\s+2l\s+tool-row\.ts L11-15 · ~/u)
+	assert.match(line, /^├─ ✓ read\s+2l\s+tool-row\.ts · L11-15 · ~/u)
 	assert.ok(
 		(visible(row.render(160))[0] ?? '').includes(
 			'~/.pi/agent/extensions/renderers',
@@ -110,7 +110,7 @@ void test('partial output counts update in place without claiming an empty runni
 	row.updateResult({ content: [], isError: false }, true)
 	assert.match(
 		visible(row.render(80))[0] ?? '',
-		/^├── \p{Script=Braille} bash/u,
+		/^├─ \p{Script=Braille} bash/u,
 	)
 	assert.doesNotMatch(visible(row.render(80))[0] ?? '', /done/u)
 	for (const text of ['one\ntwo', 'one\ntwo\nthree']) {
@@ -119,9 +119,9 @@ void test('partial output counts update in place without claiming an empty runni
 			true,
 		)
 		const line = visible(row.render(80))[0] ?? ''
-		assert.match(line, /^├── \p{Script=Braille} bash\s+\dl\s+run-tests/u)
-		assert.equal(line.indexOf('run-tests'), 17)
-		assert.match(line.slice(6, 15).trim(), /^bash {3}\dl$/u)
+		assert.match(line, /^├─ \p{Script=Braille} bash\s+\dl\s+run-tests/u)
+		assert.equal(line.indexOf('run-tests'), 22)
+		assert.match(line.slice(5, 19), /^bash\s+\dl$/u)
 		assert.equal(row.render(80).length, 1)
 	}
 	assert.match(visible(row.render(80))[0] ?? '', /3l\s+run-tests/u)
@@ -148,13 +148,13 @@ void test('a native async tool does not claim launch completion from a partial r
 	)
 	assert.match(
 		visible(row.render(100))[0] ?? '',
-		/^├── \p{Script=Braille} subagent/u,
+		/^├─ \p{Script=Braille} subagent/u,
 	)
-	assert.equal(visible(row.render(100))[0]?.slice(6, 15).trim(), 'subagent')
+	assert.equal(visible(row.render(100))[0]?.slice(5, 19).trim(), 'subagent')
 	complete(row, 'Child started')
 	assert.match(
 		visible(row.render(100))[0] ?? '',
-		/^├── ✓ subagent async\s+reviewer/u,
+		/^├─ ✓ subagent async\s+reviewer/u,
 	)
 })
 
@@ -192,8 +192,8 @@ void test('elapsed times change units without shifting tasks, details or the rig
 					0,
 				),
 			])[0] ?? ''
-		assert.equal(line.indexOf('run-tests'), 17)
-		assert.equal(line.slice(6, 15).trim(), 'bash')
+		assert.equal(line.indexOf('run-tests'), 22)
+		assert.equal(line.slice(5, 19).trim(), 'bash')
 		assert.equal(line.indexOf(expected) + expected.length, 80)
 	}
 })

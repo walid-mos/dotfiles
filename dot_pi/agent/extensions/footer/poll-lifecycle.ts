@@ -5,12 +5,7 @@
 // resurrecting a stale cache in a dead footer.
 import { fetchLiveGalleyDesk } from './galley-data.ts'
 import { fetchCurrentPr, fetchGitStatus } from './git-data.ts'
-import {
-	GALLEY_POLL_MS,
-	GIT_POLL_MS,
-	PR_POLL_MS,
-	QUOTA_POLL_MS,
-} from './poll-pace.ts'
+import { GALLEY_POLL_MS, PR_POLL_MS, QUOTA_POLL_MS } from './poll-pace.ts'
 import { pollQuotas } from './poll-quotas.ts'
 import { footerState, requestRenderSafely } from './state.ts'
 import { pollDeepseekTariff } from './tariff-catalogue.ts'
@@ -69,21 +64,21 @@ async function refreshGit(cwd: string): Promise<void> {
 		footerState.gitCache = status
 		requestRenderSafely()
 	} catch {
-		// Git status is decorative; never reject from an interval callback.
+		// Git status is decorative; never reject from a refresh.
 	}
 }
 
-export function startGitPolling(cwd: string): void {
+export function startGitTracking(cwd: string): void {
 	footerState.gitCwd = cwd
-	if (footerState.gitTimer) {
-		void refreshGit(cwd)
-		return
-	}
 	void refreshGit(cwd)
-	footerState.gitTimer = setInterval(() => {
-		if (footerState.gitCwd) void refreshGit(footerState.gitCwd)
-	}, GIT_POLL_MS)
-	footerState.gitTimer.unref()
+}
+
+/** Branch churn only moves while the agent edits, so it is read on turn boundaries:
+ * the 4s timer this replaces spawned two `git` processes forever for a footer that
+ * was usually not even on screen. */
+export function refreshGitForTurn(): void {
+	const cwd = footerState.gitCwd
+	if (cwd) void refreshGit(cwd)
 }
 
 // ── GitHub PR ────────────────────────────────────────

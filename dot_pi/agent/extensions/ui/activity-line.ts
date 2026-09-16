@@ -35,41 +35,39 @@ const STATUS = {
 	error: { glyph: '✕', tone: 'danger' },
 	cancelled: { glyph: '⊘', tone: 'warning' },
 } as const
-const MIN_IDENTITY_COLUMNS = 9
+const MIN_IDENTITY_COLUMNS = 14
 const MAX_IDENTITY_COLUMNS = 28
 const IDENTITY_VIEWPORT_SHARE = 0.35
 const MAX_COUNT_COLUMNS = 6
 const MIN_ACTIVITY_COLUMNS = 9
-const AIRY_VIEWPORT_COLUMNS = 80
-const SPACING = {
-	compact: { word: ' ', column: '  ', rail: 'branch' },
-	airy: { word: ' ', column: '  ', rail: 'airy-branch' },
-} as const
+const SPACING = { status: ' ', column: '  ', body: '   ' } as const
+const RAIL_COLUMNS = 2
+const STATUS_COLUMNS = 1
 const RAIL_STRENGTH = 0.42
 const BRANCH_STRENGTH = 0.18
-const BRANCH_TIP_STRENGTH = 0.06
+
+/**
+ * Column every activity surface starts its own content on: rows, expanded
+ * details and standalone panels share it, so their text lines up vertically.
+ */
+export const ACTIVITY_CONTENT_COLUMN =
+	RAIL_COLUMNS +
+	SPACING.status.length +
+	STATUS_COLUMNS +
+	SPACING.status.length
 
 export const ACTIVITY_RAIL = '│'
-export const ACTIVITY_DETAIL_PREFIX = `${ACTIVITY_RAIL}   `
+export const ACTIVITY_DETAIL_PREFIX =
+	ACTIVITY_RAIL + ' '.repeat(ACTIVITY_CONTENT_COLUMN - 1)
+
 const RAIL_INK = blendHex(UI_COLOR.base, UI_COLOR.rail, RAIL_STRENGTH)
 const BRANCH_INK = blendHex(UI_COLOR.base, UI_COLOR.rail, BRANCH_STRENGTH)
 const BRANCH = foregroundHex(RAIL_INK, '├') + foregroundHex(BRANCH_INK, '─')
 const CLOSED_BRANCH =
 	foregroundHex(RAIL_INK, '╰') + foregroundHex(BRANCH_INK, '─')
-const BRANCH_TIP = foregroundHex(
-	blendHex(UI_COLOR.base, UI_COLOR.rail, BRANCH_TIP_STRENGTH),
-	'─',
-)
 const RAIL_PREFIXES = {
 	branch: BRANCH,
-	'airy-branch': BRANCH + BRANCH_TIP,
 	detail: foregroundHex(RAIL_INK, ACTIVITY_DETAIL_PREFIX),
-}
-
-function activitySpacing(
-	width: number,
-): (typeof SPACING)[keyof typeof SPACING] {
-	return width >= AIRY_VIEWPORT_COLUMNS ? SPACING.airy : SPACING.compact
 }
 
 export function renderActivityRail(kind: keyof typeof RAIL_PREFIXES): string {
@@ -96,6 +94,8 @@ export function renderActivityStatus(
 	return uiTheme.fg(status.tone, glyph)
 }
 
+/** Tool name and result count as one identity: the count is right-aligned on a
+ * shared column so both the counts and the task text below them line up. */
 function activityIdentity(view: ActivityLine, available: number): string {
 	const summary =
 		view.phase === 'error' || view.phase === 'cancelled' ? '' : view.summary
@@ -121,7 +121,6 @@ function activityBody(
 	width: number,
 	available: number,
 ): string {
-	const spacing = activitySpacing(width)
 	const hasFailure = view.phase === 'error' || view.phase === 'cancelled'
 	const timing = renderActivityTiming(
 		{
@@ -132,19 +131,22 @@ function activityBody(
 				: '',
 		},
 		width,
-		available - spacing.column.length,
+		available - SPACING.column.length,
 	)
-	const tail = timing ? spacing.column + timing : ''
+	const tail = timing ? SPACING.column + timing : ''
 	const subjectColumns = Math.max(0, available - terminalLineWidth(tail))
-	const annotation = view.annotation
-		? uiTheme.fg('dim', spacing.word + view.annotation)
-		: ''
-	const priority = [
-		view.warning ? uiTheme.fg('warning', view.warning) : '',
-		view.phase === 'error' ? uiTheme.fg('danger', view.summary) : '',
-	].filter(Boolean)
+	const task = [
+		uiTheme.fg('output', view.subject),
+		view.annotation ? uiTheme.fg('dim', view.annotation) : '',
+	]
+		.filter(Boolean)
+		.join(uiTheme.fg('dim', ' · '))
 	const subject = truncateTerminalLine(
-		[...priority, uiTheme.fg('output', view.subject) + annotation]
+		[
+			view.warning ? uiTheme.fg('warning', view.warning) : '',
+			view.phase === 'error' ? uiTheme.fg('danger', view.summary) : '',
+			task,
+		]
 			.filter(Boolean)
 			.join(uiTheme.fg('dim', ' · ')),
 		subjectColumns,
@@ -155,19 +157,18 @@ function activityBody(
 	)
 }
 
-function activityLead(width: number, status: string): string {
-	const spacing = activitySpacing(width)
+function activityLead(status: string): string {
 	return (
-		renderActivityRail(spacing.rail) + spacing.word + status + spacing.word
+		renderActivityRail('branch') + SPACING.status + status + SPACING.status
 	)
 }
 
 export function activityNoticeLead(width: number, marker: string): string {
 	if (width < MIN_ACTIVITY_COLUMNS) return `${marker} `
-	const rail = renderActivityRail(activitySpacing(width).rail)
+	const rail = renderActivityRail('branch')
 	return (
 		' '.repeat(terminalLineWidth(rail)) +
-		activityLead(width, marker).slice(rail.length)
+		activityLead(marker).slice(rail.length)
 	)
 }
 
@@ -180,11 +181,12 @@ export function renderActivityLine(
 	const status = renderActivityStatus(view.phase, now)
 	if (columns < MIN_ACTIVITY_COLUMNS)
 		return truncateTerminalLine(status, columns)
-	const spacing = activitySpacing(columns)
-	const lead = activityLead(columns, status)
-	const identityColumns = columns - terminalLineWidth(lead + spacing.column)
-	const prefix =
-		lead + activityIdentity(view, identityColumns) + spacing.column
+	const lead = activityLead(status)
+	const identity = activityIdentity(
+		view,
+		columns - terminalLineWidth(lead) - SPACING.body.length,
+	)
+	const prefix = lead + identity + SPACING.body
 	const available = Math.max(0, columns - terminalLineWidth(prefix))
 	return prefix + activityBody(view, columns, available)
 }

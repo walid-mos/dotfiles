@@ -24,18 +24,21 @@ plans/
 1. Create from `templates/plan.md`; keep the front matter (id/title/project/status/created/updated) exact.
 2. Identity = `<project-slug>/<plan-name>` (equals the front-matter id). Never rename an indexed plan.
 3. English; imperative; self-contained — a reader with no chat history must understand it.
-4. Update `status` and `updated` in the front matter AND the INDEX row on every significant edit
+4. Format is prescriptive in the template (**telegraphic** — grammar sacrificed for concision;
+   **diagram-first** — one Mermaid flowchart drawn before any prose structure of the change;
+   tables only for enumerable data; plan ends with Open questions then Steps). Never freehand.
+5. Update `status` and `updated` in the front matter AND the INDEX row on every significant edit
    (`draft → active → review → done`).
-5. While executing a plan, write probe results, decisions and gate outcomes into the plan itself
+6. While executing a plan, write probe results, decisions and gate outcomes into the plan itself
    (dated sections) — not into chat-only summaries.
-6. Closing a plan: front matter `status: done` → move the **project subdir** under `done/<year>/`
+7. Closing a plan: front matter `status: done` → move the **project subdir** under `done/<year>/`
    → update the INDEX row.
-7. Moving a plan (any reason): update INDEX, then `rg` the old path across
+8. Moving a plan (any reason): update INDEX, then `rg` the old path across
    `~/.pi/agent/AGENTS.md`, `~/.config/zsh/`, `~/.pi/agent/extensions/` and fix every reference —
    a plan behind a dead path is lost for readers.
-8. Keep it tidy: one project → one subdir → few files. A plan sprawl is a smell: split by goal,
+9. Keep it tidy: one project → one subdir → few files. A plan sprawl is a smell: split by goal,
    not by date.
-9. Context hygiene: `done/` is archive — for humans and explicit audits only, never working
+10. Context hygiene: `done/` is archive — for humans and explicit audits only, never working
    context. Default to zero reads of archived plans: INDEX is enough for discovery. Load a done
    plan ONLY when the user explicitly asks, or the task demonstrably needs the history — and
    then only that one plan, never a folder sweep.

@@ -1,0 +1,5 @@
+globalShims:
+  node: auto
+  deno: auto
+  bun: auto
+  npm: auto
