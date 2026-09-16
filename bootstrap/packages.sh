@@ -78,8 +78,10 @@ install_pnpm() {
         return 0
     fi
     act "install pnpm" sh -c 'curl -fsSL https://get.pnpm.io/install.sh | sh -'
+    # The installer writes its binaries under $PNPM_HOME/bin (pnpm, node, ...),
+    # so PATH needs that directory, not $PNPM_HOME itself.
     export PNPM_HOME="$HOME/Library/pnpm"
-    export PATH="$PNPM_HOME:$PATH"
+    export PATH="$PNPM_HOME/bin:$PATH"
 }
 
 install_node() {
