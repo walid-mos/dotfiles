@@ -31,6 +31,11 @@ setup_common() {
     apply_dotfiles
     configure_zsh_secrets
 
+    # After apply_dotfiles: the extension tree pi installs depends on the managed
+    # ~/.pi/agent/npm/pnpm-workspace.yaml.
+    step "pi extensions"
+    install_pi_extensions
+
     configure_development_dirs
 
     step "macOS defaults"
