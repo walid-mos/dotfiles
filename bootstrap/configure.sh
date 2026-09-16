@@ -143,6 +143,16 @@ configure_server_reminders() {
     ok "3. after each reboot: ssh in (pre-boot unlock on macOS 26+), then run 'herdr'"
 }
 
+# configure_laptop_reminders - the GUI launcher cannot be fully automated:
+# macOS only lets an app register as a login item once it has run, and it
+# asks for its own permissions at first launch.
+configure_laptop_reminders() {
+    step "Manual steps to finish laptop setup"
+    ok "1. open -a Vicinae once - it registers itself as a login item"
+    ok "   (System Settings > General > Login Items) and grants the"
+    ok "   permissions macOS asks for (needed for the cmd+space shortcut)"
+}
+
 # ssh_batch - non-interactive ssh that accepts new host keys and gives up
 # fast; probes and Studio-driving only.
 ssh_batch() {
