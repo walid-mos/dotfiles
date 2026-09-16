@@ -8,7 +8,6 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 . "$script_dir/lib.sh"
 . "$script_dir/packages.sh"
 . "$script_dir/configure.sh"
-. "$script_dir/workspace.sh"
 
 # Profile composition - add a new step by calling the installer or
 # configuration function in the right profile.
