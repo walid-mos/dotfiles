@@ -102,6 +102,75 @@ install_pi() {
     act "install pi-coding-agent" pnpm add -g --ignore-scripts "$PI_PACKAGE"
 }
 
+# install_pi_extensions - pi installs its user-scoped npm packages on its first
+# run; doing it here means an unusable extension tree fails the setup instead of
+# breaking the first agent session. Must run after apply_dotfiles: the layout pi
+# leaves behind depends on the managed ~/.pi/agent/npm/pnpm-workspace.yaml.
+install_pi_extensions() {
+    if ! command_exists pi; then
+        skip "pi not installed; leaving its extensions alone"
+        return 0
+    fi
+    if pi_extensions_usable "$HOME/.pi/agent"; then
+        skip "pi extensions already usable"
+        return 0
+    fi
+    if is_dry_run; then
+        would "install pi extensions (pi update --extensions)"
+        return 0
+    fi
+    run "install pi extensions"
+    # pi refreshes its local-path packages too, which a fresh machine does not
+    # have yet: that failure must not abort the setup - the check below decides
+    # whether the npm-scoped packages actually landed.
+    if ! pi update --extensions; then
+        printf '  %s\n' "pi update --extensions failed (see above)"
+    fi
+    if ! pi_extensions_usable "$HOME/.pi/agent"; then
+        die "pi extensions are still unusable after 'pi update --extensions'"
+    fi
+    ok "pi extensions installed"
+}
+
+# pi_extensions_usable <agent dir> - every "npm:" package declared in
+# settings.json must be a real directory under <agent>/npm/node_modules with its
+# runtime dependencies as real siblings: pi's loader does not resolve symlinks,
+# so a pnpm store layout (or a missing dependency) makes the extension fail with
+# "Cannot find module '<dep>'".
+pi_extensions_usable() {
+    command_exists node || return 0 # pi runs on node; nothing to judge without it
+    node -e '
+        const fs = require("fs"), path = require("path");
+        const agent = process.argv[1];
+        const settings = path.join(agent, "settings.json");
+        if (!fs.existsSync(settings)) process.exit(0);
+        const declared = JSON.parse(fs.readFileSync(settings, "utf8")).packages || [];
+        const names = declared
+            .filter((entry) => typeof entry === "string" && entry.startsWith("npm:"))
+            .map((entry) => entry.slice("npm:".length));
+        const root = path.join(agent, "npm", "node_modules");
+        const problems = [];
+        for (const name of names) {
+            const dir = path.join(root, name);
+            const manifest = path.join(dir, "package.json");
+            const entry = fs.lstatSync(dir, { throwIfNoEntry: false });
+            if (entry && entry.isSymbolicLink()) {
+                problems.push(`${name}: pnpm store symlink, not a real directory`);
+                continue;
+            }
+            if (!fs.existsSync(manifest)) {
+                problems.push(`${name}: not installed`);
+                continue;
+            }
+            const deps = Object.keys(JSON.parse(fs.readFileSync(manifest, "utf8")).dependencies || {});
+            const missing = deps.filter((dep) => !fs.existsSync(path.join(root, dep)));
+            if (missing.length > 0) problems.push(`${name}: unresolvable dependencies: ${missing.join(", ")}`);
+        }
+        for (const problem of problems) console.log(`  ${problem}`);
+        process.exit(problems.length > 0 ? 1 : 0);
+    ' "$1"
+}
+
 # install_npm - pnpm >= 11 installs a Node runtime without npm/npx/corepack,
 # so npm is added explicitly. Lives in $PNPM_HOME/bin, already on PATH.
 install_npm() {
