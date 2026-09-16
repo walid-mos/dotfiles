@@ -4,7 +4,9 @@
 .pi/agent/models-store.json
 .pi/agent/backups
 .pi/agent/bin
-.pi/agent/npm
+# only the installed tree is volatile - pi's pnpm-workspace.yaml there is
+# managed, the extension layout depends on it
+.pi/agent/npm/node_modules
 .pi/web-search-cache
 .pi/agent/extensions/herdr-agent-state.ts
 
