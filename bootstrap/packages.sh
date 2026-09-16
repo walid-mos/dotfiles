@@ -8,7 +8,9 @@
 BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch fzf ripgrep zsh-syntax-highlighting)
 BREW_CASKS=(ghostty brave-browser anomalyco/tap/hex)
 BREW_TAPS=(anomalyco/tap)
-LAPTOP_CASKS=(tailscale-app)
+# GUI launcher for the laptop: the bootstrap disables Spotlight's cmd+space
+# hotkeys, so an actual launcher must be installed alongside them.
+LAPTOP_CASKS=(tailscale-app vicinae)
 SERVER_FORMULAS=(tailscale)
 
 NERD_FONTS_SOURCE="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Fonts/Nerd Font"
