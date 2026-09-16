@@ -21,7 +21,8 @@
 # Pi: web search cache
 .pi/web-search.json
 
-# bootstrap script: lives in the repo, run via curl, never applied to $HOME
+# repository documentation and bootstrap scripts: live in the repo, never applied to $HOME
+README.md
 bootstrap.sh
 bootstrap/
 
