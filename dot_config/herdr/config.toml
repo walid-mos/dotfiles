@@ -1,8 +1,8 @@
 onboarding = false
 
 [session]
-# Restore terminal topology first; wt open resumes the selected Pi/environment.
-resume_agents_on_restore = false
+# Resume each eligible agent pane with its saved native session.
+resume_agents_on_restore = true
 
 [keys]
 prefix = "ctrl+space"
