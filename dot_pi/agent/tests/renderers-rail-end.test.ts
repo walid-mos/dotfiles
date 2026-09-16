@@ -30,8 +30,8 @@ void test('the last collapsed tool closes its rail before an interruption notice
 		new Text('Operation aborted', 0, 0),
 	])
 	const lines = visible(transcript.render(80))
-	assert.match(lines[0] ?? '', /^├──/u)
-	assert.match(lines[1] ?? '', /^╰──/u)
+	assert.match(lines[0] ?? '', /^├─/u)
+	assert.match(lines[1] ?? '', /^╰─/u)
 	assert.equal(lines[2], '')
 	assert.equal(lines[3], 'Operation aborted')
 	assert.equal(lines.length, 4)
@@ -41,14 +41,14 @@ void test('the closing branch follows appended, removed and remounted tool calls
 	const first = toolRow('bash')
 	const last = toolRow('read')
 	const transcript = toolTranscript([first])
-	assert.match(visible(transcript.render(80))[0] ?? '', /^╰──/u)
+	assert.match(visible(transcript.render(80))[0] ?? '', /^╰─/u)
 	transcript.addChild(last)
 	assert.deepEqual(
 		visible(transcript.render(80)).map(line => line[0]),
 		['├', '╰'],
 	)
 	transcript.removeChild(last)
-	assert.match(visible(transcript.render(80))[0] ?? '', /^╰──/u)
+	assert.match(visible(transcript.render(80))[0] ?? '', /^╰─/u)
 	const remounted = toolTranscript([last, first])
 	assert.deepEqual(
 		visible(remounted.render(80)).map(line => line[0]),
@@ -135,7 +135,7 @@ void test('intermediate updates and failed tools stay in the chain until the fin
 		['├', '╰'],
 	)
 	assert.match(headers[0] ?? '', /✕/u)
-	assert.ok(lines.some(line => line.startsWith('┌─ WRITE')))
+	assert.ok(lines.some(line => line.startsWith('┌─   WRITE')))
 })
 
 void test('closing branches preserve row widths and expanded detail rails without arrows', () => {
@@ -149,10 +149,10 @@ void test('closing branches preserve row widths and expanded detail rails withou
 	}
 	row.setExpanded(true)
 	const expanded = visible(transcript.render(80))
-	assert.match(expanded[0] ?? '', /^├──/u)
+	assert.match(expanded[0] ?? '', /^├─/u)
 	assert.doesNotMatch(expanded[0] ?? '', /[▸▾]/u)
 	assert.ok(expanded.slice(1).some(line => line.startsWith('│')))
 	row.setExpanded(false)
-	assert.match(visible(transcript.render(80))[0] ?? '', /^╰──/u)
+	assert.match(visible(transcript.render(80))[0] ?? '', /^╰─/u)
 	assert.doesNotMatch(visible(transcript.render(80))[0] ?? '', /[▸▾]/u)
 })

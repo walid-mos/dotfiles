@@ -67,6 +67,6 @@ void test('a submitted prompt closes the preceding tool chain without absorbing 
 		/^[├╰]─+ +\S +(?:bash|read)\b/u.test(line),
 	)
 	assert.equal(tools.length, 2)
-	assert.ok(tools.every(line => line.startsWith('╰──')))
+	assert.ok(tools.every(line => line.startsWith('╰─')))
 	assert.equal(lines.filter(line => line.startsWith('╭─ ❯ Prompt')).length, 1)
 })

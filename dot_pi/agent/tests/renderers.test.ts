@@ -42,9 +42,9 @@ for (const [name, label] of [
 		complete(row, 'Original tool output')
 		const lines = visible(row.render(80))
 		assert.equal(lines.length, 1)
-		assert.ok((lines[0] ?? '').startsWith(`├── ✓ ${label} `))
+		assert.ok((lines[0] ?? '').startsWith(`├─ ✓ ${label} `))
 		row.setExpanded(true)
-		assert.ok(visible(row.render(80)).includes('│   Original tool output'))
+		assert.ok(visible(row.render(80)).includes('│    Original tool output'))
 	})
 }
 
@@ -61,7 +61,7 @@ void test('the galley attachment reads as a desk identity and its live state', (
 	})
 	assert.match(
 		visible(row.render(100))[0] ?? '',
-		/galley\s+live\s+attach feat-1 repo/u,
+		/galley\s+live\s+attach feat-1 · repo/u,
 	)
 })
 
@@ -70,7 +70,7 @@ void test('browser and wait vocabulary names the subject, not the tool parameter
 	complete(console, 'one\ntwo\nthree')
 	assert.match(
 		visible(console.render(100))[0] ?? '',
-		/console\s+3l\s+error last 50/u,
+		/console\s+3l\s+error · last 50/u,
 	)
 	const open = toolRow('frontend_open', { url: 'http://localhost:5173/x' })
 	complete(open)
@@ -106,7 +106,9 @@ void test('write and edit use their own panels even without diffs, retaining ful
 		const row = toolRow(name, { action: 'list' })
 		complete(row, 'Original tool output')
 		assert.ok(
-			visible(row.render(100))[0]?.startsWith(`┌─ ${name.toUpperCase()}`),
+			visible(row.render(100))[0]?.startsWith(
+				`┌─   ${name.toUpperCase()}`,
+			),
 		)
 		row.setExpanded(true)
 		assert.ok(
@@ -136,10 +138,10 @@ void test('subagent guide shows the action and topic without the old full-output
 	complete(row, 'Workflow guide')
 	const collapsed = visible(row.render(100))
 	assert.equal(collapsed.length, 1)
-	assert.match(collapsed[0] ?? '', /subagent\s+1l\s+guide\s+workflows/u)
+	assert.match(collapsed[0] ?? '', /subagent\s+1l\s+guide · workflows/u)
 	assert.doesNotMatch(collapsed[0] ?? '', /Press ctrl\+o/u)
 	row.handleMouse(click())
-	assert.ok(visible(row.render(100)).includes('│   FULL WORKFLOW GUIDE'))
+	assert.ok(visible(row.render(100)).includes('│    FULL WORKFLOW GUIDE'))
 })
 
 void test('native call/result slots retain their shared state and distinct component caches', () => {
@@ -174,12 +176,12 @@ void test('native call/result slots retain their shared state and distinct compo
 	complete(row)
 	row.setExpanded(true)
 	assert.ok(
-		visible(row.render(80)).includes('│   result fresh: native details'),
+		visible(row.render(80)).includes('│    result fresh: native details'),
 	)
 	row.invalidate()
 	const refreshed = visible(row.render(80))
-	assert.ok(refreshed.includes('│   call reused'))
-	assert.ok(refreshed.includes('│   result reused: native details'))
+	assert.ok(refreshed.includes('│    call reused'))
+	assert.ok(refreshed.includes('│    result reused: native details'))
 })
 
 void test('crashing third-party detail renderers fall back to readable output rather than hide it', () => {
@@ -194,7 +196,7 @@ void test('crashing third-party detail renderers fall back to readable output ra
 	)
 	complete(row, 'Important error evidence')
 	row.setExpanded(true)
-	assert.ok(visible(row.render(80)).includes('│   Important error evidence'))
+	assert.ok(visible(row.render(80)).includes('│    Important error evidence'))
 })
 
 void test('a native call renderer without a result renderer cannot discard the result', () => {
@@ -205,7 +207,7 @@ void test('a native call renderer without a result renderer cannot discard the r
 	)
 	complete(row, 'Must remain visible')
 	row.setExpanded(true)
-	assert.ok(visible(row.render(80)).includes('│   Must remain visible'))
+	assert.ok(visible(row.render(80)).includes('│    Must remain visible'))
 })
 
 void test('read ranges use offset plus count, not offset minus count', () => {
@@ -237,7 +239,7 @@ void test('truncation stays visible collapsed and the full-output path remains a
 	row.setExpanded(true)
 	assert.ok(
 		visible(row.render(100)).includes(
-			'│   Full output: /tmp/full-output.log',
+			'│    Full output: /tmp/full-output.log',
 		),
 	)
 })

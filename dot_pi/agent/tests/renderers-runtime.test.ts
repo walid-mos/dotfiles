@@ -42,12 +42,12 @@ void test('compaction cards use the same single-line rail and retain the complet
 		assert.equal(collapsed.length, 1)
 		assert.match(
 			collapsed[0] ?? '',
-			/^├─+ +✓ +compact\s+54,000\s+context\s+tokens before$/u,
+			/^├─+ +✓ +compact\s+54,000\s+context · tokens before$/u,
 		)
 		card.handleMouse(click())
 		assert.ok(
 			visible(card.render(100)).includes(
-				'│   Keep this important context',
+				'│    Keep this important context',
 			),
 		)
 		card.setExpanded(false)
@@ -57,7 +57,7 @@ void test('compaction cards use the same single-line rail and retain the complet
 	}
 })
 
-void test('image results remain one line collapsed and native image rendering is retained on expansion', () => {
+void test('an image result becomes a capture panel and native image rendering is retained', () => {
 	const capabilities = { ...getCapabilities() }
 	setCapabilities({ ...capabilities, images: 'iterm2' })
 	const dispose = installRenderers(runtime)
@@ -75,21 +75,39 @@ void test('image results remain one line collapsed and native image rendering is
 		}
 		const original = structuredClone(outcome)
 		row.updateResult(outcome)
-		assert.equal(row.render(80).length, 1)
-		assert.match(visible(row.render(80))[0] ?? '', /1img/u)
-		assert.doesNotMatch(row.render(80).join(''), /1337;File/u)
-		row.setExpanded(true)
-		assert.match(row.render(80).join(''), /1337;File/u)
-		const imageLine = row
-			.render(80)
-			.find(line => line.includes('1337;File'))
-		assert.ok(imageLine)
-		assert.ok(
-			stripVTControlCharacters(imageLine).startsWith('│   '),
-			'image shares the detail gutter',
+		const collapsed = visible(row.render(80))
+		assert.match(collapsed[0] ?? '', /^┌─ {3}READ · image\.png/u)
+		assert.match(collapsed.at(-1) ?? '', /^└─ {3}1img · click \/ Ctrl\+O/u)
+		assert.match(collapsed[1] ?? '', /Captured/u)
+		// One framed blank row separates the status strip from the capture.
+		assert.match(collapsed[2] ?? '', /^│\s+│$/u)
+		// The capture sits inside the panel, on the shared content column.
+		assert.match(
+			stripVTControlCharacters(
+				row.render(80).find(line => line.includes('1337;File')) ?? '',
+			),
+			/^│ {4}/u,
 		)
+		assert.equal(
+			row.render(80).filter(line => line.includes('1337;File')).length,
+			1,
+		)
+		row.setExpanded(true)
+		const expandedLines = row.render(80)
+		assert.ok(
+			expandedLines.findIndex(line => line.includes('image attachment')) >
+				expandedLines.findIndex(line => line.includes('1337;File')),
+			'expanded details follow the capture inside the panel',
+		)
+		assert.equal(
+			expandedLines.filter(line => line.includes('1337;File')).length,
+			1,
+		)
+		assert.doesNotMatch(collapsed.join('\n'), /Private|full page/u)
+		row.setExpanded(false)
 		row.setShowImages(false)
 		assert.doesNotMatch(row.render(80).join(''), /1337;File/u)
+		assert.equal(row.render(80).length, 1)
 		assert.deepEqual(outcome, original)
 	} finally {
 		dispose()

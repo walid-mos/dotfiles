@@ -5,5 +5,7 @@
   ],
   "worktrees_base": "/Users/walid-mos/Development/worktrees",
   "prune_expiry_days": 30,
-  "container": {}
+  "container": {
+    "activation": "always"
+  }
 }

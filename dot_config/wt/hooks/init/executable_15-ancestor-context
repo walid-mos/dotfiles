@@ -1,0 +1,96 @@
+#!/bin/sh
+# Agent context from the directories above a repository.
+#
+# A wt destination lives under $WORKTREES_BASE/<project>/<branch>, outside the
+# parent directories an agent walks up from, so a context file that lives above
+# the repository root - a client folder, a team folder, any parent directory -
+# stops being read there while the primary checkout still reads it. Mirror the
+# nearest one into the project directory, the one level above every branch of that
+# repository: each branch then finds it through the same walk, in the same order
+# relative to whatever the repository itself carries.
+#
+# Outside every repository on purpose: nothing lands in a checkout, so Git needs
+# no ignore rule and nothing can be committed from there. The target stays on the
+# host, outside the mounted workspace: host-side agents follow the link, the
+# container cannot.
+#
+# The names and the position in the walk are Pi's own discovery contract, not a
+# layout this hook invents; a context file is mirrored under the name its author
+# gave it. WT_PATH is the created checkout; without it (a manual repair run) the
+# hook works on the current directory. With nothing to mirror it stays silent, and
+# it warns instead of failing provisioning.
+set -eu
+
+destination=${WT_PATH:-$PWD}
+cd "$destination" || { printf 'wt: cannot enter %s; nothing mirrored.\n' "$destination" >&2; exit 0; }
+
+if ! checkout_root=$(git rev-parse --show-toplevel) ||
+    ! common_git_dir=$(git rev-parse --path-format=absolute --git-common-dir); then
+    printf 'wt: cannot resolve the checkout; nothing mirrored.\n' >&2
+    exit 0
+fi
+# The common Git directory is shared by every linked checkout, so its parent is
+# the source repository in both cases.
+source_repo=$(dirname "$common_git_dir")
+# A primary checkout still sits inside that chain: there is nothing to mirror, and
+# linking there would load the same rules twice.
+[ "$source_repo" != "$checkout_root" ] || exit 0
+
+# The walk stays inside the home tree and stops at $HOME: a system-level file
+# above it must never leak into a project checkout. Both sides are canonical,
+# because Git reports a resolved path.
+[ -n "${HOME:-}" ] || { printf 'wt: HOME is unset; nothing mirrored.\n' >&2; exit 0; }
+home=$(cd "$HOME" && pwd -P) || { printf 'wt: cannot resolve HOME; nothing mirrored.\n' >&2; exit 0; }
+case $source_repo in
+    "$home"/*) ;;
+    *) printf 'wt: %s is outside %s; nothing mirrored.\n' "$source_repo" "$home" >&2; exit 0 ;;
+esac
+
+# Nearest directory wins, and AGENTS.override.md is tested last because it
+# outranks the other two inside one directory. The walk starts above the
+# repository root: what the repository carries is already read from the checkout,
+# and mirroring it again would load the same rules twice.
+context_file=
+directory=$(dirname "$source_repo")
+while [ -z "$context_file" ] && [ -n "$directory" ]; do
+    for name in CLAUDE.md AGENTS.md AGENTS.override.md; do
+        [ ! -f "$directory/$name" ] || context_file=$directory/$name
+    done
+    if [ "$directory" = "$home" ] || [ "$directory" = / ]; then directory=; else directory=$(dirname "$directory"); fi
+done
+[ -n "$context_file" ] || exit 0
+
+# The base comes from the environment wt itself reads, then from the file wt
+# resolved, because WORKTREES_BASE is not always exported to hooks. Both are
+# resolved, so the comparison below is between canonical paths.
+base=${WORKTREES_BASE:-}
+if [ -z "$base" ] && [ -n "${WT_CONFIG_FILE:-}" ] && [ -f "$WT_CONFIG_FILE" ]; then
+    base=$(jq -r '.worktrees_base // empty' "$WT_CONFIG_FILE" 2>/dev/null) || base=
+fi
+[ -n "$base" ] || { printf 'wt: WORKTREES_BASE is unknown; nothing mirrored.\n' >&2; exit 0; }
+base=$(cd "$base" 2>/dev/null && pwd -P) || { printf 'wt: cannot resolve %s; nothing mirrored.\n' "$base" >&2; exit 0; }
+
+# Only a checkout of this project, under that base, has the project directory in
+# its own walk; anywhere else the mirror would sit outside it and do nothing.
+project_dir=$base/$(basename "$source_repo")
+case $checkout_root/ in
+    "$project_dir"/*) ;;
+    *) printf 'wt: %s is outside %s; nothing mirrored.\n' "$checkout_root" "$project_dir" >&2; exit 0 ;;
+esac
+
+context_name=$(basename "$context_file")
+target=$project_dir/$context_name
+
+# What an operator already put there, including a link to other rules, is not
+# ours to replace; the same name in that directory means the choice is made.
+if [ -e "$target" ] || [ -L "$target" ]; then
+    [ -L "$target" ] && [ "$(readlink "$target")" = "$context_file" ] && exit 0
+    printf 'wt: %s already exists; nothing mirrored.\n' "$target" >&2
+    exit 0
+fi
+
+if ln -s "$context_file" "$target"; then
+    printf 'wt: mirrored %s as %s.\n' "$context_file" "$target" >&2
+else
+    printf 'wt: cannot link %s as %s.\n' "$context_file" "$target" >&2
+fi

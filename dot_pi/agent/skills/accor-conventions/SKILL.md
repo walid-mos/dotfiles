@@ -104,6 +104,16 @@ here. Delivery order: `dev → per-link self-review → global self-review → s
   `docker compose up -d`, wait for their health, then
   `pnpm --filter @astore/api db:migrate`. Never declare dev ready while the API
   logs PostgreSQL or MinIO connection errors.
+- **Dev DB per branch**: one infra stack per machine (fixed host ports 5432/8080/9000 — never
+  start a second stack). Branch isolation lives in the database name: `astore_<slug>` per worktree
+  (slug = the Jira id when the worktree name carries one, else the directory name kebab→snake);
+  the main checkout keeps `astore`. `astore-db new <worktree>`
+  (`~/.pi/agent/skills/accor-conventions/scripts/astore-db`) creates it and prints the
+  `DATABASE_URL` line for that worktree's gitignored `apps/api/.env`; `pnpm dev` then migrates
+  that branch's DB. `astore-db name <worktree>` prints the name alone.
+- **Closing a branch**: `astore-db drop <worktree>` **before** `git worktree remove` — otherwise
+  the database outlives the worktree forever. Worktree already gone: `astore-db orphans` lists the
+  leftovers, `astore-db orphans --drop` sweeps them.
 - **i18n**: one catalog `shared/i18n/locales/*.json`, one lookup `t()`. Every key
   added in `fr.json` **and** `en.json`.
 - **Zero narrative comments.** One line max, only a constraint/invariant the code

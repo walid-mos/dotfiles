@@ -8,8 +8,8 @@ import { installRenderers } from '../extensions/renderers/install-renderers.ts'
 import { ChangeBlock } from '../extensions/ui/change-block.ts'
 import { hexToRgb } from '../extensions/ui/design-system/terminal-color.ts'
 import { UI_COLOR, uiTheme } from '../extensions/ui/design-system/theme.ts'
-import { MutationPanel } from '../extensions/ui/mutation-panel.ts'
 import { terminalLineWidth } from '../extensions/ui/terminal-text.ts'
+import { ToolPanel } from '../extensions/ui/tool-panel.ts'
 
 import {
 	click,
@@ -47,9 +47,9 @@ void test('successful edit exposes a bounded numbered diff instead of only its r
 	const row = changedRow()
 	const lines = visible(row.render(100))
 	assert.equal(lines.length, 11)
-	assert.match(lines[0] ?? '', /^┌─ EDIT · example\.ts .*┐$/u)
+	assert.match(lines[0] ?? '', /^┌─   EDIT · example\.ts .*┐$/u)
 	assert.ok(lines[1]?.includes('Applied'))
-	assert.match(lines[2] ?? '', /^│ - +1 │ const before0 = false;.*│$/u)
+	assert.match(lines[2] ?? '', /^│ {4}- +1 │ const before0 = false;.*│$/u)
 	assert.match(lines.at(-1) ?? '', /^└─.*┘$/u)
 	assert.ok(lines.at(-1)?.includes('+14 -14'))
 	assert.ok(lines.at(-1)?.includes('click / Ctrl+O'))
@@ -93,14 +93,14 @@ void test('native keyboard expansion uses the same diff and keeps the tool-chain
 	complete(previous)
 	const transcript = toolTranscript([previous, row, next])
 	const preview = visible(transcript.render(100))
-	assert.match(preview[0] ?? '', /^╰──/u)
-	assert.match(preview[1] ?? '', /^┌─ EDIT/u)
+	assert.match(preview[0] ?? '', /^╰─/u)
+	assert.match(preview[1] ?? '', /^┌─   EDIT/u)
 	assert.match(preview[11] ?? '', /^└─.*┘$/u)
-	assert.match(preview.at(-1) ?? '', /^╰──/u)
+	assert.match(preview.at(-1) ?? '', /^╰─/u)
 	row.setExpanded(true)
 	const expanded = visible(transcript.render(100))
 	assert.ok(expanded.some(line => line.includes('const after13 = true;')))
-	assert.match(expanded.at(-1) ?? '', /^╰──/u)
+	assert.match(expanded.at(-1) ?? '', /^╰─/u)
 })
 
 void test('native renderers mounted while pending still receive completion before the diff takes over', () => {
@@ -140,7 +140,7 @@ void test('soft added/removed backgrounds fill equal-width rows while code keeps
 		],
 		note: '',
 	})
-	const panel = new MutationPanel(
+	const panel = new ToolPanel(
 		() => ({
 			label: 'edit',
 			subject: 'sample.ts',
@@ -162,7 +162,7 @@ void test('soft added/removed backgrounds fill equal-width rows while code keeps
 		hexToRgb(UI_COLOR.diffAddedBg).join(';'),
 	)
 	assert.ok(lines[3]?.includes(uiTheme.fg('text', '  next();')))
-	assert.match(visible(lines)[3] ?? '', /^│ \+ +42 │   next\(\);.*│$/u)
+	assert.match(visible(lines)[3] ?? '', /^│ {4}\+ +42 │   next\(\);.*│$/u)
 })
 
 void test('Unicode, control bytes and long code lines remain bounded without executing terminal escapes', () => {
@@ -210,7 +210,7 @@ void test('pending or failed writes never show an applied diff', () => {
 		path: 'new.ts',
 		content: 'const value = 1;',
 	})
-	assert.match(visible(row.render(100))[0] ?? '', /^┌─ WRITE/u)
+	assert.match(visible(row.render(100))[0] ?? '', /^┌─   WRITE/u)
 	assert.ok(visible(row.render(100)).some(line => line.includes('Preparing')))
 	row.updateResult({
 		content: [{ type: 'text', text: 'Permission denied' }],

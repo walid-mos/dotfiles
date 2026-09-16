@@ -44,26 +44,28 @@ those remain separate migrations below. Do not claim the entire TUI is migrated.
 
 ## 2. Activity design contract
 
-- **Ordinary tools occupy one collapsed physical line** in every state, except frontend screenshot
-  previews described below. Edit/write instead use
-  standalone file-action panels throughout their lifecycle. Applied mutations show code; pending,
+- **Ordinary tools occupy one collapsed physical line** in every state, except image captures
+  described below. Edit/write instead use
+  standalone panels throughout their lifecycle. Applied mutations show code; pending,
   cancelled and failed panels show their status/evidence without inventing an applied diff.
-- Quiet continuous branching rail with fading horizontal tips, fixed status slot and bold tool
-  names in the same accent as the Answer title. Tool and count share one tight identity; the tool
-  stays left-aligned and counts align to its right edge—not two independently padded columns. A compact shared minimum
-  aligns ordinary task text; longer names/counts can use more width rather than become ambiguous.
+- A fixed two-column rail, fixed status slot and bold tool
+  names in the same accent as the Answer title. The name opens a shared identity column and its
+  count closes it, so counts stack on one right edge and the task text starts on one column for
+  every name that fits; a longer name or count takes the extra width rather than become ambiguous.
   Then come task text and the quiet timing/failure group. No right-hand disclosure arrow is drawn.
   Counts retain compact units (`15l`, `1img`, `12f`); async launch receipts use `async`. Errors/cancellations appear
   at the right, beside elapsed time, never in the count column. Critical diagnostics/warnings still
   lead the task rather than disappear. Status color never floods the whole row green/red.
   Only the last collapsed call in a tool chain closes with `╰─`; earlier calls retain `├─`.
   Hidden thinking and intermediate assistant updates do not split a chain into per-batch endings.
-  Final answers, user messages, terminal notices and mutation panels end it. Expanded ordinary calls
-  keep their detail rail. Mutation panels have their own full frame with no external activity rail.
+  Final answers, user messages, terminal notices and panels end it. Expanded ordinary calls
+  keep their detail rail. Panels have their own full frame with no external activity rail.
   Ordinary rows have no boxes, duplicate titles or blank separators; mutation code uses the framed
   template below.
-- Word spacing stays tight even in wide viewports; only the fading branch grows longer. There is no
-  empty count column between the tool name and its result count. Descriptions use
+- Rows, expanded details and standalone panels start their own text on the same content column
+  (`ACTIVITY_CONTENT_COLUMN`); the detail gutter and the panel insets derive from it instead of
+  carrying private paddings. Word spacing stays tight even in wide viewports and nothing grows with
+  width. Descriptions use
   quieter body ink; all normal counts and timing recede, while failures retain semantic color.
   Vertical breathing room comes from terminal cell metrics (Ghostty's font config), never extra tool rows.
 - Clip by terminal columns at the final viewport width; flatten multiline subjects only in the
@@ -81,11 +83,15 @@ those remain separate migrations below. Do not claim the entire TUI is migrated.
 - Click the header in fullscreen mode; keyboard expansion uses Pi's `app.tools.expand` state
   (Ctrl+O by default). No extra keybinding registration. Expanded native controls retain mouse
   routing; selection/scrolling are not hijacked.
-- `frontend_open`, `frontend_act`, and `frontend_screenshot` display returned screenshots beneath
-  the header even when text details are collapsed, so the human can follow headless testing.
-  Other tool images stay collapsed with their row. Both paths retain Pi's native image
-  rendering/conversion and show-images setting; expansion never duplicates a screenshot.
-  Truncation/limit warnings remain visible in the summary, full-output paths stay available in details.
+- Any result carrying native image components renders as a capture panel: the same full frame as
+  edit/write, with an uppercase heading, a status/timing strip, the captures inside the frame on the
+  shared content column and a footer count. A headless browser check therefore reads like any other
+  action and never floats an image under a one-line row. Several captures stack with one blank framed
+  row above them; expansion adds the text details below the captures. Pi's native image
+  rendering/conversion and the show-images setting are retained, and with images unavailable the row
+  falls back to its ordinary one-line form rather than drawing an empty frame. Expansion never
+  duplicates a screenshot. Truncation/limit warnings remain visible in the summary, full-output paths
+  stay available in details.
 - Native custom detail renderers retain their shared state and separate slot caches. Missing,
   malformed or throwing renderers fall back to readable source output; they never erase evidence.
 - Pi has no public global tool-renderer hook in the pinned release. The private display adapter
@@ -101,14 +107,14 @@ those remain separate migrations below. Do not claim the entire TUI is migrated.
 | `bash` | Conservative command preview, inline count, observed duration + explicit timeout/failure status | Complete original script and returned output; full-output path |
 | `subagent` | Action/agent/workflow identity and topic/task, output count | Original package renderer, including guides and execution detail |
 | `galley_agent` | `galley` display label, action + desk session, repository name, `live`/`idle` connection state | Original arguments and attachment description |
-| `frontend_open` | `open` display label, scheme-less host/path, optional wait selector, image/line count | Original arguments, page summary, native images |
-| `frontend_act` | `act` display label, action + target/key, `new tab` and post-action wait note | Original arguments and action result |
-| `frontend_screenshot` | `shot` display label, selector or `full page`/`viewport`, viewport size, image count | Original arguments, caption and captured image |
+| `frontend_open` | `open` display label; capture panel headed by the page, scheme-less host/path and optional wait selector | Original arguments, page summary, native images |
+| `frontend_act` | `act` display label; capture panel headed by action + target/key, `new tab` and post-action wait note | Original arguments, action result, native images |
+| `frontend_screenshot` | `shot` display label; capture panel headed by selector or `full page`/`viewport`, viewport size | Original arguments, caption and captured image |
 | `frontend_console` | `console` display label, level filter, `last N`, entry count | Original arguments and console text |
 | `frontend_eval` | `eval` display label, single-line expression preview, result count | Original arguments and evaluated result |
 | `bg_wait` | `wait` display label, run id or `any`/`all runs`, `non-blocking` note, timeout cap beside the elapsed clock | Original arguments and wait outcome |
 | `subagent_supervisor` | `supervisor` display label, action + child target, single-line message preview | Original arguments and channel output |
-| `edit` / `write` | Independent file-action panel, uppercase heading, filename/status strip and numbered pastel diff preview | Same code template with the preview limit removed; native fallback when unsupported |
+| `edit` / `write` | Independent panel on the shared content column: uppercase heading, filename/status strip and numbered pastel diff preview | Same code template with the preview limit removed; native fallback when unsupported |
 | `ls` | Filename/directory-name first, quiet home-shortened parent directory | Native call/result content with original arguments |
 | Any other tool | Humanized tool name (separators become spaces), first known or first string argument, status/output count | Original call/result slots, else readable args/output |
 | Compaction summary | Compact tool/token-count identity, `context` + `tokens before` annotation | Complete retained summary |
@@ -123,6 +129,7 @@ Success on an async launch means the tool returned successfully, not that the ba
 its execution details remain authoritative.
 
 - [x] Dedicated one-line read/grep/glob/bash and subagent identity.
+- [x] One content column for rows, detail gutters and panels; capture panels reuse the file-panel frame.
 - [x] Package vocabulary for `galley_agent`, the five browser tools and the supervisor/wait tools.
 - [x] Generic shell for write/edit/ls/powershell, web-access tools and unknown tools; an unknown tool's name is humanized rather than printed as a raw identifier.
 - [x] Separate compaction-summary component adapter.
@@ -177,7 +184,15 @@ its execution details remain authoritative.
 - [ ] `!` bash row (`bash-execution.js`): `bashMode` bold header pad-1; output `muted`; status muted / `(cancelled)` warning / `(exit N)` error; truncated → full-output path notice. Not overridable — restyle = theme tokens (`bashMode`, `muted`) or rebuild via `registerEntryRenderer`? (verify feasibility before scheduling; may be `- [~]`).
 - [ ] notify lines: NOT toasts — transcript lines: `dim` (consecutive dedupes into one line), `warning`, `Error: msg` in `error`; each after `Spacer(1)`.
 - [x] Compaction summary: common activity shell through `renderers/compaction-surface.ts`, with click and keyboard expansion.
-- [ ] Branch-summary / skill-invocation cards and live compaction/retry loaders: separate native surfaces, not covered by the tool adapter.
+- [x] Skill invocation card: `raw-transcript/skill-block.ts` renders the parsed skill block as a rose-wash callout band
+  (pink `✦ skill ·` identity, bold skill name, `click / Ctrl+O` hint resolved from Pi's keybindings, source location and house
+  Markdown body when expanded) and `skill-surface.ts` mounts it on Pi's native component, keeping the global toggle; a
+  stationary left click anywhere on the band folds or expands the card, like the mutation panels.
+  The band is painted per column and per row: a pink spine anchors the top-left edge and the rose light it casts eases
+  monotonically into the transcript background, under the text and past it, while each row keeps a diminishing share of
+  the peak, so the glow dissolves to the right and downward with no flat block, no seam and no hard end. Static paint
+  only - no timer, no repaint loop.
+- [ ] Branch-summary cards and live compaction/retry loaders: separate native surfaces, not covered by the tool adapter.
 
 ### Response design contract
 
@@ -224,6 +239,7 @@ its execution details remain authoritative.
 ## 6. Dialogs & overlays
 
 - [x] Questionnaire (select/multi/confirm-like flows inside the house questionnaire).
+- [x] Model picker (`/models`, alias `/fallback`): owns its chrome in `ctx.ui.custom` - header (session model vs agent pins), tab strip for session/scope/fallbacks/agents, search, reasoning levels from Pi's own model metadata, price gauge with its formula disclosed, click-to-select and wheel over the list. Chain and toggle edits persist as they are made; a model or reasoning choice is pending until enter, so escape changes nothing. The scope tab reports the saved patterns and the snapshot this picker read, and names pi's own `/scoped-models` selector: that selector is a built-in command no extension can dispatch, so the tab states it rather than faking an action. Per-agent models stay with the `subagents` command, which the agents tab opens (after releasing its own modal) once it is registered.
 - [ ] `ctx.ui.select/confirm/input/editor` built-in dialogs — colors only (`text/accent/dim/muted`, keyHint `muted/dim`). Decide `- [~]` or replace with `ctx.ui.custom` house dialogs reusing `ui/frame.ts`.
 - [ ] Transient overlays: BorderedLoader (spinner + `border` frame), countdown dialogs — colors only. `- [~]` unless UX says otherwise.
 - [ ] Fullscreen `ctx.ui.custom` for anything that needs owned chrome (pattern stays in extensions docs; do not duplicate here).
@@ -238,7 +254,7 @@ Confirmed glyphs/dims in pi 0.85.1 — record decisions here instead of re-disco
 - [ ] Editor glyphs `── `, ` ──`; settings cursor `accent "→ "`; footer glyphs `↑ ↓ R W CH •` (irrelevant — footer is owned).
 - [ ] Spinner frames `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` @80ms (pi-tui Loader default) — replaced by `setWorkingIndicator` (done).
 - [ ] Phrase set `... (N more lines, to expand)`, `[Truncated: ...]`, `[invalid arg]`, `[invalid content arg - expected string]` — restyle = our own phrasing in tool renderer overrides.
-- [ ] `PS>`/`$` prompts, `[skill]` tag text — inside tool renderers, overridable.
+- [ ] `PS>`/`$` prompts — inside tool renderers, overridable. (`[skill]` cards are house-styled by `raw-transcript/`, not this layer.)
 - [ ] Easter eggs (`/arminsayshi`, daxnuts, earendil announcement), mermaid ASCII colors — `- [~]`.
 
 ## 8. Token coverage checklist (theme layer, for hot-reload tuning)
@@ -272,8 +288,9 @@ House rule per `ARCHITECTURE.md`: `palette.ts` reads `themes/catppuccin-latte.js
 6. Reload: no stacked rails or old timers; measured durations survive native remounting and extension reload.
    Calls with identical text but different result content/IDs never inherit another call's duration;
    fresh history without recorded measurements stays unknown.
-7. Automated contracts: `tests/renderers*.test.ts`, `tests/activity-clock.test.ts`, and
-   `tests/raw-transcript.test.ts`, `tests/attachments-frame.test.ts`, plus `tests/response-divider.test.ts`. These exercise real Pi
+7. Automated contracts: `tests/renderers*.test.ts` (including `renderers-alignment.test.ts` for the shared
+   content column), `tests/activity-clock.test.ts`, and
+   `tests/raw-transcript.test.ts`, `tests/raw-transcript-skill.test.ts`, `tests/attachments-frame.test.ts`, plus `tests/response-divider.test.ts`. These exercise real Pi
    components and gradient/layout contracts, not fabricated private state.
    The explicit one-line regression was observed failing with the former two-line renderer.
 8. Verify with Pi's real extension loader and bundled runtime, not just TypeScript import success.

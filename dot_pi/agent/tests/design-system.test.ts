@@ -7,7 +7,7 @@ import {
 	foregroundHex,
 	hexToRgb,
 } from '../extensions/ui/design-system/terminal-color.ts'
-import { uiTheme } from '../extensions/ui/design-system/theme.ts'
+import { skillBandHex, uiTheme } from '../extensions/ui/design-system/theme.ts'
 import { selectionMarker } from '../extensions/ui/selection-marker.ts'
 
 void test('house semantic roles use the intended Latte colors', () => {
@@ -19,6 +19,12 @@ void test('house semantic roles use the intended Latte colors', () => {
 		uiTheme.fg('success', 'x'),
 		'\u001b[38;2;64;160;43mx\u001b[39m',
 	)
+	assert.equal(
+		uiTheme.fg('skill', 'x'),
+		'\u001b[38;2;234;118;203mx\u001b[39m',
+	)
+	assert.equal(skillBandHex(0), '#eff1f5')
+	assert.equal(skillBandHex(1), '#ea76cb')
 })
 
 void test('hex colors are validated before rendering', () => {

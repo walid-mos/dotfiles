@@ -73,8 +73,8 @@ void test('clicking the first physical row expands and collapses without an offs
 	const expanded = visible(row.render(80))
 	assert.equal(expanded[0], header)
 	assert.doesNotMatch(expanded[0] ?? '', /[▸▾]/u)
-	assert.ok(expanded.includes('│   printf first'))
-	assert.ok(expanded.includes('│   second'))
+	assert.ok(expanded.includes('│    printf first'))
+	assert.ok(expanded.includes('│    second'))
 	row.handleMouse(click())
 	assert.equal(row.render(80).length, 1)
 })
@@ -83,14 +83,14 @@ void test('pending command details can be expanded before the first result exist
 	const row = toolRow('bash', { command: 'first\nsecond' })
 	row.render(80)
 	row.handleMouse(click())
-	assert.ok(visible(row.render(80)).includes('│   second'))
+	assert.ok(visible(row.render(80)).includes('│    second'))
 })
 
 void test('Ctrl+O uses Pi expansion state and never changes the stored result', () => {
 	const row = toolRow('read', { path: 'a.ts' })
 	complete(row, 'const answer = 42')
 	row.setExpanded(true)
-	assert.ok(visible(row.render(80)).includes('│   const answer = 42'))
+	assert.ok(visible(row.render(80)).includes('│    const answer = 42'))
 	row.setExpanded(false)
 	assert.equal(row.render(80).length, 1)
 })
@@ -104,7 +104,7 @@ void test('adjacent tools share a continuous gutter without blank status rows', 
 	}
 	assert.equal(chat.render(80).length, 2)
 	assert.ok(
-		visible(chat.render(80)).every(line => line.startsWith('├── ✓ bash')),
+		visible(chat.render(80)).every(line => line.startsWith('├─ ✓ bash')),
 	)
 })
 
@@ -145,7 +145,7 @@ void test('failures and cancellation remain visible while their full output stay
 	})
 	assert.match(visible(row.render(80))[0] ?? '', /^├─+ +✕ +bash/u)
 	row.setExpanded(true)
-	assert.ok(visible(row.render(80)).includes('│   Tests failed'))
+	assert.ok(visible(row.render(80)).includes('│    Tests failed'))
 	row.setExpanded(false)
 	row.updateResult({
 		content: [{ type: 'text', text: 'Operation aborted' }],

@@ -3,7 +3,6 @@
  * result/image conversion stay untouched. This is the sole owner of tool mouse geometry. */
 import { Container } from '@earendil-works/pi-tui'
 
-import { ActivityDetails } from '../ui/activity-details.ts'
 import { closeActivityRail } from '../ui/activity-line.ts'
 import { patchPiComponent } from '../ui/pi-component-patch.ts'
 import {
@@ -23,11 +22,6 @@ import type { ActivityClock } from '../ui/activity-clock.ts'
 import type { RenderContext } from './tool-details.ts'
 
 const NATIVE_DEFINITION = Symbol.for('pi.renderers.native-definition')
-const INLINE_SCREENSHOT_TOOLS = new Set([
-	'frontend_open',
-	'frontend_act',
-	'frontend_screenshot',
-])
 
 function nativeDefinition(definition: unknown): unknown {
 	const object = typedHost(definition)
@@ -42,28 +36,7 @@ function renderSurface(host: object, width: number): string[] {
 		width,
 	)
 	Reflect.set(host, 'selfRenderHeight', lines.length)
-	const canShowImages =
-		reflectMember(host, 'expanded') === true ||
-		INLINE_SCREENSHOT_TOOLS.has(payloadText(host, 'toolName'))
-	if (!canShowImages || width < 1) return lines
-	const images = reflectMember(host, 'imageComponents')
-	if (Array.isArray(images)) {
-		for (const image of images)
-			lines.push(...renderImageDetails(image, width))
-	}
 	return lines
-}
-
-function renderImageDetails(image: unknown, width: number): string[] {
-	return new ActivityDetails(
-		{
-			render: imageWidth => renderPiComponent(image, imageWidth),
-			invalidate: () => {
-				invokePiMethod(image, 'invalidate')
-			},
-		},
-		'image',
-	).render(width)
 }
 
 interface ToolLocation {
@@ -185,9 +158,11 @@ class ToolSurfaceRows {
 	}
 
 	render(host: object, width: number): string[] {
+		const row = this.rows.get(host)
+		row?.updateImages(reflectMember(host, 'imageComponents'))
 		const lines = renderSurface(host, width)
 		if (
-			this.rows.get(host)?.isMutation() ||
+			row?.isMutation() ||
 			lines.length > 1 ||
 			reflectMember(host, 'expanded') === true ||
 			this.hasFollowingTool(host)

@@ -4,7 +4,7 @@ title: Workspace brick rebuild — full roadmap (herdr × wt × container × pi)
 project: wt
 status: active
 created: 2026-09-11
-updated: 2026-09-15
+updated: 2026-09-16
 ---
 
 # Workspace brick rebuild — full roadmap (herdr × wt × container × pi)
@@ -382,3 +382,271 @@ Decisions this forces: `20-container` hook MUST pass `--dns`; image default `stu
 - Live state checked read-only while writing this: the user's drifted workspace is healthy again (checkout back on
   `feat/DA-214-switch-user-widget-ajouts`, registry row matching, no drift marker), and the real registry holds only its
   two original rows.
+
+## Phase 6d — self-healing completion registration (2026-09-15)
+
+- User report: "quand je met wt switch, j'ai rien qui s'affiche avec tab alors que j'ai une autre branche". Reproduced
+  their *entire* shell (all `conf.d/*.zsh` in order, aliases, `local.zsh`, and fzf's `bindkey '^I' fzf-completion`) in a
+  real PTY: plain TAB falls back to `expand-or-complete` inside `fzf-completion` (trigger `**` unset), `_comps[wt]` was
+  `_wt_complete`, and the menu did list the branches. So the fragment itself was fine; the shell was in a stale state.
+- Root cause of that stale state: `lib/shell.sh` registered completion once per shell behind a `_wt_completion_registered`
+  guard. A shell that sourced an earlier fragment (before completion existed), or sourced this fragment before
+  `compinit` ran, never registered again — and re-sourcing `local.zsh` could not heal it.
+- Fix: registration is now idempotent and self-healing. Every source (re)installs the completer, the previous completer
+  is captured only while `_comps[wt]` is not ours (so a re-source cannot lose the `--help` fallback or self-delegate),
+  and when `compdef` does not exist yet the fragment installs a one-shot `precmd` hook that registers at the first
+  prompt after `compinit` and removes itself. bash keeps the idempotent `complete -F`.
+- Verified in zsh: compinit-first shell registers immediately with `fallback=_help_only`-style capture and no hook; a
+  re-source keeps `comp=_wt_complete` and the captured fallback; a shell that sourced the fragment before compinit
+  registers at the first prompt afterwards and clears the hook; a real PTY with the user's full config shows the branch
+  menu. Test added: `test_completion_registration_heals_a_stale_or_early_shell` (both paths). Full suite: **257 tests OK**
+  (`/tmp/wt-final3.log`).
+
+## Phase 7 — one workspace selector for clean and open (2026-09-15)
+
+- User reports from the primary checkout of product-data-apps: `wt clean` refused with "Not a registered wt workspace:
+  <primary checkout>" (a dead end, no hint), `wt clean feat/DA-191-panneau-referentiel` resolved the branch name as the
+  *relative path* `$PWD/feat/...` and refused, and TAB after `wt clean` offered nothing. `wt open` had the same
+  path-only grammar.
+- Fix: `lib/selection.sh` — one grammar for "which registered workspace", shared by `clean` and `open`. A path-looking
+  selector (`/`, `./`, `../`, `~`, or an existing directory) is a path; anything else is a **registered workspace branch**,
+  the grammar `wt switch` accepts and scoped to the current repository the same way. No target means the workspace the
+  shell stands in (a primary checkout is not one). Status is a variable (`selection_status`: 0 resolved, 1 no match,
+  2 ambiguous, 3 unresolvable path) because the CLI runs `set -eu`, where a nonzero *return* from a function aborts
+  through the `wt_finish` trap as `operation_failed` instead of being reported — this cost one debugging cycle.
+- Misses are actionable: they name the branches the current repository registered and the exact command
+  (`registered here: a, b; clean one with: wt clean <branch>`), scoped to the current repository, or globally outside a
+  checkout. An ambiguous branch refuses with `clean_refused` / `open_refused` naming every path (repair's precedent),
+  so no new error code was needed. Post-lock lookups stay authoritative: a row that moved meanwhile is still reported.
+- Safety rule kept from the old path handling: a path target keeps the caller's spelling when the registry records it, and
+  is canonicalized otherwise. Canonicalizing first hid a replaced symlink from the removal guards
+  (`test_symlink_replacement_cannot_redirect_clean` caught the regression).
+- Completion: `wt __complete` now covers `clean` and `open` through `wt_complete_registered_targets` (recorded branches
+  only, never a local branch either command would refuse). Help, README, AGENTS.md, the system map and the overview all
+  say `[<branch-or-path>]`. Full suite: **266 tests OK** (`/tmp/wt-sel-full.log`).
+- Deliberately unchanged: `wt repair` keeps its own drift-aware matching (recorded *or* held branch) instead of the shared
+  selector, because that is what makes `wt repair <held-branch> --adopt` work.
+
+## Phase 8 — wt clean always asks (2026-09-15)
+
+- User reaction to the default target: a bare `wt clean` removes the workspace the shell is standing in, so clean needs a
+  confirmation step. Decisions taken with the user: prompt on **every** removal (not just the implicit target); cleaning
+  the caller's own workspace stays allowed after confirming; without a terminal (or with `--json`) `--yes` is required and
+  there is no prompt at all.
+- Implementation in `lib/clean.sh`: `-y|--yes` skips the gate; `wt_clean_confirm` runs after resolution and after
+  `wt_removal_blocker`, so resolution misses (which now name candidates) and guard refusals (attached, writer, dirty,
+  locked, container) keep their own codes and never show a pointless prompt. The question names the checkout, the branch
+  and whether that branch is deleted (`git branch -d`), then `wt_clean_warn_if_caller_checkout` adds one line when the
+  canonical caller path is the checkout or inside it: "its directory disappears, leaving the shell on a deleted path".
+  A `y|Y|yes|Yes|YES` answer proceeds; anything else refuses with `clean_refused` "Aborted: <path> was not removed".
+  No terminal, or `--json`: `clean_refused` "run it in a terminal, or pass --yes" — unattended runs are explicit.
+- Tests: `lifecycle_fixture.clean` and the new `clean_refused` helper pass `--yes` (so guard tests still assert their own
+  reason); `refused(...)`/`wt(...)`/`run_command(...)` gained a `stdin` argument so non-interactive runs are explicit
+  (DEVNULL) instead of inheriting a terminal. New tests: prompt aborts on anything but yes, the yes path removes and warns
+  about its own shell, `--delete-branch` is named in the question, and JSON/redirected runs require `--yes`. Full suite:
+  **270 tests OK** (`/tmp/wt-confirm-full.log`), plus a PTY probe of the three interactive paths.
+- Deliberately unchanged: `wt prune` (age-based, reports candidates, has `--dry-run`) keeps no prompt.
+
+## Phase 9 — containers ON: every spawn gets a working Apple container (2026-09-15)
+
+- User ask: state of the container implementation, then "I want containers now - when I spawn a worktree the Apple
+  container comes with it, perfectly functional", with the real goal "my pi skills must never block when they run
+  `pnpm dev` or anything that needs a port". Decisions: global `activation:"always"` for every spawn; existing rows stay
+  untouched (new spawns only); restore the old clean setup found in
+  `~/.pi/agent/backups/workspace-migration-20260909/container-sandbox/` (a pi extension that routed bash into a VM);
+  product-data-apps gets the same generic container plus ports for shared tools.
+- State before this phase: the container layer was complete (create at spawn when activation says so, in-VM pnpm,
+  marker/excludes, `wt list` VM state, `wt sync` reconcile, ownership-checked teardown) but **off**: `container: {}` in
+  the user config meant `activation:"marker"`, no repo had `.containerize` or `.pi/container.json`, and both registry rows
+  were non-containerized - so no spawn ever made a container.
+- Slice 1 (wt): user config now `container:{activation:"always"}`; new
+  `ports` container setting (shape `[host:]container[/tcp|udp]`, each port 1-65535, validated in
+  `lib/container-settings.jq` and required by `lib/registry.jq` in a containerized snapshot), published by
+  `lib/provision.sh` via `--publish` and replayed by `wt sync` from the recorded snapshot. README documents the network
+  model that "ports never block" depends on.
+- Correction after user challenge: the `COREPACK_ENABLE_DOWNLOAD_PROMPT` env var was cargo-culted from the old
+  extension's defaults and removed. Verified: the image does ship corepack (`/usr/local/bin/corepack`), but `pnpm` is a
+  real global install (`/usr/local/lib/node_modules/pnpm`), nothing in fitapp or product-data-apps calls corepack, and a
+  container with product-data-apps' exact `packageManager` pin (`pnpm@11.8.0+sha512...`) and no corepack env var resolves
+  the pin itself (pnpm 11 `manage-package-manager-versions`) and installs non-interactively - output shows only the pnpm
+  "Update available" banner. Details: `lib/README`-level facts in README (network model); no env var needed unless a repo
+  explicitly invokes corepack.
+- Network model measured on container 1.3.1 (probe): host reaches a VM server at the container IP (192.168.65.0/24);
+  `-p` publishes to the host (`localhost:<port>` works, one workspace per host port); the VM reaches host-side services
+  at the gateway `192.168.65.1` (verified both by gateway and LAN IP); containers **cannot** reach each other on the
+  default network (by IP or by name), so shared tools must be hosted or published - `container network create` exists,
+  but wt has no `network` key yet.
+- Slice 2 (pi, the "skills never block" half): new extension `~/.pi/agent/extensions/container-sandbox/`
+  (`index.ts` wiring, `session.ts` per-session runtime + prompt suffix + `/container status|sync|stop`, `wt.ts` the only
+  wt-registry reader: `wt list --json` + `wt sync`, `container.ts` the only `container` CLI caller, `bash-ops.ts` the
+  `BashOperations` adapter and host-to-guest path mapping). It restores the old behaviour (bash and `!` inside the VM,
+  `host` tool for macOS admin, per-turn sandbox system prompt, `--no-container` flag) but **unified on wt identity**: it
+  never creates, names or removes containers, asks `wt sync` when the row's container is stopped or absent, and its
+  prompt suffix names the container IP, published ports and the host gateway. File tools stay host-side (same bytes
+  through the mount). 10 unit tests (`tests/container-sandbox.test.ts`), lint + type-check clean, ownership bullet in
+  `~/.pi/agent/ARCHITECTURE.md`.
+- Live evidence: real fitapp spawn `feat/container-check` -> `wt-fitapp-9123bca2` running, node v24.20.0 / pnpm 11.21.0 /
+  uid 501, `pnpm exec turbo --version` 2.10.10 from VM-installed deps, host `curl http://192.168.65.7:5173` -> served,
+  checkout clean; `pi -p` inside that workspace ran bash and reported `Linux`, `/workspace`, the container hostname and a
+  successful `curl localhost:5173` (the VM's own port); `pi -p` in the product-data-apps primary checkout stayed on the
+  host (`Darwin`). wt suite **272 tests OK** (`/tmp/wt-final-containers.log`).
+- Queued, not done: (a) a spawn whose `20-container` hook is missing reports `containerized:true`/`ready` with no
+  container - verify after the hooks and fail loudly; (b) a destroyed checkout with a live container is unmanageable:
+  `clean` refuses `missing_checkout`, while `sync`/`repair` cannot even resolve the row because their branch scope uses
+  the vanished checkout path instead of the row's recorded `repo` (selection.sh already does it right) - also
+  `wt repair <missing path>` is treated as a branch because of the `-d` gate; (c) no per-repo `.pi/container.json` pin
+  for product-data-apps yet, and no `network` setting for real container-to-container shared tools.
+
+## Phase 10 — wt inspect + wt detach: refusals that name a real next step (2026-09-15)
+
+- Trigger: the user ran `wt clean feat/new-dev` and got "Refusing to clean ...: attached; inspect before
+  retrying.", then ran `wt inspect` and got "Unknown command 'inspect'". Two defects in one: the refusal text
+  promised a command that did not exist, and an `attached` row had no way out at all.
+- Facts established: `attached` is written by `wt open` and by a `--pane` spawn and cleared by nothing (the plan
+  deliberately added no automatic stale-flag clearing); the row's recorded herdr workspace `wE` ("new-dev", one pane)
+  was still open, so that refusal was *correct* - wt never closes a human's pane. The dead end only exists when the
+  pane is gone but the record is not.
+- Delivered: `wt inspect [<branch-or-path>] [--json]` - read-only, lock-free diagnosis (registry row, Git facts
+  including changed-path count and the checkout blocker, live container state and published ports, attachment plus
+  herdr liveness, and the first removal blocker with the command that resolves it) that works on dirty, drifted,
+  attached and missing checkouts. `wt detach [<branch-or-path>] [--force] [--json]` - clears the attachment record
+  only: refuses while herdr reports the recorded workspace open (naming it) unless `--force`, warns and proceeds when
+  herdr is unreachable, never treats an unverifiable record as gone, refuses writer-owned rows, idempotent, keeps the
+  recorded herdr id as provenance.
+- One advice table: `wt_removal_advice` (lib/removal.sh) maps every blocker (foreign_family, different_owner,
+  attached, writer_present, recovery_required, container_identity_changed, outside_wt_base, unsafe_path,
+  primary_checkout, missing_checkout, dirty, branch_changed, locked_or_unregistered, missing_source,
+  repository_changed, not_linked_checkout, invalid_checkout) to the real command that fixes it. clean/open/repair/sync
+  messages now point at `wt inspect`; the `attached` advice differs by herdr liveness (close the pane vs
+  `wt detach`). New error codes `inspect_refused`, `detach_refused`; both commands complete from registered
+  workspaces; help blocks, README and AGENTS updated.
+- Shared default-target policy: `wt_selection_resolve_or_current` in lib/selection.sh ("no target means the checkout
+  this shell stands in", status 4 = no checkout here) now backs clean, open, inspect and detach, replacing three
+  hand-rolled copies.
+- Tests: 23 new - tests/test_inspect.py (13) and tests/test_detach.py (9), including "detach a stale record then clean
+  the workspace", "an open herdr workspace is refused until --force", "an unreachable herdr is unknown, not gone", and
+  a completion case; the herdr fake answers `workspace get` and honors its failure mode. Full suite **295 tests OK**
+  (`/tmp/wt-inspect-full.log`). Live on the user's machine: `wt inspect feat/new-dev` reports the open herdr workspace
+  and the close-the-pane advice.
+
+## Phase 11 — clean closes the pane it recorded (2026-09-15)
+
+- User decision after Phase 10: "si je valide par y, il doit close automatiquement, jamais block, pas envie de faire deux
+  commandes séparées". The `attached` refusal asked a human to close a pane by hand and retry, which is exactly the two-step
+  friction the command should remove.
+- Contract now: `wt clean` treats an attachment as part of the question. It reads the row's pane state after every other
+  removal blocker passed (so writer-owned, dirty, locked and recovery rows keep their own refusals and their own advice),
+  then the prompt names what the yes closes - "herdr workspace wE is showing this checkout: it will be closed." Answering
+  yes calls `herdr workspace close <id>` (new `wt_herdr_workspace_close` in lib/open.sh, the owner of herdr) *before*
+  removing anything, clears the record, and continues in the same command. `--yes` behaves identically without a prompt,
+  so unattended runs stay non-interactive.
+- The three non-live cases: a pane herdr confirms gone is dropped with no close call; a record herdr cannot confirm is
+  closed best-effort and only reported ("clearing the record anyway"); a record wt cannot attribute to a surface it owns
+  (no herdr id, non-herdr engine - possible when a launcher hook dies mid-launch) is named and the removal proceeds.
+- Boundaries kept: herdr refusing to close stops the removal (the checkout is the directory that pane stands in) with
+  herdr's own reason plus the `wt detach --force` escape; `wt detach` unchanged (forget the record, keep the pane);
+  `prune` keeps the `attached` refusal because it is a batch with no prompt, and its skip reason now names `wt clean <path>`.
+- One deferral flag: `wt_removal_blocker` honours `removal_attachment_deferred` (set only by clean), so the blocker
+  vocabulary, its ordering and every other caller stay exactly as they were.
+- Tests: test_clean.py's "attached workspaces are never touched" became five tests (live pane closed after yes and the
+  workspace goes; refused close stops the removal; stale record cleared without a close; unconfirmable pane closed
+  best-effort; --yes closes without a prompt) with the herdr fake answering `workspace close` and recording the call; the
+  inspect advice expectations follow the new wording. Full suite **300 tests OK** (`/tmp/wt-pane-final.log`).
+- Live (unanswered, `n`): the prompt for the user's real `feat/new-dev` names herdr workspace wE, and refusing leaves the
+  registry byte-identical with wE still open.
+
+## 2026-09-16 — relay + bootstrap verified end-to-end; the shared mount's file-handle ceiling
+
+- wt: `wt sync` on a live container now *installs dependencies* too. It previously only did that on
+  create, which contradicted sync's own documented contract (`lib/sync.sh` header: "dependencies are
+  installed"), so an install interrupted at spawn could never converge through sync. Its output goes
+  to stderr like `wt_sync_build`'s, keeping the one-JSON-document-on-stdout contract, and
+  `wt_install_dependencies` reads its container flag tolerantly
+  (`${WT_CONTAINER_ACTIVE:-${is_container_active:-false}}`, the `wt_write_marker` idiom) because a
+  command reusing the helper knows the container is active without the hook variable.
+- Project overlay (`~/Development/clients/accor/product-data-apps`, untracked): `.pi/container.json`
+  declares `hostServices.ports` 5432/8080/9000 + `bootstrap`, and `.pi/dev/bootstrap.sh` renders the
+  branch DB, the SSO redirect URIs, the Keycloak client origins and the fronts' `VITE_URL_*`.
+- Verified live on the throwaway `chore/wt-relay-smoke` / `wt-product-data-apps-b72ac2c7`: from inside
+  the VM, `127.0.0.1:5432/8080/9000` answer (realm 200, MinIO health 200, a raw TCP connect);
+  `apps/api/.env` carries `astore_wt_relay_smoke` and `http://192.168.64.11:<port>/login`; the DB
+  exists in the host's Postgres beside the other branch DBs; and the Keycloak clients keep every other
+  worktree's origin while gaining this one (`localhost:5175`, `192.168.64.10:5175`,
+  `192.168.64.11:5175`) — the union semantics hold.
+- Bootstrap fixes found by running it for real: the Postgres client must not come from
+  `apps/api/node_modules` (the database has to exist before, or without, the app's install), so it is
+  installed on demand into its own `/tmp` prefix and reached through `NODE_PATH`; `DATABASE_URL` is
+  exported from the file the API reads instead of assumed in the environment; the origin rewrite stops
+  at the port (`[^/:]*`) instead of swallowing it; `wt` passes `WT_WORKTREE_NAME` (the VM only sees
+  `/workspace`) and excludes `/.pi/` via Git's common exclude.
+- **Runtime limit, not a wt defect:** a cold `pnpm install` of this repo cannot finish on the shared
+  mount. A bare `writeFileSync` loop into `/workspace` dies with `ENFILE` after ~2.3k files while an
+  install runs (~5–6.5k when the VM is idle), and a fresh process starts over, while the VM's own
+  `/proc/sys/fs/file-nr` stays at ~200 of 214419 and both host limits are generous: the ceiling
+  belongs to the virtiofs share (`container` 1.3.1). Concurrency is not the trigger — three attempts
+  (`--child-concurrency=1`, plain retry, warm retry) each went further (1004 → 1089 packages) and
+  still failed. Either wt retries the install until it converges (the budget resets per process, so a
+  bounded number of runs finishes this repo's 51k files) or the runtime gets fixed/reported.
+
+## 2026-09-16 (later) — modules on volumes: the cold install finishes (resolves Phase 12's limit)
+
+The ENFILE ceiling was the virtiofs share, not pnpm's concurrency, so wt stops putting an install on
+one: the container's `node_modules` and the project's pnpm store now live on container volumes.
+
+- Measured: `container volume` mounts as `/dev/vdc … ext4` inside the VM, and **one process wrote
+  30 000 files into it without ENFILE** (vs ~2.3k on the worktree share while an install runs, ~6.2k
+  idle). `pnpm store path` in the container resolves to `/workspace/.pnpm-store/v11`, i.e. the
+  project's store already points at the worktree root, so mounting a volume there needs no install
+  flag: wt mounts `wt-modules-<container>` at `/workspace/node_modules` and `wt-store-<container>` at
+  `/workspace/.pnpm-store`.
+- `wt_container_modules_dir()` (host `~/.local/state/wt/modules/<name>`) is gone;
+  `wt_prepare_container_volumes` runs once the VM is up and, as root, drops the volumes' own
+  `lost+found` (pnpm died on `EACCES …/node_modules/lost+found/package.json`), then chowns both mounts
+  to the container user's own uid/gid. Teardown deletes both volumes with `container volume delete`.
+- `wt_verify_container_owner` accepts 1–3 mounts: the worktree virtiofs mount, plus `node_modules` as
+  our volume **or** the legacy host directory, plus the store volume. `wt_scan_other_mounts` now looks
+  at `virtiofs` mounts only, because a volume's `source` is the runtime's own `volume.img` and the
+  canonical-path check died on it (`Cannot resolve a foreign container mount safely`).
+- Verified live on the throwaway `chore/wt-relay-smoke` spawned cold: `container volume create` for
+  both, both mounts `/dev/vdc`+`/dev/vdd`, `Packages: +1108 … done` (**the install that could never
+  finish now completes**), `node_modules` 954M + store 877M in the VM, **0 B** (a bare mount point) on
+  the worktree share, then relay + bootstrap (`astore_wt_relay_smoke`, origin `http://192.168.64.14`,
+  the fronts' `VITE_URL_*`). `wt clean --yes` deleted both volumes and the list came back empty.
+- Same session, separate change the user demanded: `wt clean` no longer skips a checkout with
+  uncommitted changes — it plans it, names it (`; uncommitted changes will be lost`) and, on yes,
+  removes it with `git worktree remove --force`; `prune` and single-target `wt remove` keep refusing
+  dirty (`removal_dirty_tolerated` is the per-caller opt-in).
+- Tests for both changes were updated in a delegated lane (tests/ only, fakes included): volumes,
+  the `lost+found` drop, teardown's volume delete, the foreign-volume refusal, the non-fatal delete
+  warning, and the sync-install ordering. Suite: 365 tests in 25 modules, 24 modules green; the one
+  red was a real defect the lane refused to paper over, found by its own test: `wt_sync_running`
+  wrapped its three steps in `{ …; } >&2`, which also redirected the **stdout** of a `wt_die` raised
+  inside them, so a failing host-service relay left `wt sync --json` printing no JSON document at all
+  (empty stdout, envelope on stderr). Fixed where the codebase already does it: the install's own
+  exec carries `1>&2` (as the bootstrap's does) and the group is gone, so each step keeps stdout
+  clean by construction rather than by capture.
+- Left over: legacy host modules dirs under `~/.local/state/wt/modules/<name>` that teardown no longer
+  deletes. The throwaway checkout, its branch, its volumes, its DB and its two Keycloak origins are
+  gone (the first two by `wt clean --delete-branch`, the last two with the old stack's `down -v`).
+- **Step C executed (2026-09-16):** the old `cross-app-access-management` project went `down -v`
+  (volumes + network removed) and the fresh `pnpm docker:dev` came up from the primary checkout
+  (`product-data-apps` running(5), Keycloak 26.3.5, realm `astore-local` imported); the 3 hand-made
+  socats in `abacd1d8` were killed; `wt sync --refresh-config` adopted the overlay's `hostServices` +
+  `bootstrap` (that row predated the overlay, so a plain sync relayed nothing). Result: the relay
+  answered 200 in-VM with no socat left, DB `astore_cross_app_access_management` was created through
+  it, and the 5174/5175 origins were allowed. It then failed on `.pi/dev/bootstrap.sh`: Keycloak client
+  `portail` is missing from realm `astore-local`, because the primary checkout's fixture
+  (`docker/keycloak/astore-local-realm.json`) is behind the feature branch's - only the
+  `feat/cross-app-access-management` worktree carries `portail` in it - as an **uncommitted** change
+  (`M docker/keycloak/astore-local-realm.json`), which is why the old stack served it and the fresh one
+  does not. Decided by the user: **they commit that realm change themselves** in the
+  `feat/cross-app-access-management` worktree and land it on develop; the running Keycloak is
+  deliberately not patched by hand, and nothing outside `~/Development/tools/wt` was edited. Caveat
+  recorded for them: `--import-realm` only imports a realm that does not exist yet, so a plain restart
+  will not pick the entry up - it takes recreating the stack's volumes (`down -v` + `pnpm docker:dev`,
+  every branch DB then being recreated by `wt sync`) or the admin-API route I offered. `a75727a3` no longer exists; `feat/DA-214-switch-user-widget-ajouts` is
+  `containerized: false`, so it has no container to relay and was deliberately not synced.
+- **Committed** (`~/Development/tools/wt`, three commits over `a84f702`, working tree clean, 365 tests
+  green): `docs: the container's install lives on volumes, its host services arrive by relay`,
+  `feat: keep the container's install on runtime volumes, and relay the project's host services`,
+  `feat: clean no longer refuses a checkout with uncommitted changes`.
