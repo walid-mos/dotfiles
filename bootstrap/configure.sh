@@ -123,6 +123,25 @@ ensure_remote_login() {
     fi
 }
 
+# ensure_ssh_key - both ends of the Studio pairing authenticate with a
+# passphrase-less ed25519 key in the default location: the laptop's opens ssh
+# to the Studio, and the Studio's is what the laptop authorizes for the
+# reverse direction. Without it on the server side the pairing command the
+# bootstrap prints fetches an empty file and the laptop stays unreachable
+# ("Permission denied (publickey)"). Git and server access keep their own
+# dedicated keys.
+ensure_ssh_key() {
+    if [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
+        skip "~/.ssh/id_ed25519 already exists"
+    elif is_dry_run; then
+        would "generate ~/.ssh/id_ed25519 (ed25519, no passphrase)"
+    else
+        mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
+        act "generate ~/.ssh/id_ed25519" ssh-keygen -t ed25519 -N "" \
+            -f "$HOME/.ssh/id_ed25519" -C "${USER:-$(id -un)}@$(hostname -s)"
+    fi
+}
+
 # configure_headless_server - keep the Studio always reachable without a
 # display or a logged-in session: never sleep, restart after power failure,
 # SSH and Screen Sharing enabled at boot. Requires sudo (ensure_sudo).
@@ -219,15 +238,7 @@ configure_studio_client() {
     step "Mac Studio <-> this Mac (herdr machines)"
 
     # A fresh Mac needs a keypair before anything can talk to the Studio.
-    if [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
-        skip "~/.ssh/id_ed25519 already exists"
-    elif is_dry_run; then
-        would "generate ~/.ssh/id_ed25519 (ed25519, no passphrase)"
-    else
-        mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
-        act "generate ~/.ssh/id_ed25519" ssh-keygen -t ed25519 -N "" \
-            -f "$HOME/.ssh/id_ed25519" -C "${USER:-$(id -un)}@$(hostname -s)"
-    fi
+    ensure_ssh_key
 
     # Seeding the key on the Studio first is what makes both herdr machine
     # adds (laptop -> Studio and Studio -> laptop) passwordless.
