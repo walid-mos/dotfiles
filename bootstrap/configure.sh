@@ -148,7 +148,9 @@ configure_server_reminders() {
 # asks for its own permissions at first launch.
 configure_laptop_reminders() {
     step "Manual steps to finish laptop setup"
-    ok "1. open -a Vicinae once - it registers itself as a login item"
+    ok "1. sign in to Tailscale (menu bar icon) - the Mac Studio pairing needs"
+    ok "   the tailnet, so re-run this bootstrap command once you are signed in"
+    ok "2. open -a Vicinae once - it registers itself as a login item"
     ok "   (System Settings > General > Login Items) and grants the"
     ok "   permissions macOS asks for (needed for the cmd+space shortcut)"
 }
