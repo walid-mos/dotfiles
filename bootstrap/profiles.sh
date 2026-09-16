@@ -52,6 +52,8 @@ setup_server() {
     setup_common
     install_tailscale_daemon
     configure_headless_server
+    step "SSH identity (the laptop authorizes this key)"
+    ensure_ssh_key
     configure_server_reminders
 }
 
