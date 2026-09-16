@@ -2,8 +2,8 @@
 # pnpm
 # =============================================================================
 # macOS install.sh puts pnpm in ~/Library/pnpm (what bootstrap uses). Global
-# binaries live in $PNPM_HOME/bin since pnpm >= 11, directly in $PNPM_HOME
-# before - keep both on PATH.
+# binaries (node, pi, npm, npx, ...) live in $PNPM_HOME/bin since pnpm >= 11,
+# directly in $PNPM_HOME before - keep both on PATH.
 # =============================================================================
 
 export PNPM_HOME="$HOME/Library/pnpm"
