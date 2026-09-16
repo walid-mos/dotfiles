@@ -118,6 +118,9 @@ install_herdr() {
         return 0
     fi
     act "install herdr" sh -c 'curl -fsSL https://herdr.dev/install.sh | sh -'
+    # The installer drops the binary in ~/.local/bin, which a fresh bootstrap
+    # shell does not have on PATH yet - later herdr calls need it now.
+    export PATH="$HOME/.local/bin:$PATH"
 }
 
 # install_tailscale_daemon - server profile only: tailscaled as a boot-time
