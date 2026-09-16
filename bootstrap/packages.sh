@@ -113,14 +113,15 @@ install_npm() {
 }
 
 install_herdr() {
-    if command_exists herdr || [ -x "$HOME/.local/bin/herdr" ]; then
+    # The installer drops the binary in ~/.local/bin, which a fresh bootstrap
+    # shell does not have on PATH yet - later herdr calls need it now. On an
+    # already-provisioned machine this is the only thing to do here.
+    export PATH="$HOME/.local/bin:$PATH"
+    if command_exists herdr; then
         skip "herdr already installed"
         return 0
     fi
     act "install herdr" sh -c 'curl -fsSL https://herdr.dev/install.sh | sh -'
-    # The installer drops the binary in ~/.local/bin, which a fresh bootstrap
-    # shell does not have on PATH yet - later herdr calls need it now.
-    export PATH="$HOME/.local/bin:$PATH"
 }
 
 # install_tailscale_daemon - server profile only: tailscaled as a boot-time
