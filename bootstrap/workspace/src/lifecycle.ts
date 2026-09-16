@@ -18,8 +18,7 @@ export async function openWorkspace(cwd: string, branch: string, mode: 'headless
     const recipe = await loadRecipe(project, previous?.phase !== 'removed' ? previous?.path : undefined)
     await requireTrustedRecipe(project, recipe)
     const workspace = await obtainWorktree(project, branch, recipe)
-    const checkoutRecipe = await loadRecipe(project, workspace.path)
-    const ready = await makeReady({ ...workspace, recipe: checkoutRecipe })
+    const ready = await makeReady(workspace)
     if (mode === 'headless') return ready
     return attachHerdr(ready, focus)
   })
