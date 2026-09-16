@@ -52,8 +52,9 @@ setup_server() {
     setup_common
     install_tailscale_daemon
     configure_headless_server
-    step "SSH identity (the laptop authorizes this key)"
+    step "SSH identity (named after this Mac; the laptop authorizes it)"
     ensure_ssh_key
+    ensure_ssh_config_host "$LAPTOP_TAILNET_DEVICE" "~/.ssh/$(machine_key_name)"
     configure_server_reminders
 }
 
