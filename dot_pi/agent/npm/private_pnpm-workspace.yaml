@@ -1,0 +1,19 @@
+# pi installs its user-scoped npm packages in this directory
+# (`pnpm install <pkg> --prefix ~/.pi/agent/npm`), so it needs a project root of
+# its own. Without this file pnpm walks up to ~/.pi/agent/pnpm-workspace.yaml,
+# installs the packages into the agent-root store and leaves only a symlink
+# here - and pi's extension loader does not resolve symlinked entry points, so
+# the packages' own dependencies (p-limit, ...) become unreadable and every
+# extension fails with "Cannot find module '<dep>'".
+# nodeLinker: hoisted keeps those dependencies as real sibling directories, the
+# npm-style layout pi's loader needs.
+#
+# allowBuilds: pi appends a section with placeholder values when pnpm asks for a
+# build-script decision, and placeholders make pnpm exit non-zero ("Run pnpm
+# approve-builds") - which pi then reports as a failed extension install. The
+# answers below mirror ~/.pi/agent/pnpm-workspace.yaml.
+allowBuilds:
+    '@google/genai': false
+    esbuild: true
+    protobufjs: true
+nodeLinker: hoisted
