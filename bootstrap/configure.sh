@@ -22,18 +22,32 @@ apply_dotfiles() {
         return 0
     fi
     sync_status=$(chezmoi status 2>/dev/null)   # 'status' is read-only in zsh
+    # The checkout is the source of truth. Anything edited in it - by hand or by
+    # a tool writing through a file - is what every machine gets on the next
+    # apply, so surface it rather than apply it silently.
+    dirty=$(git -C "$HOME/.local/share/chezmoi" status --porcelain 2>/dev/null)
+    if [ -n "$dirty" ]; then
+        skip "the dotfiles checkout has local edits (they are applied as-is):"
+        printf '      %s\n' ${(f)dirty}
+        ok "review: git -C ~/.local/share/chezmoi diff | discard: git -C ~/.local/share/chezmoi checkout -- ."
+    fi
     # Directional sync from `chezmoi status` line codes (col 1 = X = repo
     # side changed since last apply, col 2 = Y = live side changed since
     # last apply; target starts at col 4 - raw substr, not awk fields, or
     # the leading space of ' M' codes is lost):
-    #   live ahead  -> re-add (absorb into repo)
     #   repo ahead  -> apply (update live)
+    #   live ahead  -> report only, the repo wins (see below)
     #   both ahead  -> conflict, skip and let the user decide
     conflicts=$(printf '%s\n' "$sync_status" | awk 'substr($0,1,1) == "M" && substr($0,2,1) == "M" {print substr($0,4)}')
     live_edits=$(printf '%s\n' "$sync_status" | awk 'substr($0,2,1) == "M" && substr($0,1,1) != "M" {print substr($0,4)}')
     if [ -n "$live_edits" ]; then
-        run "syncing live edits into the repo"
-        act "re-add live-edited files" chezmoi re-add ${=live_edits}
+        # Never absorbed automatically: on a fresh machine a live edit is a
+        # tool's own block (the pnpm installer writing ~/.zshrc before the
+        # dotfiles step), and copying that into the checkout replaced the real
+        # config on every later apply.
+        skip "these files were edited live and differ from the repo:"
+        printf '      %s\n' ${(f)live_edits}
+        ok "the repo version wins - absorb a deliberate edit with 'chezmoi re-add <file>'"
     fi
     if [ -n "$conflicts" ]; then
         skip "changed on both repo and live sides since the last sync - left untouched:"
@@ -259,9 +273,12 @@ discover_laptop_magicdns() {
     else
         return 1
     fi
-    dns=$("$ts_client" status --json 2>/dev/null | grep -o '"DNSName": *"[^"]*"' | head -1) || return 1
-    dns=${dns#*\"}
-    dns=${dns%\"}
+    # The first "DNSName" in the status output is this node's own, and the
+    # value is the 4th "-separated field of that line. Matching on the whole
+    # '"DNSName": "..."' pair and then trimming quotes keeps the key glued to
+    # the value ("DNSName": "mac-studio", rejected downstream by herdr as
+    # "hostname contains invalid characters").
+    dns=$("$ts_client" status --json 2>/dev/null | awk -F'"' '/"DNSName"/ {print $4; exit}')
     short=${dns%%.*}
     [ -n "$short" ] || return 1
     printf '%s\n' "$short"
