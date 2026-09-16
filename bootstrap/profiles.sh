@@ -39,10 +39,11 @@ setup_common() {
 
 setup_laptop() {
     setup_common
-    step "Fonts"
+    step "Laptop extras"
     install_brew_list cask "${LAPTOP_CASKS[@]}"
     install_nerd_fonts
     configure_studio_client
+    configure_laptop_reminders
 }
 
 setup_server() {
