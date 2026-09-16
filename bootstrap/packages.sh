@@ -6,7 +6,7 @@
 # already-set-up machine: it reports and skips when the tool is present.
 
 BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch fzf ripgrep zsh-syntax-highlighting)
-BREW_CASKS=(ghostty brave-browser hex)
+BREW_CASKS=(ghostty brave-browser anomalyco/tap/hex)
 BREW_TAPS=(anomalyco/tap)
 LAPTOP_CASKS=(tailscale-app)
 SERVER_FORMULAS=(tailscale)
@@ -32,6 +32,22 @@ ensure_brew_taps() {
             skip "tap $tap already added"
         else
             act "add brew tap $tap" brew tap "$tap"
+        fi
+    done
+}
+
+# ensure_brew_trust - Homebrew 7 refuses to load a cask from a third-party tap
+# until that cask is trusted. The casks already name their tap ('tap/name'),
+# so the trust list is derived from the cask lists instead of duplicated.
+ensure_brew_trust() {
+    local trusted entry
+    trusted=$(brew trust --json v1 2>/dev/null) || trusted=""
+    for entry in "${BREW_CASKS[@]}" "${LAPTOP_CASKS[@]}"; do
+        [[ "$entry" == */* ]] || continue
+        if printf '%s' "$trusted" | grep -q "\"$entry\""; then
+            skip "$entry already trusted"
+        else
+            act "trust cask $entry" brew trust --cask "$entry"
         fi
     done
 }
