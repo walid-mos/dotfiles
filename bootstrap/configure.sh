@@ -104,6 +104,7 @@ configure_development_dirs() {
 # name), so no ~/.ssh/config alias is needed - the profile carries user +
 # host verbatim.
 STUDIO_TAILNET_DEVICE="mac-studio"
+LAPTOP_TAILNET_DEVICE="macbook-pro"
 STUDIO_SSH_USER="walid-mos"
 STUDIO_SSH_TARGET="${STUDIO_SSH_USER}@${STUDIO_TAILNET_DEVICE}"
 
@@ -123,22 +124,67 @@ ensure_remote_login() {
     fi
 }
 
-# ensure_ssh_key - both ends of the Studio pairing authenticate with a
-# passphrase-less ed25519 key in the default location: the laptop's opens ssh
-# to the Studio, and the Studio's is what the laptop authorizes for the
-# reverse direction. Without it on the server side the pairing command the
-# bootstrap prints fetches an empty file and the laptop stays unreachable
-# ("Permission denied (publickey)"). Git and server access keep their own
-# dedicated keys.
+# machine_key_name - this Mac's ssh identity is named after the machine
+# (mac-studio, macbook-pro) instead of the generic id_ed25519, so its owner and
+# purpose are readable in ~/.ssh. LocalHostName is the stable source: unlike the
+# hostname it carries no router DHCP suffix (macbook-pro1).
+machine_key_name() {
+    local name
+    name=$(scutil --get LocalHostName 2>/dev/null | tr '[:upper:]' '[:lower:]' | tr -d "'")
+    if [ -z "$name" ]; then
+        name=$(hostname -s | tr '[:upper:]' '[:lower:]')
+    fi
+    printf '%s' "$name"
+}
+
+# ensure_ssh_key - both ends of the Studio pairing authenticate with this
+# passphrase-less ed25519 key: the laptop's opens ssh to the Studio, and the
+# Studio's is what the laptop authorizes for the reverse direction. A key left
+# under the default name is renamed, never regenerated - the peer already
+# trusts that material in its authorized_keys.
 ensure_ssh_key() {
-    if [ -f "$HOME/.ssh/id_ed25519.pub" ]; then
-        skip "~/.ssh/id_ed25519 already exists"
+    local key_name key_path legacy_path
+    key_name=$(machine_key_name)
+    key_path="$HOME/.ssh/$key_name"
+    legacy_path="$HOME/.ssh/id_ed25519"
+
+    if [ -f "$key_path.pub" ]; then
+        skip "~/.ssh/$key_name already exists"
     elif is_dry_run; then
-        would "generate ~/.ssh/id_ed25519 (ed25519, no passphrase)"
+        if [ -f "$legacy_path.pub" ]; then
+            would "rename ~/.ssh/id_ed25519 to ~/.ssh/$key_name"
+        else
+            would "generate ~/.ssh/$key_name (ed25519, no passphrase)"
+        fi
+    elif [ -f "$legacy_path.pub" ]; then
+        act "rename ~/.ssh/id_ed25519 to ~/.ssh/$key_name" sh -c \
+            "mv '$legacy_path' '$key_path' && mv '$legacy_path.pub' '$key_path.pub' && chmod 600 '$key_path' && chmod 644 '$key_path.pub'"
     else
         mkdir -p "$HOME/.ssh" && chmod 700 "$HOME/.ssh"
-        act "generate ~/.ssh/id_ed25519" ssh-keygen -t ed25519 -N "" \
-            -f "$HOME/.ssh/id_ed25519" -C "${USER:-$(id -un)}@$(hostname -s)"
+        act "generate ~/.ssh/$key_name" ssh-keygen -t ed25519 -N "" \
+            -f "$key_path" -C "${USER:-$(id -un)}@$key_name"
+    fi
+}
+
+# ensure_ssh_config_host - a key that is not called id_ed25519 is only offered
+# to the host it belongs to when ssh config says so; without this block ssh
+# finds no identity for the peer and falls back to a password prompt.
+ensure_ssh_config_host() {
+    local host=$1 identity=$2 config="$HOME/.ssh/config"
+    if grep -qsE "^Host[[:space:]]+$host\$" "$config" 2>/dev/null; then
+        skip "~/.ssh/config already has a 'Host $host' block"
+    elif is_dry_run; then
+        would "add 'Host $host' (IdentityFile $identity) to ~/.ssh/config"
+    else
+        mkdir -p "$HOME/.ssh"
+        touch "$config" && chmod 600 "$config"
+        {
+            printf '\n# Machine pairing (dotfiles bootstrap)\n'
+            printf 'Host %s\n' "$host"
+            printf '    IdentityFile %s\n' "$identity"
+            printf '    IdentitiesOnly yes\n'
+        } >> "$config"
+        ok "pinned 'Host $host' to $identity in ~/.ssh/config"
     fi
 }
 
@@ -237,8 +283,10 @@ discover_laptop_magicdns() {
 configure_studio_client() {
     step "Mac Studio <-> this Mac (herdr machines)"
 
-    # A fresh Mac needs a keypair before anything can talk to the Studio.
+    # A fresh Mac needs a keypair before anything can talk to the Studio, and
+    # this key is not the default id_ed25519 - pin it for the Studio's host.
     ensure_ssh_key
+    ensure_ssh_config_host "$STUDIO_TAILNET_DEVICE" "~/.ssh/$(machine_key_name)"
 
     # Seeding the key on the Studio first is what makes both herdr machine
     # adds (laptop -> Studio and Studio -> laptop) passwordless.
@@ -246,7 +294,8 @@ configure_studio_client() {
         skip "key-based ssh to $STUDIO_SSH_TARGET already works"
     elif is_dry_run; then
         would "install this Mac's key on the Studio (ssh-copy-id, password asked once)"
-    elif ssh-copy-id -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new "$STUDIO_SSH_TARGET" \
+    elif ssh-copy-id -i "$HOME/.ssh/$(machine_key_name).pub" \
+        -o ConnectTimeout=10 -o StrictHostKeyChecking=accept-new "$STUDIO_SSH_TARGET" \
         && ssh_batch "$STUDIO_SSH_TARGET" true 2>/dev/null; then
         ok "key installed - the Studio accepts this Mac without a password"
     else
@@ -291,12 +340,13 @@ configure_studio_client() {
         return 0
     fi
     local studio_pubkey laptop_short laptop_target laptop_label
-    studio_pubkey=$(ssh_batch "$STUDIO_SSH_TARGET" cat "$HOME/.ssh/id_ed25519.pub" 2>/dev/null)
+    studio_pubkey=$(ssh_batch "$STUDIO_SSH_TARGET" cat "$HOME/.ssh/$STUDIO_TAILNET_DEVICE.pub" 2>/dev/null)
     if [ -n "$studio_pubkey" ] && authorize_ssh_key "$studio_pubkey"; then
         ok "authorized the Studio's key on this Mac - it can reach back over ssh"
     else
         run "could not fetch the Studio's public key - run later:"
-        printf '      ssh %s cat ~/.ssh/id_ed25519.pub >> ~/.ssh/authorized_keys\n' "$STUDIO_SSH_TARGET"
+        printf '      ssh %s cat ~/.ssh/%s.pub >> ~/.ssh/authorized_keys\n' \
+            "$STUDIO_SSH_TARGET" "$STUDIO_TAILNET_DEVICE"
     fi
 
     if laptop_short=$(discover_laptop_magicdns); then
