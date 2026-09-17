@@ -11,5 +11,18 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 # /opt/homebrew/bin: they can't find brew or its tools (node, ripgrep, ...).
 # Re-write the login launchd PATH at every login so GUI children inherit it.
 # Session-scoped: re-applied each login, gone after reboot.
-# pnpm bin = node 24 / pi / npm / npx; .local/bin = user-local binaries.
-launchctl setenv PATH "/opt/homebrew/bin:$HOME/Library/pnpm/bin:$HOME/.local/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+# Precedence: pnpm/bin (node/npm/npx) > Homebrew > brew's Python shims > system.
+# ~/.local/bin is LAST on purpose: installers drop shims there (hermes, node)
+# that must never shadow the real toolchain.
+launchctl setenv PATH "$HOME/Library/pnpm/bin:/opt/homebrew/bin:/opt/homebrew/opt/python@3.13/libexec/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin"
+
+# Same precedence for this shell. Deliberately HERE and not in .zshenv:
+# /etc/zprofile runs path_helper, which prepends /usr/bin before this file —
+# anything set earlier is pushed behind it and /usr/bin/python3 wins.
+# The nested ${...:#...} filters drop any earlier occurrence, so re-running
+# this file never grows PATH (a missing entry would return the whole array).
+path=(
+  "$HOME/Library/pnpm/bin"
+  "/opt/homebrew/opt/python@3.13/libexec/bin"
+  ${${path:#$HOME/Library/pnpm/bin}:#/opt/homebrew/opt/python@3.13/libexec/bin}
+)

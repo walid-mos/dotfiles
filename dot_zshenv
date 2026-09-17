@@ -15,10 +15,15 @@ export XDG_STATE_HOME="$HOME/.local/state"
 export DOCKER_BUILDKIT=1
 export TURBO_TELEMETRY_DISABLED=1
 
-# User-local binaries (herdr, ...) - guarded, no duplicate entries
+# User-local binaries (herdr, cua-driver, ...) - APPENDED, never prepended.
+# Installers (Hermes Agent, cua) drop shims here (node, npm, npx, hermes) that
+# would otherwise shadow the real toolchain (pnpm's node, brew's hermes).
+# Appending keeps them reachable without ever winning resolution.
+# Python precedence lives in .zprofile: /etc/zprofile's path_helper prepends
+# /usr/bin after this file, so anything set here loses to /usr/bin/python3.
 case ":$PATH:" in
   *":$HOME/.local/bin:"*) ;;
-  *) export PATH="$HOME/.local/bin:$PATH" ;;
+  *) export PATH="$PATH:$HOME/.local/bin" ;;
 esac
 
 # Custom functions (autoloaded in .zshrc)

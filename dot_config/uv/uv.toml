@@ -1,0 +1,8 @@
+# Single source of truth for Python: Homebrew's python@3.13, never a downloaded one.
+#
+# This file is read by *every* uv on the machine, including the managed uv that
+# Hermes Agent keeps in ~/.hermes/bin (uv resolves its user config by XDG path,
+# not relative to the binary). That is what stops a second interpreter from being
+# vendored under ~/.local/share/uv/python.
+python-preference = "only-system"
+python-downloads = "never"
