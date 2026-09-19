@@ -1,4 +1,4 @@
 #!/bin/sh
 set -eu
 . "${WT_LIB:?Run this hook through wt}/provision.sh"
-wt_provision_container
+wt_provision_dispatch "${WT_VEHICLE:-devvm}"
