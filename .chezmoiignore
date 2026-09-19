@@ -2,7 +2,6 @@
 .pi/agent/auth.json
 .pi/agent/sessions
 .pi/agent/models-store.json
-.pi/agent/backups
 .pi/agent/bin
 # only the installed tree is volatile - pi's pnpm-workspace.yaml there is
 # managed, the extension layout depends on it
@@ -10,21 +9,9 @@
 .pi/web-search-cache
 .pi/agent/extensions/herdr-agent-state.ts
 
-# Pi: audit scaffolding, jev working data and session ledgers - throwaway
-.pi/agent/audits/harness-footprint.ts
-.pi/agent/audits/jev-eval.ts
-.pi/agent/audits/jev-frontcheck.ts
-.pi/agent/audits/jev-triage.ts
-.pi/agent/audits/tool-choice-*.ts
-.pi/agent/audits/*-20??-??-??.md
-.pi/agent/audits/*.html
-.pi/agent/audits/jev-eval
-.pi/agent/audits/jev-frontcheck
-.pi/agent/audits/jev-triage
+# Pi: jev working data and session ledgers - throwaway
 .pi/agent/goals
 .pi/agent/jev
-.pi/agent/reports
-.pi/agent/tmp-frontend-check.html
 
 # Pi: plans are throwaway; closed ones are archived locally only
 .pi/agent/plans/active
@@ -38,13 +25,9 @@
 .pi/agent/npm/package-lock.json
 .pi/agent/npm/pnpm-lock.yaml
 
-# Pi: transient handoffs, run history, restart artifacts and audit reports
+# Pi: transient handoffs and run history
 .pi/agent/handoffs
 .pi/agent/run-history.jsonl
-.pi/agent/herdr-restart-orchestrator.log
-.pi/agent/herdr-restart-orchestrator.sh
-.pi/agent/herdr-restart-relaunch-20260916.md
-.pi/agent/audits/tool-call-audit-*.md
 
 # nextnode-qonto: Python cache and backups
 .config/nextnode-qonto/__pycache__
