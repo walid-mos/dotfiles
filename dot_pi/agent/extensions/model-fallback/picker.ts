@@ -1,35 +1,37 @@
 /**
- * model-fallback - the unified model surface: `/models` (alias `/fallback`).
+ * model-fallback - the unified model surface: `/models`.
  *
- * One picker covers the session model and its reasoning level, the scope this
- * session resolved, the ordered fallback chain with its toggles, and what the
- * agent pins point at. The scope is shown and explained, not edited; per-agent
- * models are edited inline (the same catalogue search plus thinking levels),
- * written to exactly that agent's `model` and `thinking` in the settings the
- * `subagents` package owns at launch - `/subagents` stays the advanced surface,
- * dispatched only after this picker has released the editor, which is why that
- * handoff lands instead of being overwritten by the picker's own next prompt.
- * Escape goes back one level at a time: search, open editor, a row action just
- * committed, then the picker itself.
+ * One picker covers the session model and its reasoning level, the Ctrl+P list
+ * entries and their order, the ordered fallback chain with its toggles, and what
+ * the agent pins point at. The Ctrl+P list is written to `enabledModels`
+ * as its order or membership changes, with the tab saying when pi reads it (at
+ * session start: a running session keeps the list it resolved, and no
+ * extension API can move it); per-agent models and thinking levels are edited
+ * inline (the same catalogue search plus pi's own levels), written to exactly
+ * that agent's `model`/`thinking` in the settings the `subagents` package owns
+ * at launch - `/subagents` stays the advanced surface, dispatched only after
+ * this picker has released the editor. Escape goes back one level at a time:
+ * search, open editor, a row action just committed, then the picker itself.
  *
- * `formatFallbackStatus` renders the plain-text `/fallback status` line.
+ * `formatFallbackStatus` renders the plain-text `/models status` line.
  */
 
+import { readAgentRoster } from './agent-roster.ts'
 import { modelReference } from './chain.ts'
 import { catalogRows } from './model-catalog.ts'
 import { ModelPickerComponent } from './model-picker-component.ts'
 import {
-	readSettingsSnapshot,
-	settingsPath,
-	writeAgentOverride,
-} from './model-picker-settings.ts'
+	persistAgentOverride,
+	persistDefaultModel,
+	persistScopeList,
+} from './model-picker-saves.ts'
+import { readSettingsSnapshot } from './model-picker-settings.ts'
 
 import type {
 	ExtensionAPI,
 	ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
 import type { ModelFallbackConfig } from './config.ts'
-import type { AgentOverrideEdit } from './model-picker-settings.ts'
 import type { PickerOutcome } from './model-picker-state.ts'
 import type { PickerView, ScopeEntry } from './model-picker-view.ts'
 import type {
@@ -75,6 +77,10 @@ function scopeEntries(ctx: ExtensionContext): ScopeEntry[] {
 /** Everything the picker renders, read once: rendering performs no IO. */
 function pickerView(ctx: ExtensionContext, deps: PickerDeps): PickerView {
 	const settings = readSettingsSnapshot()
+	// The `subagents` package owns agent discovery: it answers the roster over
+	// pi's event bus in the same process, and `undefined` means it did not
+	// (not installed, older version, or an answer this reader refuses).
+	const roster = readAgentRoster(deps.pi, ctx.cwd)
 	return {
 		rows: catalogRows({
 			available: ctx.modelRegistry.getAvailable(),
@@ -85,11 +91,14 @@ function pickerView(ctx: ExtensionContext, deps: PickerDeps): PickerView {
 		sessionLevel: ctx.thinkingLevel,
 		scope: scopeEntries(ctx),
 		isScopeUnrestricted: !ctx.scopedModels.length,
+		startupDefault: settings.startupDefault,
 		patterns: settings.patterns,
 		isSettingsReadable: settings.isReadable,
 		pricing: deps.pricing.snapshot(),
 		config: deps.getConfig(),
 		agentPins: settings.agentPins,
+		areAgentPinsKnown: settings.areAgentPinsKnown,
+		roster: roster?.agents,
 		hasSubagentsCommand: registeredCommandNames(deps.pi).has(
 			SUBAGENTS_COMMAND,
 		),
@@ -157,35 +166,6 @@ async function readLivePrices(
 }
 
 /**
- * One agent's pin, written where the subagents package reads it: that package
- * re-reads settings.json on every launch (its discovery cache is invalidated by
- * the file's own size and mtime), so the next launch of this agent uses the
- * model - a subagent already running keeps the one it started with.
- */
-function persistAgentOverride(
-	edit: AgentOverrideEdit,
-	ctx: ExtensionContext,
-	onSaved: () => void,
-): boolean {
-	try {
-		writeAgentOverride(settingsPath(), edit)
-	} catch (error) {
-		ctx.ui.notify(
-			`model-fallback: cannot update settings.json: ${String(error)}`,
-			'error',
-		)
-		return false
-	}
-	onSaved()
-	const level = edit.thinking ? ` · thinking ${edit.thinking}` : ''
-	ctx.ui.notify(
-		`${edit.agent} now pins ${edit.model}${level} - the next launch uses it; a running subagent keeps its model.`,
-		'info',
-	)
-	return true
-}
-
-/**
  * Mount the picker over one live view: config edits, agent pins and the live
  * price list all flow through this one place, so a repaint never re-reads the
  * session.
@@ -208,12 +188,20 @@ function mountPicker(input: {
 				deps.setConfig(next)
 			},
 			onAgentOverrideChange: edit =>
-				persistAgentOverride(edit, ctx, () =>
+				persistAgentOverride(edit, ctx, () => {
+					const next = readSettingsSnapshot()
 					writeView({
 						...readView(),
-						agentPins: readSettingsSnapshot().agentPins,
-					}),
+						agentPins: next.agentPins,
+						areAgentPinsKnown: next.areAgentPinsKnown,
+						roster: readAgentRoster(deps.pi, ctx.cwd)?.agents,
+					})
+				}),
+			onScopeListChange: edit =>
+				persistScopeList(edit, ctx, () =>
+					writeView({ ...readView(), patterns: edit.next }),
 				),
+			onDefaultModelChange: edit => persistDefaultModel(edit, ctx),
 			onDone: done,
 		})
 		onRepaintReady(() => {
@@ -292,16 +280,23 @@ function coolingDownNotes(
 	return [`Cooling down: ${cooling.join(', ')}`]
 }
 
-export function formatFallbackStatus(
-	config: ModelFallbackConfig,
-	currentModel: string | undefined,
-	exclusions: ReadonlyMap<string, number>,
-	now: number,
-): string {
+export interface FallbackStatusInput {
+	config: ModelFallbackConfig
+	/** The model the session runs now, as one `provider/model` reference. */
+	currentModel: string | undefined
+	/** What new sessions start on, from settings.json. */
+	startupDefault: string | undefined
+	exclusions: ReadonlyMap<string, number>
+	now: number
+}
+
+export function formatFallbackStatus(input: FallbackStatusInput): string {
+	const { config, currentModel, startupDefault, exclusions, now } = input
 	return [
 		`Auto-fallback: ${config.autoFallback ? 'ON' : 'OFF'}   restore on a clean turn: ${config.restoreOnSuccess ? 'ON' : 'OFF'}   abort on 5xx: ${config.fastFailover ? 'ON' : 'OFF'}`,
-		`Main model: ${currentModel ?? 'unknown'} (subagents inheriting the session use it)`,
-		`Chain: ${config.chain.join(' → ') || 'empty - run /fallback to add models'}`,
+		`Session model: ${currentModel ?? 'unknown'} (subagents inheriting the session use it)`,
+		`Chain: ${config.chain.join(' → ') || 'empty - run /models to add models'}`,
+		`Startup default for new sessions: ${startupDefault ?? 'not set'}`,
 		...coolingDownNotes(exclusions, now),
 	].join('\n')
 }

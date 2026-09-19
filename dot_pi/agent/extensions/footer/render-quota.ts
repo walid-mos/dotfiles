@@ -9,7 +9,6 @@ import {
 	PERCENT_SCALE,
 } from './gauge.ts'
 import { currencySymbol, deepseekBalanceUsd } from './quota-deepseek.ts'
-import { nebiusCreditUsd, trialRemaining } from './quota-nebius.ts'
 import { XAI_POOL_LABELS } from './quotas.ts'
 // Right-side quota strip rendering: one segment per billing backend plus the
 // dispatcher that selects the parts of the active provider. Compact mode
@@ -18,7 +17,7 @@ import { thinSep } from './text.ts'
 import { ICONS } from './theme.ts'
 
 import type { IncoQuota } from './quota-inco.ts'
-import type { NebiusQuota } from './quota-nebius.ts'
+import type { ZaiQuota } from './quota-zai.ts'
 import type {
 	DeepseekQuota,
 	KimiQuota,
@@ -96,29 +95,6 @@ function deepseekSegment(
 	const badge = tariffBadge(options.tier, options)
 	const balance = `${QUIET('deepseek')} ${fgHex(tint, '\u25c9')} ${fgHex(tint, amount)}`
 	return badge ? `${balance} ${thinSep()} ${badge}` : balance
-}
-
-/**
- * Nebius shows real money and, while one runs, the trial feeding the same
- * ledger. The trial is informational (sapphire, `essai`) so it never reads as
- * spending power; its day count is the first thing dropped when compressed.
- */
-function nebiusSegment(
-	quota: NebiusQuota,
-	options: QuotaRenderOptions,
-): string {
-	const { balance, currency, trial } = quota
-	const tint = balanceColor(nebiusCreditUsd(quota))
-	const symbol = currencySymbol(currency)
-	const amount = `${symbol}${balance.toFixed(CREDITS_DECIMALS)}`
-	let segment = `${QUIET('nebius')} ${fgHex(tint, '\u25c9')} ${fgHex(tint, amount)}`
-	if (!trial || trial.expired) return segment
-	const grant = `${symbol}${trialRemaining(trial).toFixed(CREDITS_DECIMALS)}`
-	segment += ` ${thinSep()} ${QUIET('essai')} ${fgHex(LATTE.sapphire, grant)}`
-	if (!options.compact && Number.isFinite(trial.daysLeft)) {
-		segment += ` ${QUIET(`\u00b7 ${Math.max(0, Math.round(trial.daysLeft))} j`)}`
-	}
-	return segment
 }
 
 /**
@@ -212,6 +188,25 @@ function xaiSegment(quota: XaiQuota, options: QuotaRenderOptions): string {
 		: `${QUIET('xai')} ${QUIET('\u2014')}`
 }
 
+/** Z.AI prints the plan badge plus its two credit windows, Kimi-style. */
+function zaiSegment(quota: ZaiQuota, options: QuotaRenderOptions): string {
+	const { fiveHour, weekly } = quota
+	const head = quota.plan
+		? `${QUIET('zai')} ${fgHex(LATTE.mauve, quota.plan)}`
+		: QUIET('zai')
+	let segment = `${head} ${QUIET('5h')} ${quotaGauge(fiveHour.remaining, fiveHour.limit)}`
+	if (weekly.limit > 0) {
+		segment += ` ${thinSep()} ${QUIET('sem')} ${quotaGauge(weekly.remaining, weekly.limit)}`
+	}
+	const stamps = options.compact
+		? []
+		: [fiveHour.reset, weekly.reset].filter(Boolean)
+	if (stamps.length > 0) {
+		segment += ` ${thinSep()} ${QUIET(resetRun(stamps))}`
+	}
+	return segment
+}
+
 /** Compose the full quota strip for one provider snapshot. */
 export function quotaStrip(
 	quotas: QuotaCache,
@@ -232,7 +227,7 @@ function activeProviderParts(
 	activeProvider: string,
 	options: QuotaRenderOptions,
 ): string[] {
-	const { kimi, openrouter, openai, xai, deepseek, nebius, inco } = quotas
+	const { kimi, openrouter, openai, xai, deepseek, inco, zai } = quotas
 	const parts: string[] = []
 	if (kimi && activeProvider.includes('kimi')) {
 		parts.push(kimiSegment(kimi, options))
@@ -249,11 +244,11 @@ function activeProviderParts(
 	if (deepseek && activeProvider.includes('deepseek')) {
 		parts.push(deepseekSegment(deepseek, options))
 	}
-	if (nebius && activeProvider.includes('nebius')) {
-		parts.push(nebiusSegment(nebius, options))
-	}
 	if (inco && activeProvider.includes('inco')) {
 		parts.push(incoSegment(inco))
+	}
+	if (zai && activeProvider.includes('zai')) {
+		parts.push(zaiSegment(zai, options))
 	}
 	return parts
 }

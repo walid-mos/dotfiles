@@ -90,10 +90,24 @@ export function commandLabel(command: string): string {
 }
 
 /**
- * The guest argv for one call. `sh -c` is needed for the pidfile handshake, `setsid -w`
- * puts the call at the head of its own session while still reporting the command's exit
- * status, and `$0` of the inner shell is the pidfile so `echo $$` writes the id of the
- * process that then `exec`s into `timeout` - the process group to kill.
+ * The guest session wrapper every call runs under, as `sh -c` script text.
+ * `mkdir -p` + `chmod 1777` make the pidfile directory writable by every
+ * workspace user on a shared VM (sticky, like /tmp itself: a user may add a
+ * pidfile and read it, nobody else's may be removed); `setsid -w` puts the call
+ * at the head of its own session while still reporting the command's exit
+ * status; `$0` of the inner shell is the pidfile so `echo $$` writes the id of
+ * the process that then `exec`s into `timeout` - the process group to kill.
+ */
+export function guestSessionScript(): string {
+	return (
+		`mkdir -p ${GUEST_EXEC_DIR} 2>/dev/null; chmod 1777 ${GUEST_EXEC_DIR} 2>/dev/null; ` +
+		`setsid -w sh -c 'echo $$ > ${GUEST_EXEC_DIR}/"$0".pgid; exec "$@"' "$1" ` +
+		`timeout -k ${GUEST_KILL_GRACE_SECONDS} "$2" bash -lc "$3"`
+	)
+}
+
+/**
+ * The guest argv for one call in a workspace's own container VM.
  */
 export function guestExecArgv(
 	token: string,
@@ -103,9 +117,7 @@ export function guestExecArgv(
 	return [
 		'sh',
 		'-c',
-		`mkdir -p ${GUEST_EXEC_DIR} 2>/dev/null; ` +
-			`setsid -w sh -c 'echo $$ > ${GUEST_EXEC_DIR}/"$0".pgid; exec "$@"' "$1" ` +
-			`timeout -k ${GUEST_KILL_GRACE_SECONDS} "$2" bash -lc "$3"`,
+		guestSessionScript(),
 		'wt-exec',
 		token,
 		String(deadlineSeconds),

@@ -15,22 +15,33 @@
  * Module structure: `config.ts` (chain + toggles, persisted), `taxonomy.ts`
  * (status/error classification), `chain.ts` (candidate ordering + cooldowns),
  * `fallback-session.ts` (the per-session decision state), `failover.ts` (the
- * model moves, status line and continuation message), `picker.ts` (the unified
- * picker flow and status text), `model-catalog.ts` / `model-price.ts` /
+ * model moves, status line and continuation message), `command.ts` (the
+ * `/models` command and the config it persists),
+ * `command-filter.ts` (keeps the model commands `/models` replaces, and the
+ * `subagents` rows a TUI session cannot use, out of the slash menu), `picker.ts` (the
+ * unified picker flow and status text), `model-catalog.ts` / `model-price.ts` /
  * `model-price-gauge.ts` / `openrouter-pricing.ts` /
- * `model-picker-state.ts` / `model-picker-view.ts` / `model-picker-list.ts` /
- * `model-picker-price.ts` / `model-picker-groups.ts` / `model-picker-window.ts` /
- * `model-picker-commands.ts` / `model-picker-editor.ts` /
- * `model-picker-render.ts` / `model-picker-component.ts` (the picker's rows,
- * pricing, state, layout, row actions and input), `model-picker-settings.ts`
- * (the settings snapshot it displays and the one agent pin it writes); this
- * file is only the pi event wiring. The decision logic is
+ * `model-picker-state.ts` / `model-picker-view.ts` / `model-picker-line.ts` /
+ * `model-picker-list.ts` / `model-picker-price.ts` / `model-picker-groups.ts` /
+ * `model-picker-window.ts` / `model-picker-effort.ts` /
+ * `model-picker-keymap.ts` / `model-picker-commands.ts` /
+ * `model-picker-scope-edits.ts` / `model-picker-editor.ts` /
+ * `model-picker-editor-rows.ts` / `model-picker-editor-render.ts` /
+ * `model-picker-render.ts` / `model-picker-scope.ts` /
+ * `model-picker-tabs.ts` /
+ * `model-picker-component.ts` (the picker's rows, pricing, state, shared
+ * reasoning column, key routing, layout, row actions and input), `model-picker-settings.ts` /
+ * `model-picker-settings-file.ts` (the settings snapshot it displays, the agent
+ * pin and the `enabledModels` membership/order it writes, through the file's
+ * own atomic read-modify-write) and `model-picker-saves.ts` (what those writes
+ * tell the user); this file is only the pi event wiring. The decision logic is
  * unit-tested in `../tests/model-fallback.test.ts`, the picker in
  * `../tests/model-picker.test.ts` and `../tests/model-picker-handoff.test.ts`,
  * the live OpenRouter price list in `../tests/openrouter-pricing.test.ts`.
  */
 
 import { modelReference } from './chain.ts'
+import { createModelCommandFilter } from './command-filter.ts'
 import { registerFallbackCommand } from './command.ts'
 import { configPath, defaultConfig, loadConfig } from './config.ts'
 import {
@@ -91,6 +102,9 @@ function watchSession(pi: ExtensionAPI, session: FallbackSession): void {
 	pi.on('session_start', (_event, ctx) => {
 		session.startSession(loadConfiguredSession(ctx))
 		endFallback(ctx, session)
+		// Pi cannot unregister a built-in command, so the menu is filtered
+		// instead: the unified surface is the one the user sees.
+		ctx.ui.addAutocompleteProvider(createModelCommandFilter)
 	})
 	pi.on('session_shutdown', (_event, ctx) => {
 		endFallback(ctx, session)

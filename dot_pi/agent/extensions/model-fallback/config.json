@@ -4,7 +4,6 @@
 	"fastFailover": true,
 	"exclusionTtlMs": 300000,
 	"chain": [
-		"deepseek/deepseek-v4-flash",
-		"nebius/zai-org/GLM-5.3-Flash"
+		"deepseek/deepseek-v4-flash"
 	]
 }

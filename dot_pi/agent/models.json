@@ -28,30 +28,6 @@
         }
       ]
     },
-    "nebius": {
-      "name": "Nebius",
-      "baseUrl": "https://api.studio.nebius.com/v1",
-      "api": "openai-completions",
-      "models": [
-        {
-          "id": "zai-org/GLM-5.3-Flash",
-          "name": "GLM 5.3 Flash (Nebius)",
-          "reasoning": true,
-          "thinkingLevelMap": {
-            "off": null
-          },
-          "input": ["text", "image"],
-          "cost": { "input": 0.15, "output": 0.5, "cacheRead": 0.03, "cacheWrite": 0 },
-          "contextWindow": 1048576,
-          "maxTokens": 131072,
-          "compat": {
-            "supportsDeveloperRole": false,
-            "supportsReasoningEffort": false,
-            "thinkingFormat": "zai"
-          }
-        }
-      ]
-    },
     "openai-codex": {
       "modelOverrides": {
         "gpt-6-astra": {

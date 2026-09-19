@@ -1,6 +1,7 @@
 /**
- * model-fallback - the session tab of the picker: the search line and the
- * scrolling model list with its reasoning levels.
+ * model-fallback - the session tab of the picker: the search line, the legend
+ * that tells the three targets apart, and the scrolling model list with its
+ * reasoning levels.
  *
  * The price panel that follows the list lives in `model-picker-price.ts`.
  * Rendering is pure: it reads the state and the view and returns lines. Nothing
@@ -10,38 +11,35 @@
 
 import { uiTheme } from '../ui/design-system/theme.ts'
 import { highlightRow } from '../ui/frame.ts'
-import { terminalLineWidth, truncateTerminalLine } from '../ui/terminal-text.ts'
 
 import { effectiveLevel } from './model-catalog.ts'
+import { effortBlock } from './model-picker-effort.ts'
 import { groupWindow, groupedRows } from './model-picker-groups.ts'
 import {
+	INDENT,
 	PICKER_CHROME_ROWS,
 	PICKER_COMPACT_CHROME_ROWS,
+	SELECTED_MARKER,
+	line,
+	twoColumn,
 } from './model-picker-line.ts'
 import { priceBlock } from './model-picker-price.ts'
-import { scopeGroups } from './model-picker-view.ts'
+import { savedScope, scopeGroups } from './model-picker-view.ts'
 import {
 	MAX_VISIBLE_ROWS,
 	aboveHint,
 	belowHint,
 } from './model-picker-window.ts'
+import { CTRL_P_LIST, SESSION_LEGEND } from './model-picker-words.ts'
 
-import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
-import type { CatalogRow } from './model-catalog.ts'
+import type { CatalogRow, ScopeMembership } from './model-catalog.ts'
 import type { PickerState } from './model-picker-state.ts'
 import type { PickerLine, PickerView } from './model-picker-view.ts'
-
-const EFFORT_NAME_WIDTH = 72
-const MIN_COLUMN_GAP = 2
-const EFFORT_FILLED = '▪'
-const EFFORT_EMPTY = '▫'
-export const SELECTED_MARKER = '▸'
-const SELECTED_LEVEL_NAME = 7
 
 export interface SessionBodyInput {
 	view: PickerView
 	state: PickerState
-	/** The catalogue rows the search left, in display order. */
+	/** The catalogue rows the search left, in saved scope order. */
 	rows: readonly CatalogRow[]
 	/** Rows the chrome leaves for the list, and whether it had to be cut. */
 	window: ListWindow
@@ -68,97 +66,89 @@ export function sessionWindow(height: number): ListWindow {
 	}
 }
 
-/** Left content and a right-aligned block, never wider than the row. */
-function twoColumn(left: string, right: string, width: number): string {
-	const rightWidth = right ? terminalLineWidth(right) : 0
-	if (!rightWidth) return truncateTerminalLine(left, width, '…')
-	const leftWidth = terminalLineWidth(left)
-	if (leftWidth + rightWidth + MIN_COLUMN_GAP <= width)
-		return left + ' '.repeat(width - leftWidth - rightWidth) + right
-	const budget = Math.max(0, width - rightWidth - MIN_COLUMN_GAP)
-	const clipped = truncateTerminalLine(left, budget, '…')
-	const gap = Math.max(
-		MIN_COLUMN_GAP,
-		width - terminalLineWidth(clipped) - rightWidth,
-	)
-	return clipped + ' '.repeat(gap) + right
-}
-
-/** Filled squares up to the row's level, then the level's own name. */
-function effortSquare(isReached: boolean): string {
-	return isReached
-		? uiTheme.fg('muted', EFFORT_FILLED)
-		: uiTheme.fg('dim', EFFORT_EMPTY)
-}
-
-/** A pending level is an unsaved edit, so it wears the accent ink. */
-function levelInk(
-	level: ModelThinkingLevel | undefined,
-	isPending: boolean,
-): 'accent' | 'muted' | 'dim' {
-	if (isPending) return 'accent'
-	return level ? 'muted' : 'dim'
-}
-
-/** The squares and level name a row shows, shared with the agent editor. */
-export function effortBlock(
-	row: CatalogRow,
-	level: ModelThinkingLevel | undefined,
-	width: number,
-	isPending: boolean,
-): string {
-	const reached = level ? row.levels.indexOf(level) : -1
-	const squares = row.levels
-		.map((_, index) => effortSquare(index <= reached))
-		.join('')
-	if (width < EFFORT_NAME_WIDTH) return squares
-	return `${squares} ${uiTheme.fg(levelInk(level, isPending), (level ?? 'auto').padStart(SELECTED_LEVEL_NAME))}`
-}
-
+/**
+ * Whether the running session cycles this model. Named with the time it speaks
+ * about (`now`): a model the saved list covers but this session never resolved
+ * carries both this tag and the list's own, which must not read as a
+ * contradiction.
+ */
 function scopeTag(row: CatalogRow): string {
 	if (row.isCurrent) return uiTheme.fg('success', '  current')
-	if (!row.isInScope) return uiTheme.fg('dim', '  out of scope')
+	if (!row.isInScope) return uiTheme.fg('dim', '  not cycling now')
 	return ''
 }
 
-/** One list row: the model, its scope tag and its reasoning block. */
+/** The list membership of one row: an exact entry, or a saved pattern. */
+function savedTag(membership: ScopeMembership | undefined): string {
+	if (membership?.exact) return uiTheme.fg('dim', `  in ${CTRL_P_LIST}`)
+	if (membership?.pattern)
+		return uiTheme.fg(
+			'dim',
+			`  in ${CTRL_P_LIST} via ${membership.pattern}`,
+		)
+	return ''
+}
+
+/** One list row: the model, its scope tags and its reasoning block. */
 function modelRowLine(input: {
 	row: CatalogRow
 	state: PickerState
 	view: PickerView
+	/** The saved `enabledModels` membership of every catalogue reference. */
+	saved: ReadonlyMap<string, ScopeMembership>
 	width: number
 	isSelected: boolean
 }): string {
-	const { row, state, view, width, isSelected } = input
+	const { row, state, view, saved, width, isSelected } = input
 	const pending = state.levels.get(row.reference)
 	const level = effectiveLevel(row, pending, view.sessionLevel)
 	const marker = isSelected
 		? uiTheme.fg('accent', SELECTED_MARKER)
 		: uiTheme.fg('dim', ' ')
 	const name = uiTheme.fg(row.isInScope ? 'text' : 'muted', row.reference)
-	const right = effortBlock(row, level, width, Boolean(pending))
-	const line = twoColumn(` ${marker}${name}${scopeTag(row)}`, right, width)
-	if (!isSelected) return line
-	return highlightRow(line, width)
+	const right = effortBlock(
+		{ row, level, isPending: Boolean(pending) },
+		width,
+	)
+	const tags = `${scopeTag(row)}${savedTag(saved.get(row.reference))}`
+	const rendered = twoColumn(` ${marker}${name}${tags}`, right, width)
+	if (!isSelected) return rendered
+	return highlightRow(rendered, width)
 }
 
-export function renderSessionBody(input: SessionBodyInput): PickerLine[] {
-	const { rows, state } = input
+/** The lines above the list: the search line, the legend, the empty result. */
+function listPrefix(input: SessionBodyInput): PickerLine[] {
 	const lines: PickerLine[] = [
 		// The input's own line stays verbatim: it carries the cursor marker and
 		// the picker already sized it to the viewport.
 		{ text: input.searchLine },
 	]
-	if (!rows.length) {
+	// The legend is the first row a short terminal gives up: the header already
+	// names both targets with their values, and the list needs the row more.
+	if (!input.window.isCompact)
+		lines.push(
+			line(`${INDENT}${uiTheme.fg('dim', SESSION_LEGEND)}`, input.width),
+		)
+	if (!input.rows.length)
 		lines.push({ text: `  ${uiTheme.fg('dim', 'no model matches')}` })
-		return lines
-	}
+	return lines
+}
+
+/** The windowed model rows, with the hints that account for the hidden ones. */
+function listRows(
+	input: SessionBodyInput,
+	saved: ReadonlyMap<string, ScopeMembership>,
+): PickerLine[] {
+	const { rows, state } = input
 	const window = groupWindow({
 		rowCount: rows.length,
 		cursor: state.cursor,
 		maxRows: input.window.maxRows,
-		groups: scopeGroups(rows),
+		groups: scopeGroups(rows, reference =>
+			Boolean(saved.get(reference)?.exact),
+		),
 	})
+	const lines: PickerLine[] = []
 	if (window.start > 0) lines.push(aboveHint(window.start, input.width))
 	lines.push(
 		...groupedRows({
@@ -170,6 +160,7 @@ export function renderSessionBody(input: SessionBodyInput): PickerLine[] {
 					row,
 					state,
 					view: input.view,
+					saved,
 					width: input.width,
 					isSelected: index === state.cursor,
 				}),
@@ -179,13 +170,20 @@ export function renderSessionBody(input: SessionBodyInput): PickerLine[] {
 	)
 	const below = rows.length - window.end
 	if (below > 0) lines.push(belowHint(below, input.width))
+	return lines
+}
+
+export function renderSessionBody(input: SessionBodyInput): PickerLine[] {
+	const lines = listPrefix(input)
+	if (!input.rows.length) return lines
 	return [
 		...lines,
+		...listRows(input, savedScope(input.view)),
 		...priceBlock({
 			view: input.view,
 			width: input.width,
 			isCompact: input.window.isCompact,
-			selected: rows[state.cursor] ?? rows[0],
+			selected: input.rows[input.state.cursor] ?? input.rows[0],
 		}),
 	]
 }

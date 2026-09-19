@@ -63,11 +63,23 @@ const MIN_HANDOFF_TOKENS = 16_000
 /** Fraction of the ceiling where the burn rate stops being silent. */
 const WARN_RATIO = 0.75
 
-/** Overshoot that allows one repeated nudge when the first was ignored. */
-const REPEAT_RATIO = 1.25
+/**
+ * Runway the handoff-writing turn needs: the settle trigger fires this many
+ * tokens before the ceiling, so the write-and-end-turn always fits above it.
+ * Firing at the ceiling itself leaves none - and a session that watches the
+ * footer climb into the last few percent starts improvising its own exit
+ * (observed 2026-09-18: a session self-declared blocked at 152k/160k and asked
+ * the user to spawn a fresh one) instead of waiting for the machinery.
+ */
+const HANDOFF_RUNWAY = 16_000
 
-/** Nudges per session, so an ignored ceiling cannot spam the transcript. */
-export const MAX_NUDGES = 2
+/**
+ * Share of the model's window a configured ceiling may not exceed. A ceiling
+ * above it leaves no room to finish the turn, and pi compacts on its own near
+ * the window - a lossy summary, the exact outcome this extension exists to
+ * avoid.
+ */
+export const CEILING_WINDOW_RATIO = 0.55
 
 /**
  * Re-asks allowed once a run has settled without writing the handoff. Bounded
@@ -82,9 +94,45 @@ export type BudgetLevel = 'ok' | 'warn' | 'handoff'
 export type Ceiling = number | 'off'
 
 export function budgetLevel(tokens: number, ceiling: number): BudgetLevel {
-	if (tokens >= ceiling) return 'handoff'
+	// The handoff trigger never sits below the warn line: on small ceilings
+	// `ceiling - runway` would fire before the burn rate was ever flagged.
+	const trigger = Math.max(ceiling - HANDOFF_RUNWAY, ceiling * WARN_RATIO)
+	if (tokens >= trigger) return 'handoff'
 	if (tokens >= ceiling * WARN_RATIO) return 'warn'
 	return 'ok'
+}
+
+/**
+ * The configured ceiling clamped into the model's window. Unchanged when the
+ * window is unknown (pi omits it in some modes, and the tests' doubles omit
+ * it), or when clamping would floor the ceiling below the usable minimum.
+ */
+export function clampCeiling(ceiling: number, windowTokens?: number): number {
+	if (typeof windowTokens !== 'number' || windowTokens <= 0) return ceiling
+	const fitted = Math.floor(windowTokens * CEILING_WINDOW_RATIO)
+	return Math.min(ceiling, Math.max(MIN_HANDOFF_TOKENS, fitted))
+}
+
+/**
+ * The configured ceiling capped by a limit witnessed the hard way: a provider
+ * that refused a request at `overflowAt` tokens.
+ *
+ * The declared window can lie. `deepseek-v4-flash` is configured at 1,000,000
+ * tokens in `models.json`, and its API refused a 180,824-token request
+ * (observed 2026-09-19, session 01a0b968): pi aborted the turn rather than run
+ * it, and the handoff ask that had just gone out died with it. An observed
+ * refusal therefore outranks the declared window - it is the only measurement
+ * of the real limit this extension ever gets.
+ */
+export function capForObservedLimit(
+	ceiling: number,
+	overflowAt: number | undefined,
+): number {
+	if (typeof overflowAt !== 'number' || overflowAt <= 0) return ceiling
+	return Math.min(
+		ceiling,
+		Math.max(MIN_HANDOFF_TOKENS, overflowAt - HANDOFF_RUNWAY),
+	)
 }
 
 /** `56k`, `128k`, `1.05M` - short enough to share the footer status line. */
@@ -97,9 +145,14 @@ export function shortTokens(count: number): string {
 	return `${Math.round(count / TOKENS_PER_THOUSAND)}k`
 }
 
-/** Footer status for a known prompt size, e.g. `ctx 112k/128k`. */
+/**
+ * Footer status for a known prompt size, e.g. `ctx 112k/128k`. The suffix is
+ * contract, not decoration: a model watching the counter climb must know the
+ * ceiling is handled - the session compacts from a handoff and continues on
+ * its own - or it starts managing the budget itself.
+ */
 export function statusText(tokens: number, ceiling: number): string {
-	return `ctx ${shortTokens(tokens)}/${shortTokens(ceiling)}`
+	return `ctx ${shortTokens(tokens)}/${shortTokens(ceiling)} · auto-continues`
 }
 
 /**
@@ -124,61 +177,46 @@ export function parseCeiling(raw: string): number | 'off' | undefined {
 }
 
 /**
- * Whether the guard should nudge again: always at the ceiling, then once more
- * only if the prompt kept growing past it (models sometimes ignore a steer).
- * `sent` is how many nudges this session already delivered.
+ * Instructions for the compaction pi runs when the handoff never appeared:
+ * the fail-open tail. Directed at what a resumption needs, so pi's summary is
+ * a poorer handoff rather than a generic one.
  */
-export function shouldNudge(
-	tokens: number,
-	ceiling: number,
-	sent: number,
-): boolean {
-	if (sent >= MAX_NUDGES || tokens < ceiling) return false
-	if (sent === 0) return true
-	return tokens >= ceiling * REPEAT_RATIO
-}
-
-/** A `SKILL.md` body with its YAML frontmatter removed. */
-export function skillBody(markdown: string): string {
-	const frontmatter = /^---\r?\n[\s\S]*?\r?\n---\r?\n?/.exec(markdown)
-	const body = frontmatter ? markdown.slice(frontmatter[0].length) : markdown
-	return body.trim()
+export function fallbackCompactionText(): string {
+	return [
+		'Compact this session into a summary that stands alone for a fresh continuation. Preserve, in this order:',
+		'- the current goal and the exact checklist item or plan step in flight;',
+		'- what is done, and how each piece was verified;',
+		'- decisions made, and why;',
+		'- files read or modified;',
+		'- the exact next step.',
+		'Mark anything not verified this session as an assumption to re-check, and never carry secrets or personal data forward.',
+	].join('\n')
 }
 
 /**
- * Degraded handoff spec, used only when the `handoff` skill cannot be
- * resolved. Deliberately one sentence: the skill owns the full rules, and a
- * second checklist here would drift from it.
- */
-const FALLBACK_SPEC =
-	'Cover the current goal, the state reached, decisions already made and the next step; reference existing artifacts (plans, diffs, commits) by path instead of copying them.'
-
-/**
- * The message steered into the running turn when the ceiling is reached. The
- * agent writes the handoff to `path`; `body` is the registered `handoff` skill
- * verbatim, copied in because that skill is hidden from the model
- * (`disable-model-invocation`), so the agent cannot load it on its own.
+ * The message that asks for the handoff: steered mid-turn when the run is
+ * near the model window, delivered at the settle boundary otherwise.
+ *
+ * Four lines, and no more: this lands in a prompt that is already at the
+ * ceiling, so every word is paid at the worst possible moment. The content
+ * rules ride in the directive itself rather than being copied from the
+ * `handoff` skill, whose body used to be injected verbatim here.
  */
 export function handoffDirective(input: {
 	ceiling: number
 	path: string
-	body: string | undefined
-	/** Settle retry number: the previous run ended without writing the file. */
+	/** Settle retry number: the previous run ended without a usable file. */
 	retry?: number
 }): string {
-	const { ceiling, path, body } = input
 	const retry = input.retry ?? 0
 	return [
 		retry > 0
-			? `The handoff file still does not exist: the last run ended without writing it (retry ${retry}).`
-			: `Context budget reached: this prompt is at the ${shortTokens(ceiling)} ceiling set for this session, and cost is linear in prompt size.`,
-		'Stop expanding the context now, write the resumption handoff, then end your turn.',
-		'',
-		`Write it to: ${path}`,
-		'',
-		body ?? FALLBACK_SPEC,
-		'',
-		'Do not start new edits, investigations or tool loops. Once the file is written, reply with three lines only: goal, current state, next step.',
+			? `Handoff file missing or unusable (retry ${retry}): write it now, then end your turn.`
+			: `Context budget reached (${shortTokens(input.ceiling)} ceiling): write the resumption handoff now, then end your turn - the session compacts from that file and continues on its own.`,
+		'No new scope, no new edits: read-only checks (git status, git diff, plan or checklist) only.',
+		`Write it to: ${input.path}`,
+		'Cover: goal and step in flight; what is done and how it was verified; decisions and why; files in play; the exact next step; anything not verified this session. It must stand alone - reference artifacts by path instead of copying them, and redact secrets.',
+		'Reply with three lines only: goal, current state, next step.',
 	].join('\n')
 }
 

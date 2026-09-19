@@ -1,18 +1,21 @@
 // Apple `container` CLI boundary: the only place this extension talks to the
 // runtime. It never creates, starts or removes containers - wt owns their
-// lifecycle - it only streams commands into the workspace container and reads
-// the host-visible facts a session needs (state, address, liveness). Every call
-// runs in its own guest session (see exec-session.ts) so its process group can be
-// killed when the call ends without one, because a guest command outlives the
-// host client that started it.
-import { spawnSync } from 'node:child_process'
-
+// lifecycle - it only streams commands into the workspace's guest (its own VM,
+// or its namespace on the shared dev VM) and reads the host-visible facts a
+// session needs (state, address, liveness). Every call runs in its own guest
+// session (see exec-session.ts) so its process group can be killed when the
+// call ends without one, because a guest command outlives the host client that
+// started it. The one exception to "never start or stop" is the runtime's own
+// `system stop`/`start`, which /container restart escalates to when a starved
+// VM ignores even a stop.
+import { MS_PER_SECOND, runCapture, runStreaming } from './container-cli.ts'
 import {
-	CONTAINER_BIN,
-	MS_PER_SECOND,
-	runCapture,
-	runStreaming,
-} from './container-cli.ts'
+	DEVVM_NAME,
+	devvmExecArgv,
+	devvmProbeArgv,
+	devvmRootExecArgv,
+	devvmSubpath,
+} from './devvm.ts'
 import {
 	GUEST_CONTROL_TIMEOUT_SECONDS,
 	abandonedRecords,
@@ -26,6 +29,7 @@ import {
 	readExecRecords,
 	writeRecord,
 } from './exec-session.ts'
+import { noteProbeVerdict } from './liveness.ts'
 
 import type { CliStreamOptions, RunResult } from './container-cli.ts'
 
@@ -33,6 +37,10 @@ const NOT_RUNNING_HINT =
 	'Apple container runtime is not responding. Run `container system start` and reload this session.'
 /** Calls without a timeout still get a deadline, so no guest process can become immortal. */
 export const GUEST_CEILING_SECONDS = 900
+/** `container stop` waits on the guest: a wedged VM leaves it hanging forever, so it gets a budget. */
+const STOP_TIMEOUT_SECONDS = 30
+/** The runtime's own services, and the only lever left when a VM is wedged beyond `stop`. */
+const RUNTIME_TIMEOUT_SECONDS = 90
 /**
  * The Apple container CLI's cold path measures 3-9 s on a healthy VM, so a short
  * probe reports a live VM as dead. The first attempt stays short, the second is
@@ -49,11 +57,26 @@ export interface ExecStreamOptions extends CliStreamOptions {
 	ownerSession?: string
 }
 
-/** Actionable text for a failed exec: a stopped container is not a mystery. */
+/**
+ * Where a guest call runs. The workspace's identity is `containerName` on both
+ * arms - the container for a container vehicle, the namespace for a devvm one -
+ * so records, liveness verdicts and messages key on one name throughout.
+ */
+export type GuestTarget =
+	| { kind: 'container'; containerName: string }
+	| {
+			kind: 'devvm'
+			containerName: string
+			/** The tree's path inside the dev VM, read once per session. */
+			treePath: string
+	  }
+
+/** Actionable text for a failed exec: a stopped workspace is not a mystery. */
 export function containerExecFailure(
-	containerName: string,
+	target: GuestTarget,
 	error: unknown,
 ): string {
+	const { containerName } = target
 	const message = error instanceof Error ? error.message : String(error)
 	const lower = message.toLowerCase()
 	if (lower.includes('econnrefused') || lower.includes('connection refused'))
@@ -61,73 +84,36 @@ export function containerExecFailure(
 	if (
 		lower.includes('not running') ||
 		lower.includes('no such container') ||
-		lower.includes('not found')
+		lower.includes('not found') ||
+		(target.kind === 'devvm' && lower.includes('netns'))
 	) {
-		return `Container ${containerName} is not running; run /container sync (or wt sync) and retry.`
+		return target.kind === 'devvm'
+			? `Workspace ${containerName} is not reachable on the dev VM (${DEVVM_NAME}); run /container sync (or wt sync) and retry.`
+			: `Container ${containerName} is not running; run /container sync (or wt sync) and retry.`
 	}
 	return message
 }
 
-/** Host-side address of a running container, for servers the host must reach. */
-export function bestEffortContainerIp(containerName: string): string | null {
-	const listing = spawnSync(CONTAINER_BIN, ['list'], { encoding: 'utf-8' })
-	if (listing.status !== 0 || typeof listing.stdout !== 'string') return null
-	const ownLine = listing.stdout
-		.split('\n')
-		.find(line => line.includes(containerName))
-	return ownLine?.match(/(\d{1,3}(?:\.\d{1,3}){3})/)?.[1] ?? null
-}
-
-/** Only the inventory fields this module reads; the runtime's schema is not ours to model. */
-interface ContainerEntry {
-	id: string
-	status: { networks?: { ipv4Gateway?: string }[] }
-}
-
-function isContainerEntry(candidate: unknown): candidate is ContainerEntry {
-	if (typeof candidate !== 'object' || candidate === null) return false
-	if (!('id' in candidate) || typeof candidate.id !== 'string') return false
-	return (
-		'status' in candidate &&
-		typeof candidate.status === 'object' &&
-		candidate.status !== null
-	)
+/** Stop one container; bounded because the relay waits on a guest a starved VM never answers. */
+export async function stopContainer(containerName: string): Promise<RunResult> {
+	return runCapture(['stop', containerName], STOP_TIMEOUT_SECONDS)
 }
 
 /**
- * The host as the VM addresses it. Read from the runtime's inventory instead of assumed:
- * the bridge subnet is the runtime's choice, and a hardcoded gateway sends the model - and
- * the human - to an address nothing answers on a machine that picked another subnet.
+ * Stop then start the runtime's own services, and say whether it came back: the only
+ * recovery a starved VM leaves, because it blocks `exec` and `stop` machine-wide.
  */
-export function gatewayFromInventory(
-	inventory: string,
-	containerName: string,
-): string | null {
-	let parsed: unknown
-	try {
-		parsed = JSON.parse(inventory)
-	} catch {
-		return null
-	}
-	if (!Array.isArray(parsed)) return null
-	for (const entry of parsed) {
-		if (!isContainerEntry(entry) || entry.id !== containerName) continue
-		const gateway = entry.status.networks?.[0]?.ipv4Gateway
-		if (typeof gateway === 'string' && gateway) return gateway
-	}
-	return null
-}
-
-export function bestEffortHostGateway(containerName: string): string | null {
-	const listing = spawnSync(CONTAINER_BIN, ['list', '--format', 'json'], {
-		encoding: 'utf-8',
-	})
-	if (listing.status !== 0 || typeof listing.stdout !== 'string') return null
-	return gatewayFromInventory(listing.stdout, containerName)
-}
-
-export async function stopContainer(containerName: string): Promise<RunResult> {
-	return runCapture(['stop', containerName])
+export async function restartContainerRuntime(): Promise<boolean> {
+	const stopped = await runCapture(
+		['system', 'stop'],
+		RUNTIME_TIMEOUT_SECONDS,
+	)
+	if (stopped.exitCode !== 0) return false
+	const started = await runCapture(
+		['system', 'start'],
+		RUNTIME_TIMEOUT_SECONDS,
+	)
+	return started.exitCode === 0
 }
 
 /** Actionable text for a container that runs but no longer answers: nothing here is a mystery. */
@@ -144,22 +130,41 @@ export function guestDeadlineSeconds(timeoutSeconds?: number): number {
 	return timeoutSeconds ?? GUEST_CEILING_SECONDS
 }
 
-/** Does the VM answer at all? A starved VM leaves every exec hanging for minutes. */
+/** Does the guest still answer at all? A starved VM leaves every exec hanging for minutes. */
 export async function probeContainerAlive(
-	containerName: string,
+	target: GuestTarget,
 ): Promise<boolean> {
-	if (await probeOnce(containerName, PROBE_FAST_SECONDS)) return true
-	return await probeOnce(containerName, PROBE_PATIENT_SECONDS)
+	const answered =
+		(await probeOnce(target, PROBE_FAST_SECONDS)) ||
+		(await probeOnce(target, PROBE_PATIENT_SECONDS))
+	noteProbeVerdict(target.containerName, answered)
+	return answered
+}
+
+/** The cheapest answer to "is this devvm workspace there": one exec through its namespace. */
+export async function devvmWorkspaceAnswering(
+	workspaceName: string,
+): Promise<boolean> {
+	try {
+		const run = await runStreaming(devvmProbeArgv(workspaceName), {
+			timeoutSeconds: PROBE_FAST_SECONDS,
+		})
+		return run.exitCode === 0
+	} catch {
+		return false
+	}
 }
 
 async function probeOnce(
-	containerName: string,
+	target: GuestTarget,
 	budgetSeconds: number,
 ): Promise<boolean> {
+	const argv =
+		target.kind === 'container'
+			? ['exec', target.containerName, 'true']
+			: devvmProbeArgv(target.containerName)
 	try {
-		const run = await runStreaming(['exec', containerName, 'true'], {
-			timeoutSeconds: budgetSeconds,
-		})
+		const run = await runStreaming(argv, { timeoutSeconds: budgetSeconds })
 		return run.exitCode === 0
 	} catch {
 		return false
@@ -173,27 +178,25 @@ async function probeOnce(
  * in a group of its own.
  */
 export async function killGuestTokens(
-	containerName: string,
+	target: GuestTarget,
 	tokens: readonly string[],
 	recordDir: string = execRecordDir(),
 ): Promise<string[]> {
 	if (!tokens.length) return []
+	// The kill runs where the pidfiles live: the workspace's own VM, or the dev
+	// VM's root namespace, whose /tmp every workspace's mount namespace shares.
+	const base =
+		target.kind === 'container'
+			? ['exec', target.containerName]
+			: devvmRootExecArgv([])
 	const run = await runCapture(
-		[
-			'exec',
-			containerName,
-			'sh',
-			'-c',
-			guestKillScript(),
-			'wt-exec',
-			...tokens,
-		],
+		[...base, 'sh', '-c', guestKillScript(), 'wt-exec', ...tokens],
 		GUEST_CONTROL_TIMEOUT_SECONDS,
 	)
 	if (run.exitCode !== 0) {
 		throw new Error(
 			containerExecFailure(
-				containerName,
+				target,
 				run.stderr.trim() || 'guest kill failed',
 			),
 		)
@@ -205,7 +208,8 @@ export async function killGuestTokens(
 			.filter(Boolean),
 	)
 	const handled = tokens.filter(token => reported.has(token))
-	for (const token of handled) clearRecord(recordDir, containerName, token)
+	for (const token of handled)
+		clearRecord(recordDir, target.containerName, token)
 	return [...handled]
 }
 
@@ -215,26 +219,54 @@ export async function killGuestTokens(
  * work of one that is still running.
  */
 export async function reapAbandonedGuestSessions(
-	containerName: string,
+	target: GuestTarget,
 	recordDir: string = execRecordDir(),
 	now: number = Date.now(),
 ): Promise<number> {
 	const abandoned = abandonedRecords(
-		readExecRecords(recordDir, containerName),
+		readExecRecords(recordDir, target.containerName),
 		now,
 		processIsAlive,
 	)
 	if (!abandoned.length) return 0
 	await killGuestTokens(
-		containerName,
+		target,
 		abandoned.map(record => record.token),
 		recordDir,
 	)
 	return abandoned.length
 }
 
+/** The `container` argv of one guest call, by vehicle: `-w` for a container, the namespace chain for a devvm. */
+function guestArgv(input: {
+	target: GuestTarget
+	workdir: string
+	token: string
+	deadlineSeconds: number
+	command: string
+}): string[] {
+	const { target, workdir, token, deadlineSeconds, command } = input
+	if (target.kind === 'container') {
+		return [
+			'exec',
+			'-w',
+			workdir,
+			target.containerName,
+			...guestExecArgv(token, deadlineSeconds, command),
+		]
+	}
+	return devvmExecArgv({
+		workspaceName: target.containerName,
+		treePath: target.treePath,
+		subpath: devvmSubpath(workdir),
+		token,
+		deadlineSeconds,
+		command,
+	})
+}
+
 export async function execInContainer(
-	containerName: string,
+	target: GuestTarget,
 	workdir: string,
 	command: string,
 	options: ExecStreamOptions = {},
@@ -245,7 +277,7 @@ export async function execInContainer(
 	const token = newExecToken(process.pid, startedAt, (execSequence += 1))
 	writeRecord(recordDir, {
 		token,
-		containerName,
+		containerName: target.containerName,
 		ownerPid: process.pid,
 		ownerSession: options.ownerSession ?? '',
 		deadlineMs: startedAt + deadlineSeconds * MS_PER_SECOND,
@@ -253,24 +285,21 @@ export async function execInContainer(
 		label: commandLabel(command),
 	})
 	return runStreaming(
-		[
-			'exec',
-			'-w',
-			workdir,
-			containerName,
-			...guestExecArgv(token, deadlineSeconds, command),
-		],
-		{ ...options, timeoutSeconds: deadlineSeconds },
+		guestArgv({ target, workdir, token, deadlineSeconds, command }),
+		{
+			...options,
+			timeoutSeconds: deadlineSeconds,
+		},
 	).then(
 		run => {
 			// The call may have detached a server on purpose: its group is left alone.
-			clearRecord(recordDir, containerName, token)
+			clearRecord(recordDir, target.containerName, token)
 			return run
 		},
 		async (error: unknown) => {
 			// A call that did not finish (timeout, interrupt, failure) takes its whole group
 			// with it. A VM too starved to answer the kill keeps the record for the next reap.
-			await killGuestTokens(containerName, [token], recordDir).catch(
+			await killGuestTokens(target, [token], recordDir).catch(
 				() => undefined,
 			)
 			throw error

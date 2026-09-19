@@ -1,5 +1,5 @@
 /**
- * model-fallback - the `/models` command (alias `/fallback`) and the persisted
+ * model-fallback - the `/models` command and the persisted
  * config it writes.
  *
  * `status` reports the toggles, the chain and the cooldowns, `on` and `off`
@@ -10,6 +10,7 @@
 
 import { configPath, saveConfig } from './config.ts'
 import { currentModelReference } from './failover.ts'
+import { readSettingsSnapshot } from './model-picker-settings.ts'
 import { createOpenRouterPricingSource } from './openrouter-pricing.ts'
 import { formatFallbackStatus, openModelPicker } from './picker.ts'
 
@@ -33,12 +34,13 @@ function argumentCompletions(prefix: string): AutocompleteItem[] | null {
 }
 
 function statusText(ctx: ExtensionContext, session: FallbackSession): string {
-	return formatFallbackStatus(
-		session.currentConfig(),
-		currentModelReference(ctx),
-		session.currentCooldowns(),
-		Date.now(),
-	)
+	return formatFallbackStatus({
+		config: session.currentConfig(),
+		currentModel: currentModelReference(ctx),
+		startupDefault: readSettingsSnapshot().startupDefault,
+		exclusions: session.currentCooldowns(),
+		now: Date.now(),
+	})
 }
 
 /** The config the user just changed: in memory now, on disk for the next run. */
@@ -105,14 +107,10 @@ export function registerFallbackCommand(
 		}
 		await openModelPicker(ctx, pickerDeps(pi, session, ctx, pricing))
 	}
-	// `/models` is the unified surface; `/fallback` stays as the name this
-	// extension has always answered to.
-	const options = {
+	pi.registerCommand('models', {
 		description:
-			'Models: session model, reasoning, scope, fallback chain, agent pins',
+			'Models: session model, reasoning, Ctrl+P list, fallback chain, agent pins',
 		getArgumentCompletions: argumentCompletions,
 		handler,
-	}
-	pi.registerCommand('models', options)
-	pi.registerCommand('fallback', options)
+	})
 }
