@@ -48,3 +48,8 @@ alias cdzsh="cd ~/.config/zsh"
 alias cdpi="cd ~/.pi/agent"
 alias cdcm="cd ~/.local/share/chezmoi"
 alias cdev="cd ~/Development"
+
+# System
+# Remote SSH cannot answer Keychain prompts: unlock after a display-sleep relock
+# so pi's authenticated fetches can read the browser cookies again.
+alias kc-unlock="security unlock-keychain ~/Library/Keychains/login.keychain-db"
