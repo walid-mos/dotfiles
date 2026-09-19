@@ -10,7 +10,7 @@ Read `~/.pi/agent/extensions/DESIGN.md` before restyling or migrating any pi ren
 - One folder per extension: `extensions/<name>/` (kebab-case), entry point `index.ts` — pi auto-discovers `extensions/<dir>/index.ts`.
 - Flat files, kebab-case, one concern per file. Split pure domain/state/renderer logic into their own modules; keep TUI wiring (`*-component.ts`, `index.ts`) thin.
 - A folder WITHOUT `index.ts` is a shared library, not an extension (e.g. `ui/`): other extensions import from its modules directly. Never add an index.ts there. Only pure functions survive that crossing: jiti gives every extension its own module registry, so a module variable one extension sets reads empty in another (verified: a shared module's state stayed `unset` across two loaded extensions). Cross-extension *state* goes through `globalThis` under a versioned `Symbol.for` key read with `Reflect` (see `renderers/tool-durations.ts` and the `container-sandbox` seam) or through `pi.events`.
-- Tests live in `../tests/<name>.test.ts` (relative to a module under `extensions/`), `node --test`; an agent writes one only under an explicit test authorization (`../AGENTS.md` # Tests). Keep logic importable and testable without a TUI.
+- The config carries no test tree. An agent writes a test only under an explicit test authorization (`../AGENTS.md` # Tests); when authorized it lives at `../tests/<name>.test.ts` (relative to a module under `extensions/`), `node --test`. Run it with `pnpm run test` — it passes `--experimental-transform-types`, so parameter properties and enums load; a hand-written `node --test` fails on those with `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`. Keep logic importable and testable without a TUI.
 
 ## Herdr-managed files
 
@@ -33,7 +33,7 @@ Read `~/.pi/agent/extensions/DESIGN.md` before restyling or migrating any pi ren
 pnpm run lint                    # oxlint
 pnpm run type-check              # tsc --noEmit
 pnpm exec oxfmt --write <files>  # exactly the files you touched
-pnpm run test                    # node --test 'tests/**/*.test.ts' — when covered code changed
+pnpm run test                    # node --experimental-transform-types --test 'tests/**/*.test.ts' — when covered code changed
 ```
 
 - After changes: `/reload` in the current session.
