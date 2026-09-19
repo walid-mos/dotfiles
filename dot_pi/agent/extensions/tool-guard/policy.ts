@@ -19,7 +19,5 @@ export function guardCommand(
 	command: string,
 	activeTools?: readonly string[],
 ): string | undefined {
-	return (
-		blindWaitReason(command) ?? shadowedToolReason(command, activeTools)
-	)
+	return blindWaitReason(command) ?? shadowedToolReason(command, activeTools)
 }
