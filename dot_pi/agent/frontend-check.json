@@ -1,0 +1,13 @@
+{
+  "EXECUTABLE_PATH": "",
+  "HEADLESS": true,
+  "VIEWPORT_WIDTH": 960,
+  "VIEWPORT_HEIGHT": 720,
+  "NAV_TIMEOUT_MS": 60000,
+  "AUTO_SHOT": true,
+  "FULL_PAGE": false,
+  "SHOT_FORMAT": "jpeg",
+  "SHOT_QUALITY": 70,
+  "MAX_CONSOLE": 200,
+  "MAX_EVAL_CHARS": 4000
+}
