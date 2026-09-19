@@ -5,13 +5,15 @@
  *  1. No host-level `sleep` as a wait (195 calls had already burned 192
  *     minutes), so a stalled-looking call becomes an explicit detach plus a
  *     real signal instead.
- *  2. No bash command whose work a dedicated tool owns (`cat`, `grep`, `rg`,
- *     `find`, `ls`), so file content reaches the context through the tool that
- *     caps, renders and tracks it.
+ *  2. No bash stage whose work a dedicated tool owns (`read`, `grep`, `find`,
+ *     `ls`), wherever it sits: a pipe, a redirect or a `head`/`tail` wrapper
+ *     does not change what the call is, so file content reaches the context
+ *     through the tool that caps, renders and tracks it.
  *
  * `tool_call` is the right hook: it blocks before execution and covers the
  * `bash` and `host` tools alike, without touching either registration. The
- * rules live in policy.ts, the parsing in shell-text.ts. Interactive sessions
+ * rules live in blind-wait.ts and shadowed-tools.ts behind policy.ts, the
+ * parsing in shell-text.ts. Interactive sessions
  * add the discovery built-ins without replacing extension tools. Refusals
  * check the live active set, including in restricted child sessions.
  */

@@ -1,127 +1,182 @@
 /**
- * model-fallback - the settings snapshot the picker displays, and the one key
- * it owns.
+ * model-fallback - the settings snapshot the picker displays, and the keys it
+ * writes back.
  *
  * Subagent model pins belong to the `subagents` package, so the picker reads
  * them, to say which agents stopped inheriting the session model and to point
  * at the surface that edits them. The inline agent editor also writes exactly
  * one thing back: that agent's `model` and `thinking` in
- * `subagents.agentOverrides`. The write is a read-modify-write of the whole
- * file (every unrelated key survives, the file's own indentation is kept) and
- * it lands atomically, because the subagents package reads this file at launch.
- * The scope patterns are pi's own `enabledModels` setting, resolved at session
- * start; the picker only shows them, so the scope tab can explain what this
- * session is limited to. A missing or unreadable settings file is an empty
- * snapshot, never an error: the picker still opens.
+ * `subagents.agentOverrides`. The scope tab edits pi's own `enabledModels`
+ * setting - one entry's membership at a time or the whole list's order - and
+ * owns exactly that key. Every write is a read-modify-write of the whole file
+ * (every unrelated key survives, the file's own indentation and line ending
+ * are kept) and lands atomically, because the subagents package reads this
+ * file at launch. The scope is resolved at session start, so the writer only
+ * refuses a list that changed underneath; it never pretends the running
+ * session moved. A missing file cannot be written either: like a file or key
+ * whose shape is not the one pi defines, it is reported as unknown and never
+ * rewritten, so the picker still opens, it just does not edit what it cannot
+ * read.
  */
 
-import { readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
+
+import {
+	asRecord,
+	indentOf,
+	newlineOf,
+	parseSettingsObject,
+	readSettingsText,
+	writeSettingsAtomically,
+} from './model-picker-settings-file.ts'
 
 import type { AgentPin } from './model-picker-view.ts'
 
 export interface SettingsSnapshot {
 	/** False when the file could not be read parsed: nothing here is known. */
 	isReadable: boolean
+	/** `defaultProvider`/`defaultModel` as pi stores the startup default. */
+	startupDefault: string | undefined
 	/** `enabledModels`: the saved scope patterns. */
 	patterns: string[]
 	/** `subagents.agentOverrides`, one row per pinned agent. */
 	agentPins: AgentPin[]
+	/**
+	 * False when `agentOverrides` carries a shape this reader cannot vouch
+	 * for: the pins are unknown, never "none pinned".
+	 */
+	areAgentPinsKnown: boolean
 }
 
 /** An unreadable file is reported as unknown, never as "nothing configured". */
 const UNREADABLE_SNAPSHOT: SettingsSnapshot = {
 	isReadable: false,
+	startupDefault: undefined,
 	patterns: [],
 	agentPins: [],
+	areAgentPinsKnown: false,
 }
 
-function asRecord(candidate: unknown): Record<string, unknown> | undefined {
-	if (typeof candidate !== 'object' || candidate === null) return undefined
-	// oxlint-disable-next-line nextnode/no-type-assertion
-	return candidate as Record<string, unknown>
-}
-
-function stringList(patterns: unknown): string[] {
-	if (!Array.isArray(patterns)) return []
-	return patterns.filter(
+/**
+ * `enabledModels` as the string list it must be: [] when the key is absent,
+ * undefined when it carries anything else, so a list this writer cannot keep
+ * is refused instead of being silently shortened on the next write.
+ */
+function stringList(
+	settings: Record<string, unknown>,
+	key: string,
+): string[] | undefined {
+	if (!(key in settings)) return []
+	const raw = settings[key]
+	if (!Array.isArray(raw)) return undefined
+	const entries = raw.filter(
 		(entry): entry is string => typeof entry === 'string',
 	)
+	if (entries.length !== raw.length) return undefined
+	return entries
 }
 
-function optionalString(pinned: unknown): string | undefined {
-	if (typeof pinned !== 'string') return undefined
-	return pinned || undefined
+/** One override key as pi defines it: its text, or a shape this reader refuses. */
+type OverrideKey =
+	| { kind: 'text'; value: string | undefined }
+	| { kind: 'unknown' }
+
+/** A key pi defines as a string or `false`; anything else is not that shape. */
+function readOverrideKey(
+	override: Record<string, unknown>,
+	key: string,
+): OverrideKey {
+	if (!(key in override)) return { kind: 'text', value: undefined }
+	const pinned = override[key]
+	if (typeof pinned !== 'string' && pinned !== false)
+		return { kind: 'unknown' }
+	return { kind: 'text', value: pinned || undefined }
 }
 
-function readAgentPins(settings: Record<string, unknown>): AgentPin[] {
-	const overrides = asRecord(
-		asRecord(settings['subagents'])?.['agentOverrides'],
-	)
-	if (!overrides) return []
-	return Object.entries(overrides)
-		.map(([agent, agentOverride]) => {
-			const pin = asRecord(agentOverride) ?? {}
-			return {
-				agent,
-				model: optionalString(pin['model']),
-				thinking: optionalString(pin['thinking']),
-			}
-		})
-		.toSorted((left, right) => left.agent.localeCompare(right.agent))
+/**
+ * The pinned agents the settings file holds. `undefined` when the shape is not
+ * the one pi defines - a non-object `subagents`, `agentOverrides` or entry, or
+ * an override key carrying anything but a string or `false` - so the picker
+ * reports the pins as unknown instead of claiming none are pinned, and the
+ * writer's own refusal stays the only thing that touches the file.
+ */
+function readAgentPins(
+	settings: Record<string, unknown>,
+): AgentPin[] | undefined {
+	const subagents = asRecord(settings['subagents'])
+	if ('subagents' in settings && !subagents) return undefined
+	if (!(subagents && 'agentOverrides' in subagents)) return []
+	const overrides = asRecord(subagents['agentOverrides'])
+	if (!overrides) return undefined
+	const pins: AgentPin[] = []
+	for (const [agent, entry] of Object.entries(overrides)) {
+		const override = asRecord(entry)
+		if (!override) return undefined
+		const model = readOverrideKey(override, 'model')
+		const thinking = readOverrideKey(override, 'thinking')
+		if (model.kind === 'unknown' || thinking.kind === 'unknown')
+			return undefined
+		pins.push({ agent, model: model.value, thinking: thinking.value })
+	}
+	return pins.toSorted((left, right) => left.agent.localeCompare(right.agent))
 }
 
 export function settingsPath(): string {
 	return join(getAgentDir(), 'settings.json')
 }
 
-function readText(path: string): string | undefined {
-	try {
-		return readFileSync(path, 'utf8')
-	} catch {
-		return undefined
-	}
-}
-
-function parseJson(text: string): unknown {
-	try {
-		return JSON.parse(text)
-	} catch {
-		return undefined
-	}
+/**
+ * The startup default as one catalogue reference: pi's `defaultModel`, prefixed
+ * by `defaultProvider` when the file names one. A default pi cannot resolve to
+ * a provider is still what the file says, and the header shows exactly that.
+ */
+function readStartupDefault(
+	settings: Record<string, unknown>,
+): string | undefined {
+	const model = settings['defaultModel']
+	if (typeof model !== 'string' || !model) return undefined
+	const provider = settings['defaultProvider']
+	if (typeof provider !== 'string' || !provider) return model
+	return `${provider}/${model}`
 }
 
 export function readSettingsSnapshot(path = settingsPath()): SettingsSnapshot {
-	const text = readText(path)
+	const text = readSettingsText(path)
 	if (!text) return UNREADABLE_SNAPSHOT
-	const settings = asRecord(parseJson(text))
+	const settings = parseSettingsObject(text)
 	if (!settings) return UNREADABLE_SNAPSHOT
+	const patterns = stringList(settings, 'enabledModels')
+	// A list carrying entries this picker cannot keep is not the list pi
+	// resolved: the saved scope is unknown, and an edit on top of it would
+	// drop them.
+	if (!patterns) return UNREADABLE_SNAPSHOT
+	const agentPins = readAgentPins(settings)
+	const startupDefault = readStartupDefault(settings)
+	if (!agentPins)
+		return {
+			isReadable: true,
+			startupDefault,
+			patterns,
+			agentPins: [],
+			areAgentPinsKnown: false,
+		}
 	return {
 		isReadable: true,
-		patterns: stringList(settings['enabledModels']),
-		agentPins: readAgentPins(settings),
+		startupDefault,
+		patterns,
+		agentPins,
+		areAgentPinsKnown: true,
 	}
 }
 
 /** One agent's new pin: `thinking` undefined removes the key (inherit it). */
 export interface AgentOverrideEdit {
 	agent: string
-	model: string
+	/** The model to pin; omitted to leave the agent's own `model` key alone. */
+	model?: string
 	thinking: string | undefined
-}
-
-/** A settings file with no indentation to copy gets pi's own two spaces. */
-const DEFAULT_INDENT = '  '
-
-/** The indentation the file already uses, so a rewrite is not a reflow. */
-function indentOf(text: string): string {
-	for (const line of text.split('\n')) {
-		const indent = /^([\t ]+)\S/.exec(line)?.[1]
-		if (indent) return indent
-	}
-	return DEFAULT_INDENT
 }
 
 /** A key that must stay an object if it is there at all: never clobber it. */
@@ -158,24 +213,14 @@ export function mergeAgentOverride(
 			`subagents.agentOverrides.${edit.agent}`,
 		),
 	}
-	entry['model'] = edit.model
+	// A reasoning-only edit must never turn an inherited model into a pin: the
+	// `model` key stays exactly as the file had it, `false` included.
+	if (edit.model) entry['model'] = edit.model
 	if (edit.thinking) entry['thinking'] = edit.thinking
 	else delete entry['thinking']
 	overrides[edit.agent] = entry
 	subagents['agentOverrides'] = overrides
 	return { ...settings, subagents }
-}
-
-/** Write to a sibling and rename, so a reader never sees a half-written file. */
-function writeAtomically(path: string, text: string): void {
-	const temporary = `${path}.${String(process.pid)}.tmp`
-	try {
-		writeFileSync(temporary, text, 'utf8')
-		renameSync(temporary, path)
-	} catch (error) {
-		rmSync(temporary, { force: true })
-		throw error
-	}
 }
 
 /**
@@ -187,10 +232,102 @@ export function writeAgentOverride(
 	path: string,
 	edit: AgentOverrideEdit,
 ): void {
-	const text = readText(path)
+	const text = readSettingsText(path)
 	if (!text) throw new Error(`${path} could not be read`)
-	const settings = asRecord(parseJson(text))
+	const settings = parseSettingsObject(text)
 	if (!settings) throw new Error(`${path} is not a JSON object`)
 	const next = mergeAgentOverride(settings, edit)
-	writeAtomically(path, `${JSON.stringify(next, null, indentOf(text))}\n`)
+	writeSettingsAtomically(path, next, indentOf(text), newlineOf(text))
+}
+
+/** What one saved-list edit did, so the notice that reports it can name it. */
+export type ScopeListChange =
+	| { kind: 'reordered' }
+	| { kind: 'added'; entry: string }
+	| { kind: 'removed'; entry: string }
+
+/** One edit of the saved scope: the list the picker read and the list to save. */
+export interface ScopeListEdit {
+	expected: readonly string[]
+	next: readonly string[]
+	change: ScopeListChange
+}
+
+/** The same entries in the same order: the file the picker read is intact. */
+function sameList(left: readonly string[], right: readonly string[]): boolean {
+	if (left.length !== right.length) return false
+	return left.every((entry, index) => entry === right[index])
+}
+
+/** One default-model save: the reference the highlighted row showed. */
+export interface DefaultModelEdit {
+	reference: string
+}
+
+/**
+ * One catalogue reference as pi stores a startup default: `provider/modelId`
+ * splits into `defaultProvider` and `defaultModel`, the two keys pi's own
+ * `/model` picker writes with the same key. A bare id names no provider, so the
+ * provider key is left exactly as the file had it.
+ */
+function splitReference(reference: string): {
+	provider: string | undefined
+	model: string
+} {
+	const slash = reference.indexOf('/')
+	if (slash <= 0) return { provider: undefined, model: reference }
+	return {
+		provider: reference.slice(0, slash),
+		model: reference.slice(slash + 1),
+	}
+}
+
+/**
+ * Persist the startup default: what the next session starts on, in pi's own
+ * `defaultProvider`/`defaultModel`. Returns whether the file changed - a save
+ * of the default already in place writes nothing and says so - and every other
+ * settings key is preserved.
+ */
+export function writeDefaultModel(
+	path: string,
+	edit: DefaultModelEdit,
+): boolean {
+	const text = readSettingsText(path)
+	if (!text) throw new Error(`${path} could not be read`)
+	const settings = parseSettingsObject(text)
+	if (!settings) throw new Error(`${path} is not a JSON object`)
+	const { provider, model } = splitReference(edit.reference)
+	const isProviderSaved = !provider || settings.defaultProvider === provider
+	if (settings.defaultModel === model && isProviderSaved) return false
+	const next: Record<string, unknown> = { ...settings, defaultModel: model }
+	if (provider) next.defaultProvider = provider
+	writeSettingsAtomically(path, next, indentOf(text), newlineOf(text))
+	return true
+}
+
+/**
+ * Persist one edit of the saved scope - a reorder, an addition or a removal.
+ * The picker edits the entries it read; if `enabledModels` changed in the
+ * meantime (pi's own selector, an editor) the write refuses rather than
+ * replacing a list nobody asked it to touch, and no other settings key is
+ * rewritten.
+ */
+export function writeEnabledModels(path: string, edit: ScopeListEdit): void {
+	const text = readSettingsText(path)
+	if (!text) throw new Error(`${path} could not be read`)
+	const settings = parseSettingsObject(text)
+	if (!settings) throw new Error(`${path} is not a JSON object`)
+	const current = stringList(settings, 'enabledModels')
+	if (!current)
+		throw new Error(
+			'enabledModels is not a list of strings; refusing to rewrite it',
+		)
+	if (!sameList(current, edit.expected))
+		throw new Error('enabledModels changed while the picker was open')
+	writeSettingsAtomically(
+		path,
+		{ ...settings, enabledModels: [...edit.next] },
+		indentOf(text),
+		newlineOf(text),
+	)
 }

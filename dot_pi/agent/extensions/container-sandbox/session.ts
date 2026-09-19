@@ -1,151 +1,79 @@
-// Per-session sandbox state: which wt container backs bash for this session,
-// how it is addressed, and how the model is told about it. The container
-// outlives the session on purpose - dev servers and dependency installs stay
-// warm - so teardown stays explicit (wt clean, /container stop), abandoned
-// guest work is reaped by ownership (/container reap), and a session records
-// itself in the container's state so a shared VM is never a surprise. The
-// /container surface itself lives in container-command.ts.
-import { createBashTool } from '@earendil-works/pi-coding-agent'
-
-import { createContainerBashOps } from './bash-ops.ts'
+// The session lifecycle of the sandbox: probe the workspace, make sure it is
+// running, activate the runtime (runtime.ts), reap abandoned guest work, and
+// tell the model and the human what happened. The guest outlives the session
+// on purpose - dev servers and dependency installs stay warm - so nothing here
+// tears anything down. The /container surface lives in container-command.ts.
+import { guestTouchCommand } from './bash-ops.ts'
 import {
-	bestEffortContainerIp,
-	bestEffortHostGateway,
+	devvmWorkspaceAnswering,
+	execInContainer,
 	reapAbandonedGuestSessions,
 } from './container.ts'
-import { clearRecord, sessionRecordDir, writeRecord } from './exec-session.ts'
-import { ensureContainerRunning, probeWorkspace } from './wt.ts'
+import { DEVVM_NAME, devvmEnvironmentPublished } from './devvm.ts'
+import { containerRecentlyUnresponsive } from './liveness.ts'
+import {
+	activateRuntime,
+	sandboxGuestTarget,
+	sandboxTailnetHost,
+	sandboxWorkspace,
+	sessionIdFromContext,
+	statusLine,
+} from './runtime.ts'
+import { GUEST_WORKDIR } from './sandbox-prompt.ts'
+import {
+	ensureContainerRunning,
+	ensureDevvmRunning,
+	probeWorkspace,
+} from './wt.ts'
 
 import type {
-	BashOperations,
 	ExtensionAPI,
 	ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
+import type { GuestTarget } from './container.ts'
 import type { SandboxWorkspace } from './wt.ts'
-
-export const GUEST_WORKDIR = '/workspace'
-
-interface SandboxRuntime {
-	workspace: SandboxWorkspace
-	sessionId: string
-	bashTool: ReturnType<typeof createBashTool>
-	/**
-	 * The host as the VM addresses it, read once per activation because the runtime owns the
-	 * bridge subnet. Null when the runtime cannot say: the prompt then points at the VM's own
-	 * default route rather than naming an address nothing answers on.
-	 */
-	gateway: string | null
-}
 
 function describe(error: unknown): string {
 	return error instanceof Error ? error.message : String(error)
 }
 
-let runtime: SandboxRuntime | null = null
+/**
+ * A post-edit touch only has to wake an in-VM watcher: a VM that cannot do that within
+ * seconds is not answering, and the touch is best effort either way.
+ */
+const TOUCH_DEADLINE_SECONDS = 15
 
 /**
- * The session file names the pi session across restarts, which is what makes ownership
- * readable in another session's /container status; a session without a file is identified
- * by the pi process that owns it.
+ * Wake the VM's own watchers after a host-side edit. virtiofs delivers no event for a host
+ * write, so an in-VM vite/tsx watcher stays stale through exactly the edits an agent makes;
+ * the guest touching the file is the notification it can see. Best effort by design: the
+ * touch changes nothing about the tool result, and a VM beyond answering must not fail it.
  */
-export function resolveSessionId(ctx: ExtensionContext): string {
-	const file = ctx.sessionManager.getSessionFile()
-	const name = file?.split('/').pop() ?? ''
-	return name ? name.replace(/\.jsonl$/u, '') : `pid-${process.pid}`
-}
-
-/** Drop this session's claim on the container: the VM and its work stay warm for the next one. */
-export function clearRuntimeState(): void {
-	if (!runtime) return
-	clearRecord(
-		sessionRecordDir(),
-		runtime.workspace.containerName,
-		runtime.sessionId,
+export function notifyGuestOfHostEdit(edit: {
+	toolName: string
+	input: Record<string, unknown>
+	isError: boolean
+}): void {
+	const active = guestTargetFromRuntime()
+	if (!active) return
+	const command = guestTouchCommand(
+		active.workspace.path,
+		GUEST_WORKDIR,
+		edit,
 	)
-	runtime = null
-}
-
-export function activateRuntime(
-	workspace: SandboxWorkspace,
-	cwd: string,
-	sessionId: string,
-): void {
-	writeRecord(sessionRecordDir(), {
-		sessionId,
-		containerName: workspace.containerName,
-		ownerPid: process.pid,
-		worktree: workspace.path,
-		branch: workspace.branch,
-		startedAt: Date.now(),
-	})
-	runtime = {
-		workspace,
-		sessionId,
-		gateway: bestEffortHostGateway(workspace.containerName),
-		bashTool: createBashTool(cwd, {
-			operations: createContainerBashOps(
-				workspace.containerName,
-				workspace.path,
-				GUEST_WORKDIR,
-				sessionId,
-			),
-		}),
-	}
-}
-
-/** `user_bash` payload: `!` commands run in the VM while the sandbox is active. */
-export function userBashOperations():
-	| { operations: BashOperations }
-	| undefined {
-	if (!runtime) return undefined
-	return {
-		operations: createContainerBashOps(
-			runtime.workspace.containerName,
-			runtime.workspace.path,
-			GUEST_WORKDIR,
-			runtime.sessionId,
-		),
-	}
-}
-
-export function sandboxedBashTool(): ReturnType<typeof createBashTool> | null {
-	return runtime?.bashTool ?? null
-}
-
-/** The workspace this session routes into, for the /container surface. */
-export function sandboxWorkspace(): SandboxWorkspace | null {
-	return runtime?.workspace ?? null
-}
-
-/** The host as the VM addresses it, for the /container surface; null when unknown. */
-export function sandboxGateway(): string | null {
-	return runtime?.gateway ?? null
-}
-
-/** What the model must know about where its bash actually runs. */
-export function sandboxSystemPromptSuffix(
-	baseSystemPrompt: string,
-): string | undefined {
-	if (!runtime) return undefined
-	const { containerName, path, ports, memory } = runtime.workspace
-	const ip = bestEffortContainerIp(containerName)
-	const portLine =
-		ports.length > 0 ? ` also on the host at ${ports.join(', ')}` : ''
-	const hostServices = runtime.gateway
-		? `The project's host-side services (database, Keycloak, MinIO) are relayed by wt onto this VM's own localhost, so address them as localhost:<port>; anything wt does not relay is reachable at ${runtime.gateway}:<port>.`
-		: `The project's host-side services are relayed by wt onto this VM's own localhost, so address them as localhost:<port>; anything wt does not relay is reachable through the VM's default gateway, whichever address \`ip route show default\` reports.`
-	return `${baseSystemPrompt}
-
-## Sandbox environment
-Bash commands run inside an Apple container VM (\`${containerName}\`), NOT on the macOS host. The worktree ${path} is mounted at ${GUEST_WORKDIR} and the current directory is already inside it; nothing else of the host exists there (/Users, /Applications, brew, osascript, the macOS home). Use the \`host\` tool for macOS administration, and the read/edit/write tools for project files.
-The VM has its own localhost, ports and network stack, so servers started here never conflict with other workspaces. A server the host must reach at http://${ip ?? '<container-ip>'}:<port> has to listen on 0.0.0.0, not only loopback${portLine}. ${hostServices}
-Commands left running here compete with every later one for a small VM${memory ? ` (${memory})` : ''}, and a starved VM stops answering altogether: never keep a dev server next to a full typecheck or build, and detach long work instead of waiting on it. Every pi session whose worktree maps to this container shares the same VM, so check /container status before starting heavy work; a call that times out or is interrupted is killed with its whole guest process tree, which is why nothing may be left running by accident.`
-}
-
-function statusLine(workspace: SandboxWorkspace): string {
-	const { containerName } = workspace
-	const ip = bestEffortContainerIp(containerName)
-	return `📦 container: ${containerName}${ip ? ` (${ip})` : ''}`
+	if (!command) return
+	// A starved VM is not woken: the touch is best effort, and queueing one behind a hang
+	// costs the session a client it never gets an answer from.
+	if (containerRecentlyUnresponsive(active.workspace.containerName)) return
+	void (async (): Promise<void> => {
+		try {
+			await execInContainer(active.guest, GUEST_WORKDIR, command, {
+				timeoutSeconds: TOUCH_DEADLINE_SECONDS,
+			})
+		} catch {
+			// Best effort: a VM that never answers must not change the tool result.
+		}
+	})()
 }
 
 /** Provision the sandbox for this session: resolve the row, make sure it runs. */
@@ -161,57 +89,135 @@ export async function startSandboxSession(
 		return
 	}
 	const { workspace } = probe.lookup
-	if (workspace.containerState !== 'running') {
-		ctx.ui.notify(
-			`Container sandbox: ${workspace.containerState} container, asking wt sync…`,
-			'info',
-		)
-	}
-	const failure = await ensureContainerRunning(workspace)
+	// A devvm workspace has no state machine to consult: the add is the state, so
+	// the cheapest honest check is one exec through its namespace. It never boots
+	// a stopped VM (exec fails instead), and a workspace that answers is ready.
+	const failure = await ensureSession(workspace)
 	if (failure) {
 		ctx.ui.notify(`Container sandbox failed: ${failure}`, 'error')
 		return
 	}
-	const sessionId = resolveSessionId(ctx)
-	activateRuntime(workspace, ctx.cwd, sessionId)
-	reapForSession(ctx, workspace.containerName)
+	const sessionId = sessionIdFromContext(ctx)
+	const activation = await activateRuntime(workspace, ctx.cwd, sessionId)
+	if (activation) {
+		ctx.ui.notify(`Container sandbox failed: ${activation}`, 'error')
+		return
+	}
+	const guest = sandboxGuestTarget()
+	if (guest) reapForSession(ctx, guest)
 	ctx.ui.setStatus(
 		'container-sandbox',
 		ctx.ui.theme.fg('accent', statusLine(workspace)),
 	)
-	const { containerName } = workspace
-	const ip = bestEffortContainerIp(containerName)
-	ctx.ui.notify(
-		`Bash runs inside ${containerName}${memorySuffix(workspace)}${ip ? ` (host access: http://${ip}:<port>)` : ''} - the worktree is mounted at ${GUEST_WORKDIR}.`,
-		'info',
-	)
+	notifyActivated(ctx, workspace)
+	if (workspace.vehicle === 'devvm') publishDevvmEnvironment(ctx, workspace)
 }
 
-function memorySuffix(workspace: SandboxWorkspace): string {
-	return workspace.memory ? ` [${workspace.memory}]` : ''
+/** The vehicle's own "make sure it runs": a container starts, a namespace answers or re-adds. */
+async function ensureSession(
+	workspace: SandboxWorkspace,
+): Promise<string | null> {
+	if (workspace.vehicle === 'devvm') {
+		if (await devvmWorkspaceAnswering(workspace.containerName)) return null
+		return ensureDevvmRunning(workspace.path)
+	}
+	if (workspace.containerState === 'running') return null
+	return ensureContainerRunning(workspace)
 }
 
 /**
- * Kill work a dead session left in this container before adding to it. Best effort by
- * design: the VM may be beyond answering, and that failure must not block the session, so
- * the result is reported and never awaited.
+ * A devvm workspace's environment is a fact wt publishes into the VM, and the exec
+ * boundary sources it, so a server started through bash answers on the workspace's own
+ * tailnet name. A workspace wt never published one for - added before it learned to - is
+ * reconciled through wt itself, the way a stopped namespace is: `wt sync` is the
+ * idempotent add. Best effort by design, and never fatal: routing into a workspace must
+ * not depend on a file it can live without, so the outcome is a notice.
  */
-function reapForSession(ctx: ExtensionContext, containerName: string): void {
+function publishDevvmEnvironment(
+	ctx: ExtensionContext,
+	workspace: SandboxWorkspace,
+): void {
 	void (async (): Promise<void> => {
 		try {
-			const reaped = await reapAbandonedGuestSessions(containerName)
-			if (!reaped) return
+			if (await devvmEnvironmentPublished(workspace.containerName)) return
+			const failure = await ensureDevvmRunning(workspace.path)
+			if (
+				!failure &&
+				(await devvmEnvironmentPublished(workspace.containerName))
+			) {
+				ctx.ui.notify(
+					`Published the workspace environment of ${workspace.containerName} (wt sync).`,
+					'info',
+				)
+				return
+			}
 			ctx.ui.notify(
-				`Killed ${reaped} abandoned guest call(s) left in ${containerName} by a finished session.`,
+				`${workspace.containerName} has no published workspace environment${failure ? `: ${failure}` : ''}; a dev server may refuse its tailnet URL until wt sync succeeds.`,
 				'info',
 			)
 		} catch (error) {
 			ctx.ui.notify(
-				`Could not check ${containerName} for abandoned guest work: ${describe(error)}`,
+				`Could not check the workspace environment of ${workspace.containerName}: ${describe(error)}`,
 				'info',
 			)
 		}
 	})()
 }
 
-/** Who else is on this VM, and what it is running right now. */
+/** Where bash runs and where the work is served, said once per activation. */
+function notifyActivated(
+	ctx: ExtensionContext,
+	workspace: SandboxWorkspace,
+): void {
+	const { containerName, vehicle, tailnetIndex } = workspace
+	// The link a human can open is the tailnet one, never the VM's own address: the notification
+	// says where bash runs, and where the work they can look at is served.
+	const tailnetHost = sandboxTailnetHost()
+	const page =
+		tailnetHost && tailnetIndex
+			? ` Workspace index: https://${tailnetHost}:${tailnetIndex}`
+			: ''
+	const where =
+		vehicle === 'devvm'
+			? `namespace ${containerName} on the shared dev VM (${DEVVM_NAME})`
+			: `${containerName}${workspace.memory ? ` [${workspace.memory}]` : ''}`
+	ctx.ui.notify(
+		`Bash runs inside ${where} - the worktree is mounted at ${GUEST_WORKDIR}.${page}`,
+		'info',
+	)
+}
+
+/** The active runtime's routing facts, for the touch bridge above. */
+function guestTargetFromRuntime(): {
+	workspace: SandboxWorkspace
+	guest: GuestTarget
+} | null {
+	const workspace = sandboxWorkspace()
+	if (!workspace) return null
+	const guest = sandboxGuestTarget()
+	if (!guest) return null
+	return { workspace, guest }
+}
+
+/**
+ * Kill work a dead session left in this guest before adding to it. Best effort by
+ * design: the VM may be beyond answering, and that failure must not block the session, so
+ * the result is reported and never awaited.
+ */
+function reapForSession(ctx: ExtensionContext, guest: GuestTarget): void {
+	void (async (): Promise<void> => {
+		try {
+			const reaped = await reapAbandonedGuestSessions(guest)
+			if (!reaped) return
+			ctx.ui.notify(
+				`Killed ${reaped} abandoned guest call(s) left in ${guest.containerName} by a finished session.`,
+				'info',
+			)
+		} catch (error) {
+			ctx.ui.notify(
+				`Could not check ${guest.containerName} for abandoned guest work: ${describe(error)}`,
+				'info',
+			)
+		}
+	})()
+}

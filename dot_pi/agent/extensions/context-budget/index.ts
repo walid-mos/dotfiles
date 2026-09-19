@@ -11,25 +11,40 @@
  * `<agentDir>/context-budget.json` - never as a `models.json` `contextWindow`
  * override, which would fight the provider's real window instead.
  *
- * So this extension watches a ceiling the user picks, and at that ceiling it
- * steers a message into the running turn asking the agent to write a resumption
- * handoff while it still holds the whole picture, then stops. Once that file
- * exists and the agent has settled, the extension replaces the conversation
- * with it: the session is compacted in place - the transcript, the model and
- * the thinking level all survive - and the summary given to that compaction is
- * the handoff itself, so none of pi's own summary is ever used. The chain then
- * continues on its own, so it never waits for a human; a run that ends without
- * the file is re-asked, bounded.
+ * So this extension watches a ceiling the user picks. Crossing it never
+ * interrupts a turn: the ceiling is marked, and at the settle boundary - the
+ * moment pi will not continue on its own - the extension asks the agent to
+ * write a resumption handoff, then stops. Only when the prompt is close
+ * enough to the model's real window that pi would compact on its own within
+ * a turn does it steer mid-turn instead. Once the file exists, the extension
+ * replaces the conversation with it: the session is compacted in place - the
+ * transcript, the model and the thinking level all survive - and the summary
+ * given to that compaction is the handoff itself, so none of pi's own summary
+ * is ever used. The chain then continues on its own, so it never waits for a
+ * human; a run that ends without the file is re-asked, bounded, and if the
+ * file never appears the session is compacted anyway with directed
+ * instructions rather than run to the window.
+ *
+ * The settle boundary is shared with other extensions (goal-gate continues
+ * open checklists there), and one `agent_settled` dispatch leaves every
+ * handler seeing an idle agent - a queued message's run starts
+ * asynchronously. This extension therefore claims the boundary through
+ * `extensions/settle-handshake/` for as long as a handoff cycle is live:
+ * request, re-ask and compaction attempt each refresh the claim, and
+ * goal-gate defers its continuations until the claim ends. The handoff
+ * replaces the conversation and carries the goal state, so it must go first.
  *
  * Modules:
- *   budget.ts    - pure policy: ceilings, levels, injected texts
+ *   budget.ts    - pure policy: ceilings, levels, clamping, injected texts
  *   guard.ts     - the per-turn state machine (pure, injected probes)
  *   store.ts     - the persisted ceiling (`<agentDir>/context-budget.json`)
- *   summary.ts   - the handoff a compaction must use as its summary
- *   handoff.ts   - handoff skill resolution, file naming and discovery
+ *   summary.ts   - the handoff a compaction must use, plus its file lists
+ *   handoff.ts   - handoff skill resolution, file naming, discovery and retention
+ *   command.ts   - the `/context-budget` command: parsing, picker, persistence
  *
  * Commands:
  *   /context-budget [48k|56k|64k|80k|96k|112k|128k|144k|160k|192k|224k|256k|320k|384k|428k|off]
+ *     (implemented in `command.ts`)
  */
 
 import { mkdirSync } from 'node:fs'
@@ -37,33 +52,37 @@ import { mkdirSync } from 'node:fs'
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
 import {
-	HANDOFF_CHOICES,
+	beginHandoffCycle,
+	endHandoffCycle,
+} from '../settle-handshake/handshake.ts'
+
+import {
 	MAX_SETTLE_RETRIES,
 	continuationText,
-	parseCeiling,
+	fallbackCompactionText,
 	shortTokens,
 } from './budget.ts'
+import { STATUS_KEY, registerCeilingCommand } from './command.ts'
+import { watchCompaction } from './compaction.ts'
 import { ContextGuard, handoffMessage } from './guard.ts'
-import { handoffDir, isUsableHandoff, resolveSkillBody } from './handoff.ts'
-import { readCeiling, writeCeiling } from './store.ts'
+import { handoffDir, isUsableHandoff, pruneHandoffs } from './handoff.ts'
+import { readCeiling } from './store.ts'
 import { HandoffSummary } from './summary.ts'
 
 import type {
 	ExtensionAPI,
-	ExtensionCommandContext,
 	ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-import type { AutocompleteItem } from '@earendil-works/pi-tui'
-import type { Ceiling } from './budget.ts'
 import type { GuardAction } from './guard.ts'
-
-const STATUS_KEY = 'context-budget'
 
 export default function contextBudget(pi: ExtensionAPI): void {
 	const guard = new ContextGuard({
 		agentDir: getAgentDir(),
 		isWritten: isUsableHandoff,
 	})
+	// A stale claim from a previous incarnation of this session must not
+	// survive the reload: the guard state is rebuilt here, so is the claim.
+	endHandoffCycle()
 	const summary = new HandoffSummary()
 	watchContext(pi, guard)
 	watchSettle(pi, guard, summary)
@@ -71,8 +90,24 @@ export default function contextBudget(pi: ExtensionAPI): void {
 	registerCeilingCommand(pi, guard)
 }
 
-function ceilingLabel(ceiling: Ceiling): string {
-	return ceiling === 'off' ? 'off' : shortTokens(ceiling)
+/**
+ * Send the handoff request: the directive to the path the guard chose, plus
+ * one notice. Used where the ceiling is crossed and for the settle re-asks.
+ */
+function requestHandoff(
+	pi: ExtensionAPI,
+	ctx: ExtensionContext,
+	request: { path: string; ceiling: number },
+): void {
+	// The request owns the settle boundary from this moment: a goal-gate
+	// continuation queued under it would race the handoff run.
+	beginHandoffCycle()
+	mkdirSync(handoffDir(getAgentDir()), { recursive: true })
+	pi.sendUserMessage(handoffMessage(request), { deliverAs: 'steer' })
+	ctx.ui.notify(
+		`Handoff requested at ${request.path} - this session compacts from it once it is written.`,
+		'warning',
+	)
 }
 
 /** Apply one guard decision: the guard decides, this performs the pi calls. */
@@ -82,6 +117,9 @@ function applyAction(
 	action: GuardAction,
 ): void {
 	if (action.type === 'clear') {
+		// Below the ceiling (or `off`) no cycle can be live: dropping the
+		// claim here is what makes `/context-budget off` release the boundary.
+		endHandoffCycle()
 		ctx.ui.setStatus(STATUS_KEY, undefined)
 		return
 	}
@@ -94,21 +132,25 @@ function applyAction(
 		)
 		return
 	}
-	mkdirSync(handoffDir(getAgentDir()), { recursive: true })
-	pi.sendUserMessage(
-		handoffMessage(action, resolveSkillBody(pi.getCommands())),
-		{ deliverAs: 'steer' },
-	)
-	ctx.ui.notify(
-		`Context ceiling reached (${shortTokens(action.tokens)}/${shortTokens(action.ceiling)}). Handoff requested at ${action.path} - this session compacts from it once it is written.`,
-		'warning',
-	)
+	if (action.type === 'pending') {
+		ctx.ui.notify(
+			`Context ceiling reached (${shortTokens(action.tokens)}/${shortTokens(action.ceiling)}) - the handoff will be requested when this run settles.`,
+			'warning',
+		)
+		return
+	}
+	// `handoff`: past the ceiling - ask now, steering the run out of it.
+	requestHandoff(pi, ctx, action)
 }
 
 function watchContext(pi: ExtensionAPI, guard: ContextGuard): void {
 	pi.on('session_start', (_event, ctx) => {
 		guard.enable(readCeiling(getAgentDir()))
+		// A fresh or resumed session inherits no claim: the guard restarts,
+		// so does the boundary arbitration.
+		endHandoffCycle()
 		ctx.ui.setStatus(STATUS_KEY, undefined)
+		pruneHandoffs(getAgentDir(), ctx.sessionManager.getSessionId())
 	})
 	pi.on('session_shutdown', (_event, ctx) => {
 		ctx.ui.setStatus(STATUS_KEY, undefined)
@@ -118,12 +160,18 @@ function watchContext(pi: ExtensionAPI, guard: ContextGuard): void {
 		// subagent runs and scripted `-p` runs have no one to resume, and
 		// stopping them to write a handoff would break their caller.
 		if (ctx.mode !== 'tui') return
-		const tokens = ctx.getContextUsage()?.tokens
+		const usage = ctx.getContextUsage()
+		const tokens = usage?.tokens
 		if (typeof tokens !== 'number') return
 		applyAction(
 			pi,
 			ctx,
-			guard.next(tokens, ctx.sessionManager.getSessionId(), new Date()),
+			guard.next(
+				tokens,
+				ctx.sessionManager.getSessionId(),
+				new Date(),
+				usage?.contextWindow,
+			),
 		)
 	})
 }
@@ -150,21 +198,68 @@ function compactFromHandoff(
 			// a much smaller context: restart the cycle before the continuation
 			// runs, otherwise its settle would find this cycle's handoff.
 			guard.enable(guard.currentCeiling())
+			// The cycle is over: the boundary returns to ordinary arbitration,
+			// and goal-gate resumes continuing its checklist at the next settle.
+			endHandoffCycle()
+			summary.reset()
+			// The continuation below can race the compaction being applied: its
+			// request may still be built from the pre-compaction context, so the
+			// next reading can come back numeric and stale. Skip it (see
+			// ContextGuard.noteCompacted) instead of re-crossing the ceiling.
+			guard.noteCompacted()
 			ctx.ui.setStatus(STATUS_KEY, undefined)
 			ctx.ui.notify(
 				'Conversation replaced by the handoff - continuing.',
 				'info',
 			)
 			setTimeout(() => {
-				pi.sendUserMessage(continuationText())
+				// `followUp` never throws while another run is live (a plain send
+				// does), and when idle it triggers the turn exactly as before.
+				pi.sendUserMessage(continuationText(), {
+					deliverAs: 'followUp',
+				})
 			}, 0)
 		},
 		onError: error => {
 			// The claim never happened, or pi gave up before it: either way the
 			// arming must not survive into an unrelated compaction.
 			summary.disarm()
+			// The boundary is released with the failed cycle; a re-ask or a
+			// later compaction attempt claims it afresh.
+			endHandoffCycle()
+			guard.noteCompactFailed()
 			ctx.ui.notify(
 				`Compaction from the handoff failed (${error.message}) - staying in this session.`,
+				'error',
+			)
+		},
+	})
+}
+
+/**
+ * The fail-open tail of a cycle whose handoff never appeared: rather than let
+ * the session run to the model window and pi's generic summary, compact now
+ * with instructions pointed at what a resumption needs. The guard latches the
+ * give-up, so this fires once; the boundary is released either way, and
+ * goal-gate's ledger gating resumes.
+ */
+function compactDirected(
+	pi: ExtensionAPI,
+	ctx: ExtensionContext,
+	path: string,
+): void {
+	endHandoffCycle()
+	ctx.ui.notify(
+		`No handoff at ${path} after ${MAX_SETTLE_RETRIES} retries - compacting this session with a directed summary instead.`,
+		'error',
+	)
+	ctx.compact({
+		customInstructions: fallbackCompactionText(),
+		onError: error => {
+			// The session_before_compact hook is not involved on this
+			// path, so a failure would otherwise be silent.
+			ctx.ui.notify(
+				`Directed compaction failed (${error.message}) - staying in this session; lower the ceiling with /context-budget.`,
 				'error',
 			)
 		},
@@ -185,20 +280,30 @@ function watchSettle(
 	pi.on('agent_settled', (_event, ctx) => {
 		// Same gate as the guard: a delegated run has no one to continue.
 		if (ctx.mode !== 'tui') return
+		// One `agent_settled` dispatch leaves every handler seeing an idle
+		// agent - a message another extension queued starts its run
+		// asynchronously - so `isIdle()` alone arbitrates nothing. The
+		// handshake does: while this extension holds a live claim no other
+		// extension queues under it (goal-gate defers), and a run another
+		// extension started is one this extension must not steer into.
+		if (!ctx.isIdle()) return
 		const action = guard.settled()
 		if (action.type === 'idle') return
+		if (action.type === 'handoff') {
+			// The run reached the ceiling and pi will not continue on its own:
+			// the boundary is here, so ask now instead of interrupting a turn.
+			requestHandoff(pi, ctx, action)
+			return
+		}
 		if (action.type === 'givenUp') {
-			ctx.ui.notify(
-				`No handoff at ${action.path} after ${MAX_SETTLE_RETRIES} retries - staying in this session. Lower the ceiling with /context-budget or write the handoff by hand.`,
-				'error',
-			)
+			compactDirected(pi, ctx, action.path)
 			return
 		}
 		if (action.type === 'reask') {
-			pi.sendUserMessage(
-				handoffMessage(action, resolveSkillBody(pi.getCommands())),
-				{ deliverAs: 'steer' },
-			)
+			// The cycle is still live: keep the boundary claimed (and the
+			// claim's TTL fresh) while the re-ask runs.
+			beginHandoffCycle()
+			pi.sendUserMessage(handoffMessage(action), { deliverAs: 'steer' })
 			ctx.ui.notify(
 				`Handoff still missing - asking again (${action.retry}/${MAX_SETTLE_RETRIES}).`,
 				'warning',
@@ -209,108 +314,10 @@ function watchSettle(
 			`Handoff ready - replacing this conversation with it (${action.path}).`,
 			'info',
 		)
+		// The compaction replaces the conversation underneath any runs queued
+		// from this moment, so the claim stays live until it completes.
+		beginHandoffCycle()
 		summary.arm(action.path)
 		compactFromHandoff(pi, ctx, guard, summary)
-	})
-}
-
-/**
- * Compaction is how this extension replaces the conversation: the same session
- * survives, so nothing has to be carried over, and the summary is the handoff
- * the agent wrote - never pi's own summary of the context being dropped, which
- * is the lossy pass this whole extension exists to avoid.
- */
-function watchCompaction(
-	pi: ExtensionAPI,
-	guard: ContextGuard,
-	summary: HandoffSummary,
-): void {
-	pi.on('session_before_compact', (event, ctx) => {
-		const claim = summary.claim()
-		if (claim.type === 'idle') return
-		if (claim.type === 'missing') {
-			// The handoff vanished between the settle check and here. pi's
-			// generic summary is not a substitute for it, so the compaction is
-			// refused rather than performed with the wrong text.
-			ctx.ui.notify(
-				`Handoff is missing or empty: ${claim.path} - compaction cancelled, this session keeps its context.`,
-				'error',
-			)
-			return { cancel: true }
-		}
-		const { preparation } = event
-		return {
-			compaction: {
-				summary: claim.text,
-				firstKeptEntryId: preparation.firstKeptEntryId,
-				tokensBefore: preparation.tokensBefore,
-			},
-		}
-	})
-	// Whatever compacted - this extension or pi's own threshold - the prompt
-	// shrank, so the ceiling can be crossed again: restart the guard's cycle.
-	pi.on('session_compact', (_event, ctx) => {
-		guard.enable(guard.currentCeiling())
-		ctx.ui.setStatus(STATUS_KEY, undefined)
-	})
-	// Only speaks when the handoff itself was the summary in flight.
-	pi.on('session_compact_failed', (event, ctx) => {
-		if (!event.fromExtension) return
-		ctx.ui.notify(
-			`Compaction from the handoff failed: ${event.errorMessage ?? 'aborted'} - this session keeps its context.`,
-			'error',
-		)
-	})
-}
-
-/** The ceiling requested by an argument or the picker; undefined is cancelled. */
-async function chooseCeiling(
-	ctx: ExtensionCommandContext,
-	args: string,
-	current: Ceiling,
-): Promise<Ceiling | undefined> {
-	const parsed = parseCeiling(args)
-	if (parsed) return parsed
-	if (args.trim()) {
-		ctx.ui.notify(
-			`Unrecognised ceiling "${args.trim()}" - use 56k, 96k, 128k, 192k, 256k, 428k, or off`,
-			'error',
-		)
-		return undefined
-	}
-	const picked = await ctx.ui.select(
-		`Context handoff ceiling (now ${ceilingLabel(current)})`,
-		[...HANDOFF_CHOICES.map(shortTokens), 'off'],
-	)
-	if (!picked) return undefined
-	return parseCeiling(picked)
-}
-
-function argumentCompletions(prefix: string): AutocompleteItem[] | null {
-	const matches = [...HANDOFF_CHOICES.map(shortTokens), 'off'].filter(
-		option => option.startsWith(prefix),
-	)
-	if (!matches.length) return null
-	return matches.map(option => ({ value: option, label: option }))
-}
-
-function registerCeilingCommand(pi: ExtensionAPI, guard: ContextGuard): void {
-	pi.registerCommand('context-budget', {
-		description:
-			'Choose the prompt ceiling that triggers a resumption handoff',
-		getArgumentCompletions: argumentCompletions,
-		handler: async (args, ctx) => {
-			const next = await chooseCeiling(ctx, args, guard.currentCeiling())
-			if (!next) return
-			writeCeiling(getAgentDir(), next)
-			guard.enable(next)
-			ctx.ui.setStatus(STATUS_KEY, undefined)
-			ctx.ui.notify(
-				next === 'off'
-					? 'Context handoff ceiling disabled'
-					: `Context handoff ceiling set to ${shortTokens(next)}`,
-				'info',
-			)
-		},
 	})
 }

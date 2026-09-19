@@ -139,6 +139,27 @@ export function segments(text: ShellText): string[] {
 	return parts
 }
 
+/**
+ * The stages of one segment, split on `|` outside quotes. A pipeline hands the
+ * same text along, so where a command sits in it never changes what it is.
+ */
+export function pipeStages(segment: string): string[] {
+	const text = parseShellText(segment)
+	const stages: string[] = []
+	let current = ''
+	for (let index = 0; index < text.raw.length; index++) {
+		const char = text.raw[index] ?? ''
+		if (char === '|' && !text.quoted[index]) {
+			stages.push(current)
+			current = ''
+			continue
+		}
+		current += char
+	}
+	stages.push(current)
+	return stages
+}
+
 /** The executable a segment runs, after env assignments and wrappers. */
 export function leadingCommand(segment: string): {
 	name: string

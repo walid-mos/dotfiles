@@ -4,10 +4,10 @@
 
 import { pollIncoQuotas } from './inco-session.ts'
 import { isRecord } from './json.ts'
-import { pollNebiusQuotas } from './nebius-session.ts'
 import { pollDeepseekQuotas } from './quota-deepseek.ts'
 import { parseOpenAIUsage, chatgptAccountIdFromToken } from './quota-openai.ts'
 import { pollXaiQuotas } from './quota-xai.ts'
+import { pollZaiQuotas } from './quota-zai.ts'
 import {
 	fetchJson,
 	fetchJsonWithHeaders,
@@ -168,9 +168,9 @@ export async function pollQuotas(): Promise<QuotaCache> {
 	if (openai) cache.openai = openai
 	const deepseek = await pollDeepseekQuotas()
 	if (deepseek) cache.deepseek = deepseek
-	const nebius = await pollNebiusQuotas()
-	if (nebius) cache.nebius = nebius
 	const inco = await pollIncoQuotas()
 	if (inco) cache.inco = inco
+	const zai = await pollZaiQuotas()
+	if (zai) cache.zai = zai
 	return cache
 }

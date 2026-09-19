@@ -32,15 +32,32 @@ export type SummaryClaim =
 /** At most one handoff is armed at a time: the one the settle decision named. */
 export class HandoffSummary {
 	private armed: string | undefined
+	/** Set once this cycle steered a compaction at a handoff; survives claim. */
+	private cycleUsed = false
 
 	/** Declare the handoff the next compaction must use as its summary. */
 	arm(path: string): void {
 		this.armed = path
+		this.cycleUsed = true
 	}
 
 	/** Drop the arming: the compaction that would have used it never happened. */
 	disarm(): void {
 		this.armed = undefined
+	}
+
+	/**
+	 * Whether this cycle already armed a handoff for a compaction - even one
+	 * that was then claimed or failed. A later pi-initiated compaction in the
+	 * same cycle must not silently re-arm from the file on its own.
+	 */
+	get cycleConsumed(): boolean {
+		return this.cycleUsed
+	}
+
+	/** Start a new cycle: the next arm is the cycle's first. */
+	reset(): void {
+		this.cycleUsed = false
 	}
 
 	/** Claim the armed handoff, clearing it whether or not it could be read. */

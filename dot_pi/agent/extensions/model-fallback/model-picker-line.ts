@@ -13,14 +13,15 @@ import type { Input } from '@earendil-works/pi-tui'
 import type { PickerLine } from './model-picker-view.ts'
 
 export const INDENT = '  '
+/** The cursor's own ink; one spelling, worn by every list row. */
+export const SELECTED_MARKER = '▸'
 /** Rows the session tab's chrome and price block claim before its list. */
-export const PICKER_CHROME_ROWS = 13
-/** The same chrome without the gauge block, on a terminal too short for it. */
-export const PICKER_COMPACT_CHROME_ROWS = 9
+export const PICKER_CHROME_ROWS = 15
+/** The same chrome without the gauge block and the legend, on a short terminal. */
+export const PICKER_COMPACT_CHROME_ROWS = 11
 /** Rows the report tabs' chrome claims: header, separators and the hint line. */
-export const PICKER_TAB_CHROME_ROWS = 6
+export const PICKER_TAB_CHROME_ROWS = 7
 const COLUMN_GAP = 1
-const SELECTED_MARKER = '▸'
 const QUIET_MARKER = ' '
 
 /** An inset line, clipped rather than wrapped. */
@@ -28,17 +29,24 @@ export function line(text: string, width: number): PickerLine {
 	return { text: truncateTerminalLine(text, width, '…') }
 }
 
-/** Left content and a right-aligned block, never wider than the row. */
+/**
+ * Left content and a right-aligned block, never wider than the row. When the
+ * left cannot fit, it is clipped and the right block stays: the reasoning
+ * column is the last thing a narrow viewport may lose.
+ */
 export function twoColumn(left: string, right: string, width: number): string {
-	const rightWidth = terminalLineWidth(right)
+	const rightWidth = right ? terminalLineWidth(right) : 0
+	if (!rightWidth) return truncateTerminalLine(left, width, '…')
 	const leftWidth = terminalLineWidth(left)
 	if (leftWidth + rightWidth + COLUMN_GAP <= width)
 		return left + ' '.repeat(width - leftWidth - rightWidth) + right
-	return truncateTerminalLine(
-		left,
-		Math.max(0, width - rightWidth - COLUMN_GAP),
-		'…',
+	const budget = Math.max(0, width - rightWidth - COLUMN_GAP)
+	const clipped = truncateTerminalLine(left, budget, '…')
+	const gap = Math.max(
+		COLUMN_GAP,
+		width - terminalLineWidth(clipped) - rightWidth,
 	)
+	return clipped + ' '.repeat(gap) + right
 }
 
 export function cursorMarker(isSelected: boolean): string {

@@ -1,33 +1,34 @@
 /**
  * model-fallback - the picker's keyboard and mouse contract over pi-tui.
  *
- * The component owns no decisions: every key becomes a pure state transition
+ * The component owns no decisions: every key is routed by
+ * `model-picker-keymap.ts` and then becomes a pure state transition
  * (`model-picker-state.ts`), a row action (`model-picker-commands.ts`), an
  * inline agent edit (`model-picker-editor.ts`), or one of the outcomes above.
  * Escape goes back one level at a time - search, editor, committed action,
  * tab - so a model or reasoning choice stays *pending* until enter and the
  * escape that finally closes the picker changes nothing.
  *
- * The search fields are pi's own `Input` (paste, Unicode, editing keys, cursor
- * marker for IME) rather than hand-rolled buffers: one for the session list and
- * one for the agent editor, which must not inherit the other's filter.
+ * The search fields are pi's own `Input` (paste, Unicode, editing keys, IME
+ * cursor) - one per filter, so neither inherits the other's text.
  */
 
 import { Input, Key, matchesKey } from '@earendil-works/pi-tui'
 
+import { agentRows } from './model-picker-agents.ts'
 import {
 	activateRow,
 	removeChainRow,
-	reorderChainRow,
-	stepRowLevel,
+	reorderRow,
+	saveDefaultModel,
+	stepAgentThinking,
+	stepEffortState,
 } from './model-picker-commands.ts'
-import {
-	editorCommitState,
-	editorStepState,
-	openEditorState,
-} from './model-picker-editor.ts'
+import { editorCommitState, openEditorState } from './model-picker-editor.ts'
+import { keyIntent } from './model-picker-keymap.ts'
 import { searchLine } from './model-picker-line.ts'
 import { renderPicker } from './model-picker-render.ts'
+import { removeScopeRow, toggleScopeRow } from './model-picker-scope-edits.ts'
 import {
 	clampCursor,
 	closeAgentEditor,
@@ -37,21 +38,21 @@ import {
 	selectRow,
 	switchTab,
 } from './model-picker-state.ts'
-import {
-	activeQuery,
-	activeRowCount,
-	agentRows,
-	searchRows,
-} from './model-picker-view.ts'
+import { activeQuery, activeRowCount, searchRows } from './model-picker-view.ts'
 
 import type { Component, Focusable } from '@earendil-works/pi-tui'
 import type { TuiMouseEvent, TuiMouseEventResult } from '@earendil-works/pi-tui'
 import type { ModelFallbackConfig } from './config.ts'
+import type { AgentEntry } from './model-picker-agents.ts'
 import type { PickerCommand } from './model-picker-commands.ts'
-import type { AgentOverrideEdit } from './model-picker-settings.ts'
+import type { PickerKeyIntent } from './model-picker-keymap.ts'
+import type { DefaultModelEdit } from './model-picker-settings.ts'
+import type {
+	AgentOverrideEdit,
+	ScopeListEdit,
+} from './model-picker-settings.ts'
 import type { PickerOutcome, PickerState } from './model-picker-state.ts'
 import type {
-	AgentPin,
 	PickerLine,
 	PickerView,
 	RowCountInput,
@@ -67,6 +68,10 @@ export interface PickerComponentDeps {
 	onConfigChange: (config: ModelFallbackConfig) => void
 	/** Persisted for one agent; false when the settings write failed. */
 	onAgentOverrideChange: (edit: AgentOverrideEdit) => boolean
+	/** Persisted as the saved scope list; false when the write failed. */
+	onScopeListChange: (edit: ScopeListEdit) => boolean
+	/** Persisted as the startup default for new sessions; false on failure. */
+	onDefaultModelChange: (edit: DefaultModelEdit) => boolean
 	onDone: (outcome: PickerOutcome) => void
 }
 
@@ -101,18 +106,17 @@ export class ModelPickerComponent implements Component, Focusable {
 		this.search.focused = this.focused
 		this.agentSearch.focused = this.focused
 		const view = this.deps.view()
-		const query = this.search.getValue()
-		const editorQuery = this.agentSearch.getValue()
-		const field = this.state.editor ? this.agentSearch : this.search
-		const active = this.state.editor ? editorQuery : query
+		const active = this.state.editor
+			? this.agentSearch.getValue()
+			: this.search.getValue()
 		const lines = renderPicker({
 			view,
 			state: this.state,
 			size: { width, height },
-			query,
-			editorQuery,
+			query: this.search.getValue(),
+			editorQuery: this.agentSearch.getValue(),
 			searchLine: searchLine(
-				field,
+				this.state.editor ? this.agentSearch : this.search,
 				width,
 				searchRows(view, active).length,
 			),
@@ -129,8 +133,36 @@ export class ModelPickerComponent implements Component, Focusable {
 		this.search.focused = this.focused
 		this.agentSearch.focused = this.focused
 		if (matchesKey(keyData, Key.escape)) return this.escape()
-		if (this.routeNavigation(keyData)) return
-		this.routeEditing(keyData)
+		const intent = keyIntent(keyData, this.state)
+		if (intent) this.applyIntent(intent, keyData)
+	}
+
+	/** One routed key: the state transition, row action or text it asks for. */
+	private applyIntent(intent: PickerKeyIntent, keyData: string): void {
+		if (intent.kind === 'switch-tab')
+			return this.update(switchTab(this.state, intent.delta))
+		if (intent.kind === 'move') return this.move(intent.delta)
+		if (intent.kind === 'effort') return this.stepEffort(intent.delta)
+		if (intent.kind === 'activate') return this.activate()
+		if (intent.kind === 'toggle-scope')
+			return this.run(toggleScopeRow(this.rowCountInput()))
+		if (intent.kind === 'save-default')
+			return this.run(saveDefaultModel(this.rowCountInput()))
+		if (intent.kind === 'reorder')
+			return this.run(
+				reorderRow({ ...this.rowCountInput(), delta: intent.delta }),
+			)
+		if (intent.kind === 'remove')
+			return this.run(
+				this.state.tab === 'fallbacks'
+					? removeChainRow(this.rowCountInput())
+					: removeScopeRow(this.rowCountInput()),
+			)
+		// `type`: the active search field owns the key, and the filtered list
+		// may have shrunk under the cursor.
+		if (this.state.editor) this.agentSearch.handleInput(keyData)
+		else this.search.handleInput(keyData)
+		this.move(0)
 	}
 
 	handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
@@ -138,60 +170,12 @@ export class ModelPickerComponent implements Component, Focusable {
 			return this.scrollBy(event.wheelDelta)
 		if (event.type !== 'click' || event.button !== 'left') return undefined
 		const pick = this.cache?.lines[event.y]?.pick
-		if (typeof pick !== 'number') return undefined
 		const rows = activeRowCount(this.rowCountInput())
-		if (pick >= rows) return undefined
+		if (typeof pick !== 'number' || pick >= rows) return undefined
 		this.update(clampCursor(selectRow(this.state, pick), rows))
-		this.activateAgentRow(pick)
+		// On the agents tab a click also does what the row under it is for.
+		if (!this.state.editor && this.state.tab === 'agents') this.activate()
 		return { handled: true }
-	}
-
-	/** On the agents tab a click also opens what the row is for. */
-	private activateAgentRow(pick: number): void {
-		if (this.state.editor || this.state.tab !== 'agents') return
-		const row = agentRows(this.deps.view())[pick]
-		if (row?.kind === 'open') this.activate()
-		if (row?.kind === 'pin') this.openEditor(row.pin)
-	}
-
-	/** Cursor, chain, tab and level keys; true when the key was consumed. */
-	private routeNavigation(keyData: string): boolean {
-		const isEditorless = !this.state.editor
-		if (isEditorless && matchesKey(keyData, Key.tab))
-			this.update(switchTab(this.state, 1))
-		else if (isEditorless && matchesKey(keyData, Key.shift('tab')))
-			this.update(switchTab(this.state, -1))
-		else if (matchesKey(keyData, Key.up)) this.move(-1)
-		else if (matchesKey(keyData, Key.down)) this.move(1)
-		else if (matchesKey(keyData, Key.left)) this.stepEffort(-1)
-		else if (matchesKey(keyData, Key.right)) this.stepEffort(1)
-		else if (matchesKey(keyData, Key.enter)) this.activate()
-		else if (matchesKey(keyData, Key.alt('up')))
-			this.run(reorderChainRow({ ...this.rowCountInput(), delta: -1 }))
-		else if (matchesKey(keyData, Key.alt('down')))
-			this.run(reorderChainRow({ ...this.rowCountInput(), delta: 1 }))
-		else return false
-		return true
-	}
-
-	/** Text keys: chain removal, the editor filter, or the session filter. */
-	private routeEditing(keyData: string): void {
-		const { editor, tab } = this.state
-		if (
-			matchesKey(keyData, Key.backspace) &&
-			!editor &&
-			tab === 'fallbacks'
-		)
-			return this.run(removeChainRow(this.rowCountInput()))
-		if (editor) {
-			this.agentSearch.handleInput(keyData)
-			this.move(0)
-			return
-		}
-		if (tab !== 'session') return
-		this.search.handleInput(keyData)
-		// The filtered list may have shrunk under the cursor.
-		this.move(0)
 	}
 
 	/** What a key acts on: the active tab's rows, read on every keystroke. */
@@ -235,53 +219,51 @@ export class ModelPickerComponent implements Component, Focusable {
 		return this.finish({ kind: 'cancel' })
 	}
 
-	/** Left/right change the *pending* level of the row under the cursor. */
+	/** Left/right change the level of the row under the cursor. */
 	private stepEffort(delta: number): void {
+		// The agents tab writes the selected agent's own level as it steps.
+		if (this.state.tab === 'agents' && !this.state.editor)
+			return this.run(
+				stepAgentThinking({ ...this.rowCountInput(), delta }),
+			)
+		const next = stepEffortState({
+			view: this.deps.view(),
+			state: this.state,
+			query: this.search.getValue(),
+			editorQuery: this.agentSearch.getValue(),
+			delta,
+		})
+		if (next) this.update(next)
+	}
+
+	/** Enter: save an agent edit, choose a model, toggle, or open a surface. */
+	private activate(): void {
 		if (this.state.editor) {
-			const next = editorStepState(
+			// A failed pin write is reported by the caller's own handler, and the
+			// editor stays open to retry.
+			const next = editorCommitState(
 				this.deps.view(),
 				this.state,
 				this.agentSearch.getValue(),
-				delta,
+				this.deps.onAgentOverrideChange,
 			)
 			if (next) this.update(next)
 			return
 		}
-		const command = stepRowLevel({ ...this.rowCountInput(), delta })
-		if (command.state) this.update(command.state)
-	}
-
-	/** Enter: choose, toggle, append, edit an agent, or open the surface. */
-	private activate(): void {
-		if (this.state.editor) return this.saveEditor()
 		if (this.state.tab === 'agents') {
 			const row = agentRows(this.deps.view())[this.state.cursor]
 			if (row?.kind === 'open')
 				return this.finish({ kind: 'open-agents' })
-			if (row?.kind === 'pin') return this.openEditor(row.pin)
+			if (row?.kind === 'agent') return this.openEditor(row.entry)
 			return
 		}
 		this.run(activateRow(this.rowCountInput()))
 	}
 
-	/** The editor for one pinned agent, starting on the model it pins. */
-	private openEditor(pin: AgentPin): void {
+	/** The editor for one agent, starting on the model it already runs. */
+	private openEditor(entry: AgentEntry): void {
 		this.agentSearch.setValue('')
-		this.update(openEditorState(this.deps.view(), this.state, pin))
-	}
-
-	/**
-	 * Enter in the editor: write the pin, or close an unchanged one. A failed
-	 * write is the picker's to report; the editor stays open to retry.
-	 */
-	private saveEditor(): void {
-		const next = editorCommitState(
-			this.deps.view(),
-			this.state,
-			this.agentSearch.getValue(),
-			this.deps.onAgentOverrideChange,
-		)
-		if (next) this.update(next)
+		this.update(openEditorState(this.deps.view(), this.state, entry))
 	}
 
 	/** Apply one row action: persist, adopt state, or close with a choice. */
@@ -291,7 +273,31 @@ export class ModelPickerComponent implements Component, Focusable {
 			this.invalidate()
 			this.deps.onRender()
 		}
-		if (command.state) this.update(command.state)
+		// A refused write leaves the row, the cursor and the state as they were.
+		if (
+			command.scopeList &&
+			!this.deps.onScopeListChange(command.scopeList)
+		)
+			return
+		if (
+			command.agentEdit &&
+			!this.deps.onAgentOverrideChange(command.agentEdit)
+		)
+			return
+		if (
+			command.defaultEdit &&
+			!this.deps.onDefaultModelChange(command.defaultEdit)
+		)
+			return
+		if (command.state) {
+			// The saved list can change under the cursor (a row moves between the
+			// saved and session groups, or leaves the list) and closing the agent
+			// editor changes which list the cursor is on: re-clamp against the
+			// rows the next state actually has.
+			const input = this.rowCountInput()
+			const rows = activeRowCount({ ...input, state: command.state })
+			this.update(clampCursor(command.state, rows))
+		}
 		if (command.model)
 			this.finish({
 				kind: 'model',

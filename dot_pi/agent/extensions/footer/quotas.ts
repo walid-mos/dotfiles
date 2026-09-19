@@ -8,7 +8,7 @@ import { homedir } from 'node:os'
 import { isRecord, finiteNumber, finiteOr, FIELD_NAN } from './json.ts'
 
 import type { IncoQuota } from './quota-inco.ts'
-import type { NebiusQuota } from './quota-nebius.ts'
+import type { ZaiQuota } from './quota-zai.ts'
 
 export const AUTH_PATH = `${homedir()}/.pi/agent/auth.json`
 
@@ -70,8 +70,8 @@ export type QuotaCache = {
 	xai?: XaiQuota
 	openai?: OpenAIQuota
 	deepseek?: DeepseekQuota
-	nebius?: NebiusQuota
 	inco?: IncoQuota
+	zai?: ZaiQuota
 	error?: boolean
 }
 

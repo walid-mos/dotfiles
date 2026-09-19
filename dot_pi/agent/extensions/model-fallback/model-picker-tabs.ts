@@ -1,38 +1,38 @@
 /**
- * model-fallback - the three non-list tabs: the fallback chain, the session
- * scope, and the agent pins.
+ * model-fallback - the fallback chain tab and the agent pins tab.
  *
  * The fallback tab shows the chain in failover order - the order *is* the
  * behaviour - with the cooldown each entry is serving and the toggles that
- * decide what happens on a failure. The scope and agent tabs report what other
- * owners configured and open those owners' own surfaces; both are scrolling
- * lists whose first row is that action, so the row a user came for stays on
- * screen on a short terminal.
+ * decide what happens on a failure. The agents tab lists each agent with the
+ * model it pins or inherits and the reasoning column the other model lists use;
+ * alt+up/down reorders the failover chain, left/right edits one agent's own
+ * thinking. The scope tab lives in `model-picker-scope.ts`.
  */
 
 import { uiTheme } from '../ui/design-system/theme.ts'
-import { GLYPH } from '../ui/selection-marker.ts'
+import { highlightRow } from '../ui/frame.ts'
 
-import { groupWindow, groupedRows } from './model-picker-groups.ts'
-import { INDENT, cursorMarker, line, twoColumn } from './model-picker-line.ts'
 import {
 	agentGroups,
+	agentLevel,
+	agentModelRow,
 	agentRows,
-	fallbackGroups,
-	fallbackRows,
-	scopeRows,
-} from './model-picker-view.ts'
+} from './model-picker-agents.ts'
+import { effortBlock } from './model-picker-effort.ts'
+import { fallbackGroups, fallbackRows } from './model-picker-fallbacks.ts'
+import { groupWindow, groupedRows } from './model-picker-groups.ts'
+import { INDENT, cursorMarker, line, twoColumn } from './model-picker-line.ts'
 import { bodyRows, scrollHints } from './model-picker-window.ts'
 
-import type { FallbackRow, RenderInput, ScopeRow } from './model-picker-view.ts'
-import type { PickerLine } from './model-picker-view.ts'
+import type { AgentEntry, AgentRow } from './model-picker-agents.ts'
+import type { FallbackRow } from './model-picker-fallbacks.ts'
+import type { RenderInput } from './model-picker-view.ts'
+import type { PickerLine, PickerView } from './model-picker-view.ts'
 
 const SECONDS_PER_MINUTE = 60
 const MS_PER_SECOND = 1_000
 /** Header lines a scrolling tab draws above its window. */
 const TAB_HEADER_ROWS = 1
-/** The scope tab adds two status lines and the line naming pi's own selector. */
-const SCOPE_HEADER_ROWS = 3
 
 function cooldownText(input: RenderInput, reference: string): string {
 	const until = input.view.cooldowns.get(reference) ?? 0
@@ -103,89 +103,74 @@ export function renderFallbacks(input: RenderInput): PickerLine[] {
 	]
 }
 
-/** What the settings file knows: an unreadable file is unknown, not empty. */
-function patternStatus(input: RenderInput): string {
-	const { view } = input
-	if (!view.isSettingsReadable)
-		return 'settings.json could not be read - saved patterns unknown'
-	if (!view.patterns.length) return 'no saved scope patterns in settings.json'
-	return `saved scope patterns in settings.json: ${String(view.patterns.length)}`
-}
-
-/** What this picker read when it opened, which `--models` also shapes. */
-function resolvedStatus(input: RenderInput): string {
-	const { view } = input
-	if (!view.scope.length)
-		return 'resolved when the picker opened: unrestricted (every available model is usable)'
-	return `resolved when the picker opened: ${String(view.scope.length)} models`
-}
-
 /**
- * The one thing this tab cannot do for the user. `/scoped-models` is a built-in
- * interactive command: pi dispatches it only from its own editor, `getCommands`
- * does not list it, and a prefilled editor does not execute it either - typing
- * it is the supported route, so the tab says so instead of faking an action.
+ * The model one agent would run, named with where it comes from. `pin`,
+ * `agent` and `default` are the agent's own configured model; anything else is
+ * the session's, which the row spells out as inherited. A configured model the
+ * catalogue cannot resolve reads as `unknown model` in the level column, so
+ * the row never claims a level for a model nobody can run.
+ *
+ * The origin word is dim and the model muted: the agent's name is the row's
+ * anchor, so the two facts after it stay readable without competing with it.
  */
-function scopeOwnerNote(input: RenderInput): string {
-	return twoColumn(
-		`${INDENT}pi's own selector owns this list: type ${uiTheme.fg('text', '/scoped-models')}`,
-		uiTheme.fg('dim', 'ctrl+s there saves it'),
-		input.size.width,
-	)
+function agentTag(
+	view: PickerView,
+	entry: AgentEntry,
+	isSupported: boolean,
+): string {
+	const { model } = entry
+	if (!model) return uiTheme.fg('dim', '  inherits no session model')
+	const ink = isSupported ? 'muted' : 'warning'
+	const label = uiTheme.fg(ink, model)
+	if (entry.modelOrigin === 'pin')
+		return `${uiTheme.fg('dim', '  pinned')} ${label}`
+	if (entry.modelOrigin === 'agent')
+		return `${uiTheme.fg('dim', '  uses')} ${label}`
+	if (entry.modelOrigin === 'default')
+		return `${uiTheme.fg('dim', '  subagents default')} ${label}${uiTheme.fg('dim', entry.modelScope === 'project' ? ' (project)' : ' (user)')}`
+	return uiTheme.fg('dim', `  inherits ${model}`)
 }
 
-function scopeRowLine(
-	row: ScopeRow,
+/** The agent's name, with the marker a pin that lost its agent earns. */
+function agentName(entry: AgentEntry): string {
+	if (entry.isKnown) return uiTheme.fg('text', entry.name)
+	return `${uiTheme.fg('warning', entry.name)} ${uiTheme.fg('warning', 'no such agent')}`
+}
+
+/** One agent: its name and what it runs on the left, its reasoning at right. */
+function agentRowLine(
+	row: AgentRow,
 	input: RenderInput,
 	index: number,
 ): PickerLine {
-	const marker = cursorMarker(index === input.state.cursor)
-	if (row.kind === 'pattern')
+	const { view, size } = input
+	const selected = index === input.state.cursor
+	const marker = cursorMarker(selected)
+	if (row.kind === 'open') {
+		const text = twoColumn(
+			` ${marker}${uiTheme.fg(view.hasSubagentsCommand ? 'text' : 'dim', 'open per-agent models')}`,
+			uiTheme.fg('dim', '/subagents'),
+			size.width,
+		)
 		return {
-			text: twoColumn(
-				`${INDENT}${marker} ${uiTheme.fg('muted', row.pattern)}`,
-				uiTheme.fg('dim', 'pattern'),
-				input.size.width,
-			),
+			text: selected ? highlightRow(text, size.width) : text,
 			pick: index,
 		}
+	}
 	const { entry } = row
-	return {
-		text: twoColumn(
-			`${INDENT}${marker} ${entry.isCurrent ? uiTheme.fg('success', GLYPH.radioOn) : uiTheme.fg('dim', GLYPH.radioOff)} ${uiTheme.fg('text', entry.reference)}`,
-			uiTheme.fg('dim', entry.level ?? 'session'),
-			input.size.width,
+	const modelRow = agentModelRow(view, entry.model)
+	const text = twoColumn(
+		` ${marker}${agentName(entry)}${agentTag(view, entry, Boolean(modelRow))}`,
+		effortBlock(
+			{ row: modelRow, level: agentLevel(entry, modelRow) },
+			size.width,
 		),
+		size.width,
+	)
+	return {
+		text: selected ? highlightRow(text, size.width) : text,
 		pick: index,
 	}
-}
-
-export function renderScope(input: RenderInput): PickerLine[] {
-	const rows = scopeRows(input.view)
-	const window = groupWindow({
-		rowCount: rows.length,
-		cursor: input.state.cursor,
-		maxRows: bodyRows(input, SCOPE_HEADER_ROWS),
-		groups: [],
-	})
-	return [
-		line(
-			`${INDENT}${uiTheme.fg('dim', patternStatus(input))}`,
-			input.size.width,
-		),
-		line(
-			`${INDENT}${uiTheme.fg('dim', resolvedStatus(input))}`,
-			input.size.width,
-		),
-		{ text: scopeOwnerNote(input) },
-		...scrollHints(input, window, rows.length),
-		...groupedRows({
-			rows,
-			window,
-			width: input.size.width,
-			renderRow: (row, index) => scopeRowLine(row, input, index),
-		}),
-	]
 }
 
 export function renderAgents(input: RenderInput): PickerLine[] {
@@ -197,31 +182,13 @@ export function renderAgents(input: RenderInput): PickerLine[] {
 		maxRows: bodyRows(input, TAB_HEADER_ROWS),
 		groups: agentGroups(rows),
 	})
-	const body = groupedRows({
-		rows,
-		window,
-		width: size.width,
-		renderRow: (row, index) => {
-			const marker = cursorMarker(index === input.state.cursor)
-			if (row.kind === 'open')
-				return {
-					text: twoColumn(
-						`${INDENT}${marker} ${uiTheme.fg(view.hasSubagentsCommand ? 'text' : 'dim', 'open per-agent models')}`,
-						uiTheme.fg('dim', '/subagents'),
-						size.width,
-					),
-					pick: index,
-				}
-			const detail = `${row.pin.model ?? 'session default'}${row.pin.thinking ? ` · ${row.pin.thinking}` : ''}`
-			return {
-				text: twoColumn(
-					`${INDENT}${marker} ${uiTheme.fg('muted', row.pin.agent)}`,
-					uiTheme.fg('dim', detail),
-					size.width,
-				),
-				pick: index,
-			}
-		},
-	})
-	return [...scrollHints(input, window, rows.length), ...body]
+	return [
+		...scrollHints(input, window, rows.length),
+		...groupedRows({
+			rows,
+			window,
+			width: size.width,
+			renderRow: (row, index) => agentRowLine(row, input, index),
+		}),
+	]
 }

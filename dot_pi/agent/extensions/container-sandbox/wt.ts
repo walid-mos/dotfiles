@@ -1,8 +1,9 @@
 // wt CLI boundary. This extension never creates, names or removes containers:
 // the wt workspace registry owns that identity, and wt owns creation, repair
-// and teardown. Everything here is read-only except `wt sync`, which asks wt to
-// start a stopped container or rebuild an absent one from its recorded
-// snapshot. Nothing parses the registry file directly.
+// and teardown - including the shared dev VM a devvm workspace lives on. Everything
+// here is read-only except `wt sync`, which asks wt to reconcile the workspace:
+// start or rebuild its container, or re-run the idempotent devvm add. Nothing
+// parses the registry file directly.
 import { execFile } from 'node:child_process'
 import { realpathSync } from 'node:fs'
 import { promisify } from 'node:util'
@@ -10,17 +11,28 @@ import { promisify } from 'node:util'
 const execFileAsync = promisify(execFile)
 const COMMAND_TIMEOUT_MS = 900000
 const MAX_OUTPUT_BYTES = 8388608
+/** A line of nothing but JSON syntax carries no reason; a failed wt run ends with one. */
+const JSON_SYNTAX_ONLY_LINE = /^[\]{}[",:\s]+$/
 
 export type ContainerState = 'absent' | 'running' | 'stopped' | 'unknown'
+
+/** How wt provisioned the workspace: its own VM, or a namespace on the shared dev VM. */
+export type Vehicle = 'container' | 'devvm'
 
 export interface SandboxWorkspace {
 	/** Canonical checkout path, exactly as the registry records it. */
 	path: string
 	branch: string
 	containerName: string
+	/** How wt provisioned this workspace; decides how the exec boundary reaches it. */
+	vehicle: Vehicle
 	containerState: ContainerState
 	/** Host ports published by `container run`, empty when none are configured. */
 	ports: string[]
+	/** Ports the project publishes on the workspace's own tailnet node, in declaration order. */
+	tailnetPorts: number[]
+	/** The port of wt's own workspace index, null when the project reserves none. */
+	tailnetIndex: number | null
 	/** Memory limit recorded at spawn (e.g. "2G"); empty when the row predates the setting. */
 	memory: string
 }
@@ -68,6 +80,28 @@ function readPorts(row: object): string[] {
 	return ports.filter((port): port is string => typeof port === 'string')
 }
 
+/** Ports the project declares for the workspace's tailnet node, in the order it declared them. */
+function readTailnetPorts(row: object): number[] {
+	const config: unknown = Reflect.get(row, 'container_config')
+	if (typeof config !== 'object' || config === null) return []
+	const tailscale: unknown = Reflect.get(config, 'tailscale')
+	if (typeof tailscale !== 'object' || tailscale === null) return []
+	const ports: unknown = Reflect.get(tailscale, 'ports')
+	if (!Array.isArray(ports)) return []
+	return ports.filter((port): port is number => typeof port === 'number')
+}
+
+/** The port the project reserves for wt's workspace index, null when it declares none. */
+function readTailnetIndex(row: object): number | null {
+	const config: unknown = Reflect.get(row, 'container_config')
+	if (typeof config !== 'object' || config === null) return null
+	const tailscale: unknown = Reflect.get(config, 'tailscale')
+	if (typeof tailscale !== 'object' || tailscale === null) return null
+	const index: unknown = Reflect.get(tailscale, 'index')
+	if (typeof index !== 'number') return null
+	return index
+}
+
 /** The recorded memory limit, shown so a starved VM is never a mystery. */
 function readMemory(row: object): string {
 	const config: unknown = Reflect.get(row, 'container_config')
@@ -75,41 +109,62 @@ function readMemory(row: object): string {
 	return stringField(config, 'memory') ?? ''
 }
 
+/** The provisioning vehicle the row records; rows from before the field are containers. */
+function readVehicle(row: object): Vehicle {
+	return stringField(row, 'vehicle') === 'devvm' ? 'devvm' : 'container'
+}
+
 /** Is `candidate` the workspace root or inside it? Both are canonical absolute paths. */
 export function isInsideWorkspace(root: string, candidate: string): boolean {
 	return candidate === root || candidate.startsWith(`${root}/`)
 }
 
-/** Deepest registered workspace containing `cwd`, containerized or not. */
-export function locateWorkspace(rows: unknown, cwd: string): WorkspaceLookup {
-	if (!Array.isArray(rows)) return { kind: 'missing' }
-	let bestPath: string | null = null
-	let bestRow: object | null = null
+/** The deepest registered row containing `cwd`, which is the one that owns it. */
+function deepestRow(
+	rows: unknown[],
+	cwd: string,
+): { row: object; path: string } | null {
+	let best: { row: object; path: string } | null = null
 	for (const row of rows) {
 		if (typeof row !== 'object' || row === null) continue
 		const path = stringField(row, 'path')
 		if (!path || !isInsideWorkspace(path, cwd)) continue
-		if (bestPath === null || path.length > bestPath.length) {
-			bestPath = path
-			bestRow = row
-		}
+		if (!best || path.length > best.path.length) best = { row, path }
 	}
-	if (bestRow === null || bestPath === null) return { kind: 'missing' }
-	if (Reflect.get(bestRow, 'containerized') !== true) return { kind: 'plain' }
-	const branch = stringField(bestRow, 'branch')
-	const containerName = stringField(bestRow, 'container_name')
-	if (!branch || !containerName) return { kind: 'plain' }
+	return best
+}
+
+/** A containerized row as the session sees it, vehicle included. */
+function workspaceFromRow(row: object, path: string): SandboxWorkspace {
+	const vehicle = readVehicle(row)
 	return {
-		kind: 'containerized',
-		workspace: {
-			path: bestPath,
-			branch,
-			containerName,
-			containerState: containerState(Reflect.get(bestRow, 'container')),
-			ports: readPorts(bestRow),
-			memory: readMemory(bestRow),
-		},
+		path,
+		branch: stringField(row, 'branch') ?? '',
+		containerName: stringField(row, 'container_name') ?? '',
+		vehicle,
+		// A devvm workspace has no container state machine to read, and nothing it
+		// publishes to the host or reserves alone: the shared VM owns both facts.
+		containerState:
+			vehicle === 'devvm'
+				? 'unknown'
+				: containerState(Reflect.get(row, 'container')),
+		ports: vehicle === 'devvm' ? [] : readPorts(row),
+		tailnetPorts: readTailnetPorts(row),
+		tailnetIndex: readTailnetIndex(row),
+		memory: vehicle === 'devvm' ? '' : readMemory(row),
 	}
+}
+
+/** Deepest registered workspace containing `cwd`, containerized or not. */
+export function locateWorkspace(rows: unknown, cwd: string): WorkspaceLookup {
+	if (!Array.isArray(rows)) return { kind: 'missing' }
+	const best = deepestRow(rows, cwd)
+	if (!best) return { kind: 'missing' }
+	if (Reflect.get(best.row, 'containerized') !== true)
+		return { kind: 'plain' }
+	const workspace = workspaceFromRow(best.row, best.path)
+	if (!workspace.branch || !workspace.containerName) return { kind: 'plain' }
+	return { kind: 'containerized', workspace }
 }
 
 /** Best-effort canonical spelling: wt records canonical paths, cwd may not be. */
@@ -142,30 +197,69 @@ function syncOutcome(payload: unknown): string | null {
 	return `wt sync left the container ${state ?? 'in an unknown state'}`
 }
 
-/** The `error.message` of a wt JSON envelope, an output tail for plain text. */
-function envelopeMessage(output: string): string | null {
-	let payload: unknown
-	try {
-		payload = JSON.parse(output)
-	} catch {
-		return output.trim().split('\n').at(-1) || null
+/**
+ * The JSON documents `output` may hold, newest first: the whole text, then each
+ * line that could open one. A failing wt run streams its diagnostics before the
+ * envelope, so the document is the trailing one.
+ */
+function* jsonDocuments(output: string): Generator<string> {
+	yield output.trim()
+	const starts: number[] = []
+	let offset = 0
+	for (const line of output.split('\n')) {
+		if (line.trimStart().startsWith('{')) starts.push(offset)
+		offset += line.length + 1
 	}
-	if (typeof payload !== 'object' || payload === null) return null
-	const envelope: unknown = Reflect.get(payload, 'error')
-	if (typeof envelope !== 'object' || envelope === null) return null
-	return stringField(envelope, 'message')
+	for (const start of starts.toReversed()) yield output.slice(start).trim()
 }
 
-/** Error text from a wt JSON envelope, with the raw output as the fallback. */
+/** The `error.message` of the wt JSON envelope in `output`, wherever wt printed it. */
+function envelopeMessage(output: string): string | null {
+	for (const candidate of jsonDocuments(output)) {
+		let payload: unknown
+		try {
+			payload = JSON.parse(candidate)
+		} catch {
+			continue
+		}
+		if (typeof payload !== 'object' || payload === null) continue
+		const envelope: unknown = Reflect.get(payload, 'error')
+		if (typeof envelope !== 'object' || envelope === null) continue
+		const message = stringField(envelope, 'message')
+		if (message) return message
+	}
+	return null
+}
+
+/** The last informative line of plain-text output, wt's diagnostics tail. */
+function plainTail(output: string): string | null {
+	const lines = output
+		.split('\n')
+		.map(line => line.trim())
+		.filter(line => line !== '' && !JSON_SYNTAX_ONLY_LINE.test(line))
+	return lines.at(-1) ?? null
+}
+
+/**
+ * Error text from a wt JSON envelope, then its plain-text tail, then the raw error.
+ * Envelopes are read across both streams before any tail: the structured message
+ * names the failure, where the tail may only be the last line of a chatty log.
+ */
 function failureReason(error: unknown): string {
 	if (typeof error !== 'object' || error === null) return describe(error)
-	for (const output of [
+	const outputs = [
 		stringField(error, 'stdout'),
 		stringField(error, 'stderr'),
-	]) {
-		if (!output) continue
+	].filter(
+		(output): output is string => output !== null && output.trim() !== '',
+	)
+	for (const output of outputs) {
 		const message = envelopeMessage(output)
 		if (message) return message
+	}
+	for (const output of outputs) {
+		const tail = plainTail(output)
+		if (tail) return tail
 	}
 	return describe(error)
 }
@@ -205,10 +299,21 @@ export async function ensureContainerRunning(
 	workspace: SandboxWorkspace,
 ): Promise<string | null> {
 	if (workspace.containerState === 'running') return null
+	return syncWorkspace(workspace.path)
+}
+
+/**
+ * Reconcile a devvm workspace: the idempotent `wt devvm add` behind `wt sync`
+ * ensures the VM, the namespace and the relays. There is no state to consult -
+ * the add is the state machine.
+ */
+export async function ensureDevvmRunning(path: string): Promise<string | null> {
+	return syncWorkspace(path)
+}
+
+async function syncWorkspace(path: string): Promise<string | null> {
 	try {
-		return syncOutcome(
-			await wtJson(['sync', workspace.path, '--json'], workspace.path),
-		)
+		return syncOutcome(await wtJson(['sync', path, '--json'], path))
 	} catch (error) {
 		return `wt sync failed: ${failureReason(error)}`
 	}
