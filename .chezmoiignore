@@ -10,6 +10,33 @@
 .pi/web-search-cache
 .pi/agent/extensions/herdr-agent-state.ts
 
+# Pi: audit scaffolding, jev working data and session ledgers - throwaway
+.pi/agent/audits/harness-footprint.ts
+.pi/agent/audits/jev-eval.ts
+.pi/agent/audits/jev-frontcheck.ts
+.pi/agent/audits/jev-triage.ts
+.pi/agent/audits/tool-choice-*.ts
+.pi/agent/audits/*-20??-??-??.md
+.pi/agent/audits/*.html
+.pi/agent/audits/jev-eval
+.pi/agent/audits/jev-frontcheck
+.pi/agent/audits/jev-triage
+.pi/agent/goals
+.pi/agent/jev
+.pi/agent/reports
+.pi/agent/tmp-frontend-check.html
+
+# Pi: plans are throwaway; closed ones are archived locally only
+.pi/agent/plans/active
+.pi/agent/plans/done/2026/accor
+.pi/agent/plans/done/2026/galley
+.pi/agent/plans/done/2026/harness
+.pi/agent/plans/done/2026/syneva
+.pi/agent/plans/done/2026/wt
+
+# Pi: pnpm regenerates the lock in the installed tree
+.pi/agent/npm/package-lock.json
+
 # Pi: transient handoffs, run history, restart artifacts and audit reports
 .pi/agent/handoffs
 .pi/agent/run-history.jsonl
@@ -71,6 +98,15 @@ bootstrap/
 
 # user bin: one-off utility scripts, not synced
 bin/
+
+# machine-local tool installs, their state and secrets - never version
+.colima
+.colima.empty-brew-service-20260919
+.hermes
+.impeccable
+.syneva
+.config/.wrangler
+.config/wt/secrets
 
 # macOS home: volatile state, caches and user data - never version
 .DS_Store
