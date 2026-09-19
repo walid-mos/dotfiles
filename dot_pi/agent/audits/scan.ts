@@ -9,10 +9,8 @@ import { readdirSync, readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { join, relative } from 'node:path'
 
-import {
-	blindWaitReason,
-	shadowedCommands,
-} from '../extensions/tool-guard/policy.ts'
+import { blindWaitReason } from '../extensions/tool-guard/blind-wait.ts'
+import { shadowedCommands } from '../extensions/tool-guard/shadowed-tools.ts'
 import {
 	leadingCommand,
 	parseShellText,

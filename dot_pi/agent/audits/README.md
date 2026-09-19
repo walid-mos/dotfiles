@@ -62,11 +62,12 @@ node audits/tool-choice-audit.ts --days 7   # only the last week
 
 ### How to read it
 
-- **The wrong-tool share is the number to move**, not the refusal count: a form the guard allows
-  (a pipe, a redirect) is still the reflex, and tightening the guard raises refusals without lowering
-  attempts. Read section 2's first line and section 7.
-- **Verdicts are the guard's, not a copy**: `extensions/tool-guard/policy.ts` classifies the covered
-  forms, `tool-choice-parse.ts` classifies the rest, so the two halves cannot drift apart.
+- **The wrong-tool share is the number to move**, not the refusal count: work the guard exempts
+  (a count, a mutation, a throwaway log) is still the reflex, and tightening the guard raises refusals
+  without lowering attempts. Read section 2's first line and section 7.
+- **Verdicts are the guard's, not a copy**: `extensions/tool-guard/` classifies both the refused work
+  and the exempt forms it fell under (`exemptionReason`), `tool-choice-parse.ts` only counts, so the
+  escape vocabulary cannot drift from the rule.
 - **Sections are one runnable script** over `~/.pi/agent/sessions/**/*.jsonl`; the parse/scan split
   mirrors `tool-call-audit.ts` / `scan.ts`.
 

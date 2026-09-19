@@ -27,9 +27,10 @@ Always use the dedicated Pi tool for the job:
 | Create or replace a file | `write`                         |
 
 **Never use `bash`/`host` for that work** — reading a file, listing a directory, searching content and
-finding files by name belong to `read`/`ls`/`grep`/`find` whatever the form: a pipe (`|`), a redirect
-(`>`), or a `head`/`tail`/`sed`/`wc`/`jq` wrapper does not change what the call is. `tool-guard` refuses
-such calls when it sees them.
+finding files by name belong to `read`/`ls`/`grep`/`find`. `tool-guard` refuses `ls`, `cat`, `head`, `tail`,
+`grep`/`rg`, `find` and `tree` wherever they sit: a pipe (`|`), a redirect (`2>/dev/null`), or a
+`head`/`tail` wrapper does not change what the call is. Bash stays right for what no tool owns: builds,
+tests, git, and pipelines that transform or store (`jq`, `sed`, counts, a redirect to a file).
 
 **Never bypass a tool refusal** by switching to `bash`/`host`, another interpreter, a wrapper, or a contrived pipeline — use the suggested tool or report the missing capability.
 

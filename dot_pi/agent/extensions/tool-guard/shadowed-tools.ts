@@ -23,6 +23,14 @@ import {
 	pipeStages,
 	segments,
 } from './shell-text.ts'
+import {
+	hasSummaryFlag,
+	isGrepCommand,
+	isTempPath,
+	grepPaths,
+	readerPaths,
+} from './stage-arguments.ts'
+import { suggestedCall } from './suggested-call.ts'
 
 /**
  * bash command name -> the dedicated tool that owns its work. The audit reads
@@ -46,35 +54,6 @@ export const SHADOWED_COMMANDS = new Map([
 	['ls', 'ls'],
 ])
 
-/** grep flags whose output no dedicated tool can produce (counts, file lists). */
-const GREP_SUMMARY_FLAGS = new Set([
-	'-c',
-	'--count',
-	'-l',
-	'--files-with-matches',
-	'--files-without-match',
-	'-q',
-	'--quiet',
-	'--silent',
-])
-
-/** grep flags that consume the next word (pattern or file list). */
-const GREP_VALUE_FLAGS = new Set([
-	'-e',
-	'--regexp',
-	'-f',
-	'--file',
-	'-m',
-	'--max-count',
-	'--include',
-	'--exclude',
-	'--include-dir',
-	'--exclude-dir',
-])
-
-/** Reader flags that consume the next word: a count, never a path. */
-const READER_VALUE_FLAGS = new Set(['-n', '-c', '--lines', '--bytes'])
-
 /** find flags that do real work rather than list matches. */
 const FIND_MUTATING_FLAGS = ['-exec', '-execdir', '-delete', '-ok', '-okdir']
 
@@ -91,9 +70,6 @@ const MUTATOR_COMMANDS = new Set([
 	'chown',
 	'install',
 ])
-
-/** Paths the agent writes throwaway logs to; text there is not project content. */
-const TEMP_PATH_PREFIXES = ['/tmp/', '/private/tmp/', '/var/folders/']
 
 /**
  * Every `{ name, tool }` pair a command would be blocked for, in segment order.
@@ -133,8 +109,9 @@ export function shadowedToolReason(
 		const { verdict } = judged
 		if (verdict.kind !== 'owned' || !activeTools.includes(verdict.tool))
 			continue
+		const { name, args } = leadingCommand(judged.stage)
 		return [
-			`tool-guard blocked \`${judged.stage.trim()}\`: use the \`${verdict.tool}\` tool${suggestedCall(judged)}.`,
+			`tool-guard blocked \`${judged.stage.trim()}\`: use the \`${verdict.tool}\` tool${suggestedCall(verdict.tool, name, args)}.`,
 			'It caps, renders and caches its output; a pipe, a redirect or a `head`/`tail` wrapper does not change what the call is.',
 		].join(' ')
 	}
@@ -153,23 +130,22 @@ const PLAIN: Verdict = { kind: 'plain' }
 
 /** Every shadowed stage of a command, with the guard's verdict on it, in order. */
 function judgedStages(command: string): Judged[] {
-	const judged: Judged[] = []
-	for (const segment of segments(parseShellText(command))) {
-		const stages = pipeStages(segment)
-		for (let index = 0; index < stages.length; index++) {
-			const stage = stages[index] ?? ''
-			const verdict = stageVerdict(stage, stages.slice(index + 1))
-			if (verdict.kind !== 'plain') judged.push({ stage, name: verdict.name, verdict })
-		}
-	}
-	return judged
+	return segments(parseShellText(command)).flatMap(judgedInSegment)
+}
+
+/** Every shadowed stage of one segment: a pipeline hands the text along. */
+function judgedInSegment(segment: string): Judged[] {
+	const stages = pipeStages(segment)
+	return stages.flatMap((stage, index) => {
+		const verdict = stageVerdict(stage, stages.slice(index + 1))
+		return verdict.kind === 'plain'
+			? []
+			: [{ stage, name: verdict.name, verdict }]
+	})
 }
 
 /** The verdict on one pipeline stage: refused, exempt, or not shadowed at all. */
-function stageVerdict(
-	stage: string,
-	downstream: readonly string[],
-): Verdict {
+function stageVerdict(stage: string, downstream: readonly string[]): Verdict {
 	const { name, args } = leadingCommand(stage)
 	const tool = SHADOWED_COMMANDS.get(name)
 	if (!tool) return PLAIN
@@ -179,7 +155,10 @@ function stageVerdict(
 		if (grepPaths(args).every(isTempPath))
 			return { kind: 'exempt', name, reason: 'grep over a /tmp log' }
 	}
-	if (name === 'find' && FIND_MUTATING_FLAGS.some(flag => args.includes(flag)))
+	if (
+		name === 'find' &&
+		FIND_MUTATING_FLAGS.some(flag => args.includes(flag))
+	)
 		return { kind: 'exempt', name, reason: 'find mutation' }
 	if (isReaderCommand(name)) {
 		const paths = readerPaths(args)
@@ -225,133 +204,4 @@ function downstreamIsMutator(downstream: readonly string[]): boolean {
 /** Readers whose whole job is to hand over a file's text. */
 function isReaderCommand(name: string): boolean {
 	return SHADOWED_COMMANDS.get(name) === 'read'
-}
-
-function isGrepCommand(name: string): boolean {
-	return (
-		name === 'grep' ||
-		name === 'egrep' ||
-		name === 'fgrep' ||
-		name === 'rg' ||
-		name === 'ag' ||
-		name === 'ack'
-	)
-}
-
-/** Count / file-list / quiet flags, including short clusters like `-cE`. */
-function hasSummaryFlag(args: string[]): boolean {
-	return args.some(arg => {
-		if (!arg.startsWith('--')) return /^-[A-Za-z]*[clq][A-Za-z]*$/.test(arg)
-		const [name] = arg.split('=')
-		return GREP_SUMMARY_FLAGS.has(name ?? arg)
-	})
-}
-
-/** The paths of a grep-style command, ignoring flags and the pattern. */
-function grepPaths(args: string[]): string[] {
-	const patternIsFlag = args.some(
-		arg =>
-			arg === '-e' ||
-			arg === '--regexp' ||
-			arg === '-f' ||
-			arg === '--file',
-	)
-	const paths: string[] = []
-	let patternSeen = patternIsFlag
-	for (let index = 0; index < args.length; index++) {
-		const arg = args[index]
-		if (arg === undefined) continue
-		const flag = arg.startsWith('-')
-		const takesValue =
-			!arg.includes('=') && GREP_VALUE_FLAGS.has(arg.split('=')[0] ?? arg)
-		if (flag && takesValue) index++
-		if (flag) continue
-		if (!patternSeen) {
-			patternSeen = true
-			continue
-		}
-		paths.push(arg)
-	}
-	return paths
-}
-
-/** The pattern operand of a grep-style command, when it names one outright. */
-function grepPattern(args: string[]): string | undefined {
-	const flagIndex = args.findIndex(arg => arg === '-e' || arg === '--regexp')
-	if (flagIndex >= 0) return args[flagIndex + 1]
-	return args.find(arg => !arg.startsWith('-'))
-}
-
-/** The files a reader is handed, whatever count flags surround them. */
-function readerPaths(args: string[]): string[] {
-	const paths: string[] = []
-	for (let index = 0; index < args.length; index++) {
-		const arg = args[index]
-		if (arg === undefined) continue
-		const flag = arg.startsWith('-')
-		const takesValue =
-			!arg.includes('=') && READER_VALUE_FLAGS.has(arg.split('=')[0] ?? arg)
-		if (flag && takesValue) index++
-		if (flag) continue
-		paths.push(arg)
-	}
-	return paths
-}
-
-/** The line count of a `head` call: `-n 40`, `-40`, or nothing. */
-function headLimit(args: string[]): string | undefined {
-	const nameIndex = args.indexOf('-n')
-	if (nameIndex >= 0 && /^\d+$/.test(args[nameIndex + 1] ?? ''))
-		return args[nameIndex + 1]
-	return args.find(arg => /^-\d+$/.test(arg))?.slice(1)
-}
-
-function isTempPath(path: string): boolean {
-	return TEMP_PATH_PREFIXES.some(prefix => path.startsWith(prefix))
-}
-
-/**
- * The call the dedicated tool would take, read off the shadower's own operands:
- * what the model needs at the moment it retries, instead of a catalogue of the
- * bash forms that stay legal.
- */
-function suggestedCall(judged: Judged): string {
-	if (judged.verdict.kind !== 'owned') return ''
-	const { name, args } = leadingCommand(judged.stage)
-	const hints = argumentHints(judged.verdict.tool, name, args)
-	return hints.length ? ` (${hints.join(', ')})` : ''
-}
-
-/** Tool arguments the shadowed stage already carries: path, pattern, limit. */
-function argumentHints(tool: string, name: string, args: string[]): string[] {
-	if (tool === 'grep') {
-		const pattern = grepPattern(args)
-		const [path] = grepPaths(args)
-		return [
-			...(pattern ? [`pattern: \`${pattern}\``] : []),
-			...(path ? [`path: \`${path}\``] : []),
-		]
-	}
-	if (tool === 'find') return findHints(name, args)
-	const [path] = readerPaths(args)
-	const limit = name === 'head' ? headLimit(args) : undefined
-	return [
-		...(path ? [`path: \`${path}\``] : []),
-		...(limit ? [`limit: ${limit}`] : []),
-	]
-}
-
-/** Where a `find` or `tree` call pointed: the path, and the name it matched. */
-function findHints(name: string, args: string[]): string[] {
-	if (name === 'tree') {
-		const [path] = readerPaths(args)
-		return path ? [`path: \`${path}\``] : []
-	}
-	const path = args.find(arg => !arg.startsWith('-'))
-	const nameIndex = args.findIndex(arg => arg === '-name' || arg === '-iname')
-	const pattern = nameIndex >= 0 ? args[nameIndex + 1] : undefined
-	return [
-		...(path ? [`path: \`${path}\``] : []),
-		...(pattern ? [`pattern: \`${pattern}\``] : []),
-	]
 }
