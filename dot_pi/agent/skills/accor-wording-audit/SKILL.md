@@ -4,8 +4,8 @@ description: >-
     Exhaustive FR/EN wording audit of @astore/menu-compliance against the
     drinks-menu-compliance prototype (source of truth), via parallel subagent
     readers with adversarial verification. Use for "audit le wording", "check
-    le drift de wording", "vérifie le wording contre le proto". NOT for general
-    i18n plumbing or translation refactors.
+    le drift de wording". NOT for general i18n plumbing or translation
+    refactors.
 ---
 
 # accor-wording-audit — wording drift vs the proto

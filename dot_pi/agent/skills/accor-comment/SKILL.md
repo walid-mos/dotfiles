@@ -1,12 +1,11 @@
 ---
 name: accor-comment
 description: >-
-    Format one raw remark into a review comment that conforms to the repo's
+    Format one raw remark into a review comment conforming to the repo's
     CODE_REVIEW_CHARTER and post it inline on a GitHub PR of
-    accor-hotels/product-data-apps. Use when the user gives a file/line (+ a raw
-    comment, in FR or EN) to turn into a proper review comment, or asks to post
-    a review comment on a PR ("poste ce commentaire sur la 130", "react to that
-    properly in review").
+    accor-hotels/product-data-apps. Use when the user gives a file/line + a raw
+    comment (FR or EN) to turn into a review comment, or asks to post one
+    ("poste ce commentaire sur la 130").
 ---
 
 # accor-comment — charter-compliant review comment, posted inline

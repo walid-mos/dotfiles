@@ -1,15 +1,14 @@
 ---
 name: accor-conventions
 description: >-
-    Mandatory client rules for the Accor monorepo accor-hotels/product-data-apps
-    (@astore/*: api, menu-compliance, ui; apps/portail, apps/product-benchmark):
-    git naming (branches, commits, PR titles), untouchable perimeter (Terraform,
-    product-benchmark), architecture (Clean Architecture + CQRS on the api,
-    Feature-Sliced Design on the fronts), Snowflake data-mart auth model, Jira/
-    Confluence REST reading via the authFetch "accor" profile, quality baseline.
-    Load when any file of product-data-apps or a product-data-apps* worktree is
-    touched (branch, commit, PR, code) or before creating a branch/PR there —
-    not for everything under an "accor" root.
+    Mandatory client rules for accor-hotels/product-data-apps (@astore/*: api,
+    menu-compliance, ui; apps/portail, product-benchmark): git naming,
+    untouchable perimeter (Terraform, product-benchmark), Clean Architecture +
+    CQRS on the api, Feature-Sliced Design on the fronts, Snowflake data-mart
+    auth, Jira/Confluence REST via the authFetch "accor" profile, quality
+    baseline. Load when any file of product-data-apps or a product-data-apps*
+    worktree is touched (branch, commit, PR, code) or before creating a
+    branch/PR there — not for everything under an "accor" root.
 ---
 
 # Accor conventions — mandatory, non-negotiable
@@ -40,13 +39,10 @@ for Jira/Confluence.
   (e.g. `feat(menu-compliance): DA-178 — partners CRUD view`).
 - `<scope>` = touched zone: `api`, `menu-compliance`, `ui`, `benchmark`, `auth`, `hooks`.
 
-**Commits**: Conventional Commits, same types/scopes. Atomic — all four criteria
-together: (1) one intention, revertible in one command without breaking the rest;
-(2) self-contained, compiles and passes tests at that exact commit, not only at
-branch tip; (3) one domain — config/migration/refactor/fix share a commit only
-when strictly dependent, otherwise separate ordered commits; (4) faithful
-Conventional message describing that one intention. Imperative message; explain
-the *why* when it is not obvious. Never a catch-all or WIP commit.
+**Commits**: Conventional Commits, same types/scopes. Atomic per the global
+definition — all four criteria together, single-homed in `~/.pi/agent/AGENTS.md`
+§ Git. Imperative message; explain the *why* when it is not obvious. Never a
+catch-all or WIP commit.
 
 **Base & flow**: branch from an up-to-date `develop`; open the PR **against
 `develop`** (integration → deploys the *dev* env; `main` = *prod*, promotions only).

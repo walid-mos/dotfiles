@@ -33,6 +33,10 @@ An agent-facing reference doc (ARCHITECTURE.md, PRODUCT.md, …) that nothing po
 2. Add a one-line read-pointer ("Read X before …") in the artifact spec, skill, or AGENTS.md governing when it must be read. Never duplicate the doc's content there.
 3. Verify the chain: `rg -n '<doc name>'` from context files to the doc — every hop must exist on disk.
 
+## Vendoring third-party skills
+
+Never install a skill through a package manager, marketplace, or registry CLI — `npx skills add` (skills.sh/Vercel), `claude plugin marketplace`, or any equivalent: they run third-party code and write files outside review. Vendor by copying the upstream files (`SKILL.md` plus its license) into `skills/<name>/` byte-identical, and record the upstream repo, revision and date in a `SOURCE.md` beside them so an update is a re-copy diff.
+
 ## Anti-duplication (the most important principle)
 
 1. **Single source of truth per detail** — numbers, thresholds, lists: one place only. Duplicating = drift (versions diverge → the model follows one at random).

@@ -1,14 +1,12 @@
 ---
 name: coding-error-design
 description: >-
-    Failure-contract design: exceptions over error codes, try-catch-first
-    as an explicit contract, special cases that are not failures, and null
-    discipline (never hand back null when a do-nothing value exists). Load
-    WHEN writing try/catch, throwing or rethrowing, designing how a
+    Failure contracts: exceptions over error codes, try-catch-first as an
+    explicit contract, null discipline, special cases that are not failures.
+    Load WHEN writing try/catch, throwing or rethrowing, deciding how a
     function fails, returning error codes or null, wrapping a library's
-    exceptions, handling validation edge cases, or declaring a field,
-    schema, or type contract nullable — deciding whether data can be
-    absent. Do NOT load when editing plain feature logic that has no
+    exception, handling validation edge cases, or declaring a field, schema,
+    or type contract nullable. Do NOT load for plain feature logic with no
     error paths.
 ---
 
@@ -36,7 +34,7 @@ broadcast(members);
 
 ## Write the Try-Catch-First
 
-When a function is EXPECTED to throw, define its failure contract before writing the logic: write the failing test for the failure behavior first (`withdraw` throws `TransactionFailed`), build the try/catch frame, translate whatever is thrown inside into YOUR domain error, and only then fill the happy path. Everything added later inside the `try` stays inside the contract - callers keep handling exactly the failures the contract names, nothing new leaks out.
+When a function is EXPECTED to throw, define its failure contract before writing the logic: name the failure behavior the contract carries (`withdraw` throws `TransactionFailed`), build the try/catch frame, translate whatever is thrown inside into YOUR domain error, and only then fill the happy path. Everything added later inside the `try` stays inside the contract - callers keep handling exactly the failures the contract names, nothing new leaks out.
 
 ## Exceptions Are for What Breaks, Never for Control Flow
 
@@ -78,5 +76,5 @@ A thrown name states the domain failure (`TransactionFailed`, `PaymentDeclined`)
 ## Cross-References (authoritative elsewhere - never restate here)
 
 - Fail-fast placement, error message content (what was expected / received / to do), never signaling broken results with ambiguous values: `~/.pi/agent/skills/coding/SKILL.md` (Fail Fast section).
-- Testing a function's failure contract (red first): `~/.pi/agent/skills/coding/testing.md` and `~/.pi/agent/skills/coding-tdd/SKILL.md` (Three Laws, try-catch-first comes with its failing test).
+- A function's failure contract, when the user authorized test work (red first): `~/.pi/agent/skills/coding/testing.md` and `~/.pi/agent/skills/coding-tdd/SKILL.md` (Three Laws, try-catch-first comes with its failing test).
 - Library exception types get translated at wrappers, never caught directly in feature code: `~/.pi/agent/skills/coding-boundaries/SKILL.md`.

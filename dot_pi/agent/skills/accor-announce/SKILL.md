@@ -2,11 +2,10 @@
 name: accor-announce
 description: >-
     Compose the Teams announcement message for PRs under review from PR numbers
-    only ("fais le message teams pour la 132 et la 133", "annonce ces PR",
-    "prévins l'équipe des PR à review") in accor-hotels/product-data-apps:
-    fetch title/description/diff via gh, detect stacked PRs, and copy the
-    message as rich HTML into the macOS clipboard so Cmd+V in Teams yields real
-    bullets. macOS only (osascript clipboard writer).
+    only ("fais le message teams pour la 132", "prévins l'équipe des PR à review")
+    in accor-hotels/product-data-apps: fetch title/description/diff via gh,
+    detect stacked PRs, copy it as rich HTML to the macOS clipboard so Cmd+V
+    yields real bullets.
 ---
 
 # accor-announce — Teams PR announcement, rich-HTML clipboard

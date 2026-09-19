@@ -2,10 +2,12 @@
 
 Extends **Test Quality: Every Test Must Be Falsifiable** in `SKILL.md`; the core rules live there and are not restated - this file adds the worked examples, the mechanics, and the judgment calls. Tests are the only artifacts whose product is confidence: a suite full of mirrors is worse than no suite - it shows green while the code rots.
 
+**Authorization gate:** applies only to test work the user explicitly authorized; nothing here is a reason to add, extend or "protect" a test on your own initiative.
+
 ## Prove the Test Can Fail
 
 - **Mutate-to-kill mechanics:** temporarily break the code the test exercises - invert a condition, off-by-one a loop bound, swap an operator - run the suite, confirm the test goes red, then restore. Never leave the mutation behind. Anything heavily mocked must pass this check before being trusted.
-- **A bug fix ships with a test that FAILED before the fix** and passes after. A test written after the fix already passed confirms what the fix already proved - if it could have failed, it should have.
+- **Under an authorization, a bug fix ships with a test that FAILED before the fix** and passes after. A test written after the fix already passed confirms what the fix already proved - if it could have failed, it should have.
 
 ## Tautology Patterns, Dissected
 

@@ -1,13 +1,10 @@
 ---
 name: coding
 description: >-
-    Language-agnostic coding judgment that MUST be loaded whenever writing,
-    modifying, or reviewing code in ANY language. Covers judgment no tool
-    can make: the minimum-change ladder (delete, simplify, reuse before
-    ever adding code; one line over fifty), abstraction levels, naming by
-    domain, DRY vs AHA, SOLID, purity, error design, test quality
-    (falsifiable, non-tautological tests) - plus baseline mechanical caps
-    to enforce even when no linter does.
+    Language-agnostic coding judgment. MUST be loaded whenever writing,
+    modifying, or reviewing code in ANY language: minimum-change ladder,
+    abstraction levels, naming, DRY vs AHA, SOLID, purity, error design,
+    mechanical caps.
 ---
 
 # Coding Rules - Mandatory, Language-Agnostic
@@ -32,7 +29,7 @@ Sub-files, load on demand:
 
 - [architecture.md](architecture.md) - project-level structure rules (deep vs shallow modules, god objects, typed structures, dispatch tables, invariants & ownership, cross-cutting registries, decay signals). Load when designing or modifying structure across files, not just functions.
 - [ops-discipline.md](ops-discipline.md) - operational discipline: context economy when exploring code, and never using routing/scope rules as an excuse to skip a worthwhile change. Load when exploring an unfamiliar codebase, or when tempted to drop a change as "out of scope".
-- [testing.md](testing.md) - test quality in depth: the falsifiability litmus, tautology patterns and fixes, behavior-over-implementation, fakes vs mocks, determinism, coverage. Load when writing or modifying tests, or when a test smells like a mirror of the code.
+- [testing.md](testing.md) - test quality in depth: the falsifiability litmus, tautology patterns and fixes, behavior-over-implementation, fakes vs mocks, determinism, coverage. Load only under an explicit test authorization (`~/.pi/agent/AGENTS.md` # Tests), when writing or modifying tests or when a test smells like a mirror of the code.
 
 ## The Laziest Change That Works
 
@@ -117,6 +114,8 @@ Every piece of knowledge - constant, validation rule, business calculation, type
 - **D** - Depend on abstractions, not details: high-level policy never imports low-level detail (DB/HTTP/FS) directly. See *Deep Modules Over Shallow* in [architecture.md](architecture.md) - this is what makes code testable.
 
 ## Test Quality: Every Test Must Be Falsifiable
+
+**Gate:** applies only to tests the user authorized (`~/.pi/agent/AGENTS.md` # Tests) - never a reason to add one.
 
 Tests obey every rule above, but answer to a stricter question: **can a production bug make it fail?** Name the bug a test catches before writing it. No answer means the test is a mirror of the implementation, not a check on it.
 

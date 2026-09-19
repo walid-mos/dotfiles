@@ -37,7 +37,7 @@ skills/<skill-name>/
 - [ ] `description`: what + **when to use** (the trigger), present, ≤ 1024 chars
 - [ ] SKILL.md: always-on core only; depth single-homed in sub-files, listed with their trigger in SKILL.md
 - [ ] Relative internal paths; links instead of retellings; absolute paths outside the skill
-- [ ] Scripts exist and are tested (if `scripts/`)
+- [ ] Scripts exist, and are tested only under an explicit test authorization (if `scripts/`)
 - [ ] Verbatim-overlap grep clean; no intersection with `../AGENTS.md` or other skills
 
 ## Verify
