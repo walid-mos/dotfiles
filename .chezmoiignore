@@ -36,6 +36,7 @@
 
 # Pi: pnpm regenerates the lock in the installed tree
 .pi/agent/npm/package-lock.json
+.pi/agent/npm/pnpm-lock.yaml
 
 # Pi: transient handoffs, run history, restart artifacts and audit reports
 .pi/agent/handoffs
