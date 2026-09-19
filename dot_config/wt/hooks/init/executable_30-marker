@@ -1,4 +1,0 @@
-#!/bin/sh
-set -eu
-. "${WT_LIB:?Run this hook through wt}/provision.sh"
-wt_write_marker
