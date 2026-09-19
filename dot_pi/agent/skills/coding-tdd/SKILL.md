@@ -1,19 +1,21 @@
 ---
 name: coding-tdd
 description: >-
-    TDD, calibrated by pace: strict red-green test-first for core business
-    logic and bug reproduction, build-then-lock for prototypes, mechanical
-    edits, and glue code. Load WHEN writing, modifying, running, or
-    reviewing tests, or when the user explicitly asks for TDD. Do NOT load
-    for production edits that touch no test file, for refactors under a
-    green suite, for config-only changes, or for UI-only frontend work.
+    Test authoring, off by default (`~/.pi/agent/AGENTS.md` # Tests): load
+    ONLY when the user explicitly authorizes test work or asks for TDD in the
+    current request. Then pace it - red-green first for business logic, one
+    failing test for a bug, build-then-lock for prototypes and glue code.
 ---
 
-# TDD - Calibrated Test-First
+# TDD - Authorized Test Work, Calibrated by Pace
+
+## Authorization Gate
+
+Tests are off by default (`~/.pi/agent/AGENTS.md` # Tests): everything below applies only once the user authorized this work. Otherwise prove the change out of band (command, script, API call, real flow) and add no test.
 
 ## Choose the Pace Before Writing Anything
 
-Ceremony beyond what a change deserves is waste. The pace decides how much test ritual a change gets - pick it explicitly when a task spans several steps, and state it in the plan:
+Once authorized, ceremony beyond what a change deserves is waste. The pace decides how much test ritual a change gets - pick it explicitly when a task spans several steps, and state it in the plan:
 
 | Pace | Applies when | Ritual |
 |---|---|---|

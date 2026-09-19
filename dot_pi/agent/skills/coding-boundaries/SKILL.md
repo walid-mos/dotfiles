@@ -1,13 +1,12 @@
 ---
 name: coding-boundaries
 description: >-
-    Dependency-boundary design: wrap third-party libraries, SDKs, and
-    external APIs behind interfaces the application owns, adapters that
-    translate at the border, owned exception types. Load WHEN adding a new
-    dependency, integrating an SDK or external API, catching a library's
-    exceptions, writing an adapter or provider wrapper, upgrading a
-    dependency (especially a major), or swapping a provider. Do NOT load
-    for internal code with no third-party interaction.
+    Dependency boundaries: SDKs and external APIs behind interfaces you own,
+    with adapters and owned exception types. Load WHEN adding a dependency,
+    integrating an SDK or external API, catching a library's exception,
+    writing an adapter or provider wrapper, upgrading a dependency
+    (especially a major), or swapping a provider. Do NOT load for internal
+    code with no third-party interaction.
 ---
 
 # Boundaries - Own Your Dependencies

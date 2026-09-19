@@ -1,11 +1,10 @@
 ---
 description: >-
     ("regarde les retours sur la 130 et la 133", "traite les commentaires de
-    review", "qu'est-ce que Corentin a demandé sur la 132"): collect threads via
-    gh, verify each remark against the CURRENT code, sort into
-    Refusé/Caduc/Autofix/Patch/Demande/Question, produce the recap tables +
-    detail blocks. Only inert micro-fixes reach the working tree unprompted;
-    patches, replies and thread resolution wait for explicit approval.
+    review"): collect threads via gh, verify each remark against the CURRENT
+    code, sort into Refusé/Caduc/Autofix/Patch/Demande/Question, produce the
+    recap tables + detail blocks. Only inert micro-fixes reach the working tree
+    unprompted; patches, replies and thread resolution wait for approval.
 ---
 
 

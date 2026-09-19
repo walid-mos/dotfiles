@@ -1,11 +1,9 @@
 ---
 argument-hint: "<feature description> [ticket ref] [--base <ref>] [--no-worktree] [--max-files <n>] [--max-lines <n>] [--no-stack] [--stop-before-pr] [--dry-run]"
 description: >-
-    PRs: ticket/prototype as source of truth (ticket = scope, proto = 1:1 visual/
-    behavioral truth on that scope), numbered acceptance matrix with per-AC proof,
-    local parallel front/API execution, self-review pass per link then globally,
-    manually stacked PRs opened from develop. Use when the user asks to deliver a
-    "ship la feature menu compliance"), or describes such a feature to build.
+    PRs, ticket/prototype as source of truth and a numbered acceptance matrix
+    with per-AC proof. Use when the user asks to deliver a Menu Compliance
+    menu compliance"), or describes such a feature to build.
 ---
 
 
@@ -55,8 +53,8 @@ states, per-segment/role variants). Every row contains:
   proto state/route);
 - the precise expected result;
 - the surfaces and variants concerned;
-- the required final proof: automated test, command/API, or flow + DOM assertion
-  + local/proto screenshot at the same viewport.
+- the required final proof: an existing automated test, a command/API call, or a flow
+  + DOM assertion + local/proto screenshot at the same viewport — never a test you wrote.
 
 Run a **reconciliation pass ticket ↔ spec ↔ prototype ↔ matrix**: every
 requirement found appears in the matrix; every divergence is resolved by source

@@ -1,14 +1,13 @@
 ---
 name: coding-objects-and-data
 description: >-
-    Data/object modeling: expose behavior instead of structure, the
-    objects-vs-data-structures bet, Law of Demeter (tell, don't ask), and
-    hybrids to refuse - DTOs and ActiveRecords stay data-only, business
-    logic moves to its object. Load WHEN modeling or reviewing classes,
-    types, entities, or data shapes, deciding where behavior lives, adding
-    getters/setters, writing long property-access chains, or touching
-    ORM/entity/DTO models. Do NOT load when editing UI component markup,
-    styles, or a function body with no modeling decision involved.
+    Data/object modeling: behavior over structure, objects vs data
+    structures, Law of Demeter (tell, don't ask), DTOs and ActiveRecords stay
+    data-only. Load WHEN modeling or reviewing classes, types, entities, or
+    data shapes, deciding where behavior lives, adding getters/setters,
+    writing long property-access chains, or touching ORM/entity/DTO models.
+    Do NOT load for UI markup, styles, or a function body with no modeling
+    decision.
 ---
 
 # Objects and Data - Expose Behavior, Not Structure

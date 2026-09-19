@@ -1,8 +1,8 @@
 ---
 description: >-
     readers with adversarial verification. Use for "audit le wording", "check
-    le drift de wording", "vérifie le wording contre le proto". NOT for general
-    i18n plumbing or translation refactors.
+    le drift de wording". NOT for general i18n plumbing or translation
+    refactors.
 ---
 
 

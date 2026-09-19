@@ -66,7 +66,7 @@ export function scanSessions(since: number): Scan {
 		sessions: new Set(),
 	}
 	const byId = new Map<string, Call>()
-	const files = walk(SESSION_ROOT)
+	const files = sessionFiles()
 	scan.files = files.length
 	for (const file of files) {
 		readSessionLog(file, {
@@ -77,6 +77,11 @@ export function scanSessions(since: number): Scan {
 		})
 	}
 	return scan
+}
+
+/** Every session log under `sessions/`, newest layout included. */
+export function sessionFiles(): string[] {
+	return walk(SESSION_ROOT)
 }
 
 /** The days a timestamp covers, when `--days` was given. */
