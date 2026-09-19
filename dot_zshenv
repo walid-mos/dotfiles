@@ -14,6 +14,9 @@ export XDG_STATE_HOME="$HOME/.local/state"
 # Tool behavior
 export DOCKER_BUILDKIT=1
 export TURBO_TELEMETRY_DISABLED=1
+# colima: pin to the XDG root - the brew service (launchd, no XDG_CONFIG_HOME) reaches the
+# same VM through the ~/.colima symlink, and COLIMA_HOME silences the legacy-root warnings.
+export COLIMA_HOME="$XDG_CONFIG_HOME/colima"
 
 # User-local binaries (herdr, cua-driver, ...) - APPENDED, never prepended.
 # Installers (Hermes Agent, cua) drop shims here (node, npm, npx, hermes) that
