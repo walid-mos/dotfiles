@@ -28,7 +28,7 @@ export interface GroupWindow {
 	groups: readonly RowGroup[]
 }
 
-/** A dim horizontal rule with its label: `  ── scoped ────────────`. */
+/** A dim horizontal rule with its muted label: `  ── scoped ────────────`. */
 export function dividerLine(label: string, width: number): PickerLine {
 	const fill = Math.max(
 		0,
@@ -39,7 +39,7 @@ export function dividerLine(label: string, width: number): PickerLine {
 			LABEL_GAP,
 	)
 	return line(
-		`${INDENT}${uiTheme.fg('dim', LABEL_LEAD)}${uiTheme.fg('dim', label)}${uiTheme.fg('dim', ` ${RULE_GLYPH.repeat(fill)}`)}`,
+		`${INDENT}${uiTheme.fg('dim', LABEL_LEAD)}${uiTheme.fg('muted', label)}${uiTheme.fg('dim', ` ${RULE_GLYPH.repeat(fill)}`)}`,
 		width,
 	)
 }

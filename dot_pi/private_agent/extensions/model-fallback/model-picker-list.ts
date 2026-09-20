@@ -1,7 +1,6 @@
 /**
- * model-fallback - the session tab of the picker: the search line, the legend
- * that tells the three targets apart, and the scrolling model list with its
- * reasoning levels.
+ * model-fallback - the session tab of the picker: the search line, a blank
+ * spacer row, and the scrolling model list with its reasoning levels.
  *
  * The price panel that follows the list lives in `model-picker-price.ts`.
  * Rendering is pure: it reads the state and the view and returns lines. Nothing
@@ -20,7 +19,6 @@ import {
 	PICKER_CHROME_ROWS,
 	PICKER_COMPACT_CHROME_ROWS,
 	SELECTED_MARKER,
-	line,
 	twoColumn,
 } from './model-picker-line.ts'
 import { priceBlock } from './model-picker-price.ts'
@@ -30,7 +28,7 @@ import {
 	aboveHint,
 	belowHint,
 } from './model-picker-window.ts'
-import { CTRL_P_LIST, SESSION_LEGEND } from './model-picker-words.ts'
+import { CTRL_P_LIST } from './model-picker-words.ts'
 
 import type { CatalogRow, ScopeMembership } from './model-catalog.ts'
 import type { PickerState } from './model-picker-state.ts'
@@ -105,32 +103,40 @@ function modelRowLine(input: {
 	const marker = isSelected
 		? uiTheme.fg('accent', SELECTED_MARKER)
 		: uiTheme.fg('dim', ' ')
-	const name = uiTheme.fg(row.isInScope ? 'text' : 'muted', row.reference)
+	// The row under the cursor is the one the next keypress acts on: its name
+	// is the only bold text in the list body.
+	const name = uiTheme.fg(
+		row.isInScope ? 'text' : 'muted',
+		isSelected ? uiTheme.bold(row.reference) : row.reference,
+	)
 	const right = effortBlock(
 		{ row, level, isPending: Boolean(pending) },
 		width,
 	)
 	const tags = `${scopeTag(row)}${savedTag(saved.get(row.reference))}`
-	const rendered = twoColumn(` ${marker}${name}${tags}`, right, width)
+	const rendered = twoColumn(
+		`${INDENT}${marker} ${name}${tags}`,
+		right,
+		width,
+	)
 	if (!isSelected) return rendered
 	return highlightRow(rendered, width)
 }
 
-/** The lines above the list: the search line, the legend, the empty result. */
+/** The lines above the list: the search line, its spacer, the empty result. */
 function listPrefix(input: SessionBodyInput): PickerLine[] {
 	const lines: PickerLine[] = [
 		// The input's own line stays verbatim: it carries the cursor marker and
 		// the picker already sized it to the viewport.
 		{ text: input.searchLine },
 	]
-	// The legend is the first row a short terminal gives up: the header already
-	// names both targets with their values, and the list needs the row more.
-	if (!input.window.isCompact)
-		lines.push(
-			line(`${INDENT}${uiTheme.fg('dim', SESSION_LEGEND)}`, input.width),
-		)
+	// The spacer keeps the row count stable: the list never shifts when the
+	// search starts or clears, and a short terminal reclaims the row first.
+	if (!input.window.isCompact) lines.push({ text: '' })
 	if (!input.rows.length)
-		lines.push({ text: `  ${uiTheme.fg('dim', 'no model matches')}` })
+		lines.push({
+			text: `${INDENT}  ${uiTheme.fg('dim', 'no model matches')}`,
+		})
 	return lines
 }
 

@@ -1,27 +1,33 @@
 /**
- * goal-gate - the texts the agent receives: the standing contract appended to
- * every turn's system prompt, and the continuation sent when a settled run left
- * items open.
+ * goal-gate - the texts the gate sends into the conversation: the continuation
+ * a settled run with open items receives, and the escalation that makes a
+ * silent stop visible.
  *
  * Pure text, so the gate's decisions carry no prose and the wording can be
- * asserted on its own.
+ * asserted on its own. The `goal` tool's own wording (the standing half of the
+ * contract) lives in `tool.ts`, next to the schema the model reads it with.
  */
 
 import type { LedgerStatus } from './ledger.ts'
 
 /**
- * Standing contract. It rides the system prompt rather than AGENTS.md because
- * it has to be in context at the exact moment the model decides it is finished,
- * and by that point - late in a long session - a global instruction file is
- * diluted.
+ * The escalation. A run that stops without asking leaves the human unable to
+ * tell "unfinished" from "done", and leaves a herdr pane reading idle exactly
+ * like a finished one. This message is the gate refusing that: one last turn
+ * whose only job is to raise the blocking decision as a real prompt.
  */
-export function contractText(path: string): string {
+export function askText(input: {
+	path: string
+	reason: string
+	status: LedgerStatus
+}): string {
+	const { path, reason, status } = input
 	return [
-		'## Goal checklist (goal-gate)',
-		'A turn is not the task. Work that has several deliverables is declared before it starts: write the checklist to the path below as `- [ ] item` lines, one per deliverable, and work through every open item in one go.',
-		'A tick carries its outcome: when work lands, rewrite the line as `- [x] item - outcome` with what landed and where (commit, file, PR). The ledger is the memory a post-compaction or fresh session re-reads instead of re-deriving the work, so an unticked-without-outcome line is lost work.',
-		`Checklist file: ${path}`,
-		'Never end a turn to ask whether to continue. If you are genuinely blocked, write `blocked: <reason>` in that file and say what you need.',
+		`Your run ended with the goal checklist at ${path} still open (${reason}) and asked the human nothing.`,
+		'',
+		...status.open.map(openItem => `- [ ] ${openItem}`),
+		'',
+		'Ask the human now with `ask_user_question`: the one decision that unblocks the next item, with the concrete options you see (2-3, the best one marked recommended). Do not ask whether to continue. Then record it with the `goal` tool (`action: "block"`) and stop.',
 	].join('\n')
 }
 
@@ -44,13 +50,13 @@ export function continueText(input: {
 	const open = status.items.length
 		? ['Still open:', ...status.open.map(openItem => `- [ ] ${openItem}`)]
 		: [
-				'It has no items yet: break the goal into one `- [ ]` line per deliverable, then work through them.',
+				'It has no items yet: declare the goal\'s deliverables with the `goal` tool (`action: "declare"`), then work through them.',
 			]
 	return [
 		head,
 		'',
 		...open,
 		'',
-		'Continue with the next open item now. Do not ask for permission to continue and do not restate the plan: do the work, tick each item in the file as it lands with its outcome on the same line, and report only once every item is closed or blocked.',
+		'Continue with the next open item now. Do not ask for permission to continue and do not restate the plan: do the work, close each item with the `goal` tool the moment it lands, and report only once every item is closed or blocked.',
 	].join('\n')
 }

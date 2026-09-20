@@ -1,8 +1,9 @@
 /**
  * model-fallback - what the picker's membership keys do to the saved
- * `enabledModels` list: ctrl+s on the session catalogue and enter/space on the
- * scope tab toggle one model's membership, alt+up/down moves one entry,
- * backspace removes one explicitly.
+ * `enabledModels` list: enter and ctrl+x on the session catalogue and enter on
+ * the scope tab add or take out one model's membership, ctrl+s saves the
+ * startup default, alt+up/down moves one entry, backspace removes one
+ * explicitly.
  *
  * Every edit carries the list the picker read, so the writer can refuse a stale
  * edit; `expected` is never a re-derivation. A wildcard is one entry that moves
@@ -70,24 +71,33 @@ function savedIndex(
 }
 
 /**
- * Ctrl+S on the session catalogue: an exact saved entry leaves the
- * saved scope, any other model joins it as its own exact entry - a model a
- * pattern already covers is pinned explicitly, never expanded out of it. The
- * saved order re-ranks the list, so the cursor follows the model it acted on
- * instead of landing on whichever row takes its index.
+ * Whether the saved `enabledModels` list already covers one reference: an exact
+ * entry naming it, or a pattern that matches it. A covered row is one this
+ * session can run now, so enter switches to it instead of editing the list.
  */
-function toggleCatalogueRow(input: CommandInput): PickerCommand {
+export function isInCatalogueList(
+	view: PickerView,
+	reference: string,
+): boolean {
+	const membership = savedScope(view).get(reference)
+	return Boolean(membership && (membership.exact || membership.pattern))
+}
+
+/**
+ * Enter on a session catalogue row that is not in the Ctrl+P list yet: the
+ * model joins it as its own exact entry, never as an expansion of a pattern it
+ * matched. The saved order re-ranks the list, so the cursor follows the model
+ * it acted on instead of landing on whichever row takes its index.
+ */
+export function saveCatalogueRow(input: CommandInput): PickerCommand {
 	const { view, state, query } = input
+	if (state.tab !== 'session' || state.editor) return {}
 	const row = sessionRows(view, query)[state.cursor]
 	if (!row) return {}
-	const exact = savedScope(view).get(row.reference)?.exact
-	const next = exact
-		? removeEntry(view.patterns, exact.index)
-		: appendEntry(view.patterns, row.reference)
-	const change: ScopeListChange = exact
-		? { kind: 'removed', entry: exact.entry }
-		: { kind: 'added', entry: row.reference }
-	const edit = scopeEdit(view, next, change)
+	const edit = scopeEdit(view, appendEntry(view.patterns, row.reference), {
+		kind: 'added',
+		entry: row.reference,
+	})
 	if (!edit) return {}
 	return {
 		scopeList: edit,
@@ -98,15 +108,41 @@ function toggleCatalogueRow(input: CommandInput): PickerCommand {
 }
 
 /**
- * Enter or space on the scope tab. An exact saved entry leaves the saved scope;
- * a resolved session model no saved entry names is appended as its own exact
+ * Ctrl+X on a session catalogue row: its own exact entry leaves the saved list.
+ * A row a pattern covers has no exact entry, and that one entry stands for
+ * every model it matches, so removing it stays the scope tab's explicit
+ * `backspace` action rather than an edit made from a row it happens to match.
+ */
+export function unsaveCatalogueRow(input: CommandInput): PickerCommand {
+	const { view, state, query } = input
+	if (state.tab !== 'session' || state.editor) return {}
+	const row = sessionRows(view, query)[state.cursor]
+	if (!row) return {}
+	const exact = savedScope(view).get(row.reference)?.exact
+	if (!exact) return {}
+	const edit = scopeEdit(view, removeEntry(view.patterns, exact.index), {
+		kind: 'removed',
+		entry: exact.entry,
+	})
+	if (!edit) return {}
+	return {
+		scopeList: edit,
+		state: commitAction(
+			selectRow(state, savedIndex(view, query, row.reference, edit.next)),
+		),
+	}
+}
+
+/**
+ * Enter on the scope tab. An exact saved entry leaves the saved scope; a
+ * resolved session model no saved entry names is appended as its own exact
  * entry. A wildcard is never touched from here: it is not one model, it moves
  * whole, and removing it stays the explicit `backspace` action the footer
  * labels.
  */
 export function toggleScopeRow(input: CommandInput): PickerCommand {
 	const { view, state } = input
-	if (state.tab === 'session') return toggleCatalogueRow(input)
+	if (state.tab !== 'scope' || state.editor) return {}
 	const row = scopeRows(view)[state.cursor]
 	if (!row) return {}
 	if (row.kind === 'session')

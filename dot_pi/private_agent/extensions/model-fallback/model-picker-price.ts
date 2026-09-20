@@ -11,6 +11,7 @@ import { UI_COLOR, uiTheme } from '../ui/design-system/theme.ts'
 import { GLYPH } from '../ui/selection-marker.ts'
 import { truncateTerminalLine } from '../ui/terminal-text.ts'
 
+import { dividerLine } from './model-picker-groups.ts'
 import {
 	gaugeFormula,
 	gaugeInk,
@@ -28,6 +29,11 @@ const MAX_GAUGE_COLUMNS = 56
 const GAUGE_INSET = 8
 const NARROW_WIDTH = 56
 const ROW_LABEL_INSET = 2
+
+/** One rate cell: the label recedes, the number is the row's only text ink. */
+function priceCell(label: string, rate: string): string {
+	return `${uiTheme.fg('dim', label)} ${uiTheme.fg('text', rate)}`
+}
 
 export interface PriceBlockInput {
 	view: PickerView
@@ -81,8 +87,12 @@ export function priceBlock(input: PriceBlockInput): PickerLine[] {
 		view.pricing,
 	)
 	const cells = priceCells(price)
+	const isFull = width >= NARROW_WIDTH && !input.isCompact
 	const lines: PickerLine[] = []
-	if (width >= NARROW_WIDTH && !input.isCompact) {
+	if (isFull) {
+		// The panel becomes a list section: the same divider grammar the row
+		// groups above it wear, so nothing under the list floats unanchored.
+		lines.push(dividerLine('price', width))
 		const columns = Math.max(
 			MIN_GAUGE_COLUMNS,
 			Math.min(MAX_GAUGE_COLUMNS, width - GAUGE_INSET),
@@ -91,18 +101,17 @@ export function priceBlock(input: PriceBlockInput): PickerLine[] {
 			text: `  ${gaugeLine(columns, gaugeDots(selected, current, view))}`,
 		})
 	}
-	const prices = `Input ${cells.input} · Cached input ${cells.cachedInput} · Output ${cells.output} ${PRICE_UNIT}`
+	const prices = `${priceCell('Input', cells.input)} ${uiTheme.fg('dim', '·')} ${priceCell('Cached input', cells.cachedInput)} ${uiTheme.fg('dim', '·')} ${priceCell('Output', cells.output)} ${uiTheme.fg('dim', PRICE_UNIT)}`
 	lines.push({
 		text: `  ${truncateTerminalLine(prices, width - ROW_LABEL_INSET, '…')}`,
 	})
+	// The source note and the gauge's blend formula share the last line: both
+	// are disclosures, not facts a row needs twice.
+	const note = isFull
+		? `${priceNote(price, view.now)} · ${gaugeFormula(price)}`
+		: priceNote(price, view.now)
 	lines.push({
-		text: `  ${truncateTerminalLine(priceNote(price, view.now), width - ROW_LABEL_INSET, '…')}`,
+		text: `  ${uiTheme.fg('dim', truncateTerminalLine(note, width - ROW_LABEL_INSET, '…'))}`,
 	})
-	if (width >= NARROW_WIDTH && !input.isCompact) {
-		const formula = `gauge · ${gaugeFormula(price)}`
-		lines.push({
-			text: `  ${uiTheme.fg('dim', truncateTerminalLine(formula, width - ROW_LABEL_INSET, '…'))}`,
-		})
-	}
 	return lines
 }

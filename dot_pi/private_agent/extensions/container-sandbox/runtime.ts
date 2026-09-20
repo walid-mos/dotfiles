@@ -208,6 +208,15 @@ export function sandboxedBashTool(): ReturnType<typeof createBashTool> | null {
 	return currentRuntime()?.bashTool ?? null
 }
 
+/**
+ * pi's local shell as this session wired it, the one a bare `git` borrows: the boundary for a
+ * host-side fact no guest call can read (the host's own git config, for the identity the VM
+ * has none of). Null while bash runs on the host, where nothing has to be inherited.
+ */
+export function sandboxHostOperations(): BashOperations | null {
+	return currentRuntime()?.hostOps ?? null
+}
+
 /** How the exec boundary reaches the active workspace, for the /container surface. */
 export function sandboxGuestTarget(): GuestTarget | null {
 	return currentRuntime()?.guest ?? null

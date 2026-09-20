@@ -11,7 +11,12 @@ import { effectiveLevel, stepLevel } from './model-catalog.ts'
 import { agentLevel, agentModelRow, agentRows } from './model-picker-agents.ts'
 import { editorStepState } from './model-picker-editor.ts'
 import { fallbackRows } from './model-picker-fallbacks.ts'
-import { reorderScopeRow, toggleScopeRow } from './model-picker-scope-edits.ts'
+import {
+	isInCatalogueList,
+	reorderScopeRow,
+	saveCatalogueRow,
+	toggleScopeRow,
+} from './model-picker-scope-edits.ts'
 import {
 	appendEntry,
 	commitAction,
@@ -53,12 +58,17 @@ export interface PickerCommand {
 	model?: { reference: string; level: ModelThinkingLevel | undefined }
 }
 
-/** Enter: choose the session model, toggle an option, or append a model. */
+/** Enter: run a saved model now, save an unsaved one, or toggle/append. */
 export function activateRow(input: CommandInput): PickerCommand {
 	const { view, state } = input
 	if (state.tab === 'session') {
 		const row = sessionRows(view, input.query)[state.cursor]
 		if (!row) return {}
+		// A model outside the list is not one this session runs yet: enter adds
+		// it first (ctrl+x takes it back out), so a scope with no entries at all
+		// can be built from this tab.
+		if (!isInCatalogueList(view, row.reference))
+			return saveCatalogueRow(input)
 		// What the row displays is what the session gets, arrow or not.
 		return {
 			model: {
@@ -166,7 +176,8 @@ export function stepAgentThinking(
  * Ctrl+S on a session row: the model the next session starts on. It is pi's
  * own default (`defaultProvider`/`defaultModel`, the keys pi's `/model` picker
  * writes with the same key), not this session's model - enter is what switches
- * that - and not the saved scope, which is space.
+ * that once the row is in the Ctrl+P list - and not the saved scope, which
+ * enter and ctrl+x edit.
  */
 export function saveDefaultModel(input: CommandInput): PickerCommand {
 	const { view, state } = input

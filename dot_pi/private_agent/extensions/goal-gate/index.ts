@@ -10,21 +10,36 @@
  * deliverables in a per-session checklist, and a run that settles with items
  * still open is continued automatically, bounded, until they are closed.
  *
- * The checklist path is injected into every turn's system prompt because the
- * decision this guards happens at the end of a turn, after dozens of turns have
- * pushed any global instruction file to the back of the context.
+ * The checklist is written through the `goal` tool (`tool.ts`) rather than by
+ * hand-editing the file: declaring, ticking and blocking each ride a turn the
+ * model is already running, so the bookkeeping costs no extra request and the
+ * ledger's format has one owner. The policy that asks for it lives in
+ * AGENTS.md (# Task completion) and in the tool's own description, which is
+ * re-sent on every turn - there is no third copy injected into the prompt.
+ *
+ * A run that stops blocked - or that ignores the whole continuation budget -
+ * has still asked the human nothing, and both settle exactly like a finished
+ * run. The gate answers that with one escalation: a follow-up whose only demand
+ * is the blocking question, raised with `ask_user_question`. That tool's prompt
+ * is what marks the pane blocked and tells the human, in one glance, that the
+ * work is unfinished and what to answer.
  *
  * The settle boundary is shared: `context-budget` claims it through
  * `extensions/settle-handshake/` while a handoff cycle is live (the handoff
  * replaces the conversation and carries the goal state, so it must go first).
- * While the claim is live this gate defers its continuation without spending
- * its attempt budget; the next settle after the compaction continues the
- * checklist as usual.
+ * The gate evaluates the ledger before any of that machinery: a completed
+ * checklist ends the session - no continuation, and context-budget (which
+ * runs the same ledger check before it requests, re-asks or compacts) stands
+ * down with it. Only with work still open does the claim defer this gate's
+ * continuation, without spending its attempt budget; the next settle after
+ * the compaction continues the checklist as usual.
  *
  * Modules:
- *   ledger.ts    - path, item syntax, open items (pure)
- *   directive.ts - the injected contract and the continuation text (pure)
- *   gate.ts      - the settle state machine (pure, injected probe)
+ *   ledger.ts       - path, item syntax, open items (pure)
+ *   ledger-edits.ts - declare, tick, block: what each `goal` call produces (pure)
+ *   tool.ts         - the `goal` tool: schema, wording, dispatch
+ *   directive.ts    - the continuation and escalation texts (pure)
+ *   gate.ts         - the settle state machine (pure, injected probe)
  *
  * Commands:
  *   /goal <item>; <item>  - declare or replace this session's checklist
@@ -45,15 +60,18 @@ import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
 import { isHandoffCycleActive } from '../settle-handshake/handshake.ts'
 
-import { contractText, continueText } from './directive.ts'
+import { askText, continueText } from './directive.ts'
 import { GoalGate } from './gate.ts'
+import { inheritedLedger } from './inherit.ts'
 import {
 	expiredLedgers,
 	goalsDir,
+	ledgerPath,
 	ledgerStatus,
 	renderLedger,
 	splitItems,
 } from './ledger.ts'
+import { registerGoalTool } from './tool.ts'
 
 import type {
 	ExtensionAPI,
@@ -68,8 +86,13 @@ const MISSING_MODIFICATION_TIME = 0
 export default function goalGate(pi: ExtensionAPI): void {
 	const gate = new GoalGate({ agentDir: getAgentDir(), read: readLedger })
 	watchSessions(pi, gate)
-	injectContract(pi, gate)
 	watchSettle(pi, gate)
+	registerGoalTool(pi, {
+		path: () => gate.ledgerFile,
+		read: readLedger,
+		write: writeLedger,
+		reopen: () => gate.noteNewWork(),
+	})
 	registerGoalCommands(pi, gate)
 }
 
@@ -84,25 +107,42 @@ function readLedger(path: string): string | undefined {
 	}
 }
 
-function writeLedger(path: string, items: string[]): void {
+/** Write ledger text, creating the goals directory the first time. */
+function writeLedger(path: string, text: string): void {
 	mkdirSync(goalsDir(getAgentDir()), { recursive: true })
-	writeFileSync(path, renderLedger(items))
+	writeFileSync(path, text)
 }
 
 /**
  * The ledger path is session-scoped, so it is resolved at session start, and the
- * directory is created there: the agent writes the checklist with its own file
- * tool, and a missing parent must not be the reason a goal goes untracked.
+ * directory is created there: the `goal` tool and `/goal` both write through
+ * `writeLedger`, and a missing parent must not be the reason a goal goes
+ * untracked.
  *
  * The attempt budget is reset by a human prompt - by the time someone has typed
  * "continue", the earlier budget is spent on a different situation - but never
  * by the continuation this extension sends itself, which arrives with
- * `source: "extension"`.
+ * `source: "extension"`. A live UI prompt counts as one too: the human answering
+ * it is exactly what an escalation asked for, so the cycle it was stuck in is
+ * over.
  */
 function watchSessions(pi: ExtensionAPI, gate: GoalGate): void {
-	pi.on('session_start', (_event, ctx) => {
+	pi.on('session_start', (event, ctx) => {
 		ensureGoalsDir()
-		const activePath = gate.arm(ctx.sessionManager.getSessionId())
+		const ownPath = ledgerPath(
+			getAgentDir(),
+			ctx.sessionManager.getSessionId(),
+		)
+		// A resumed or forked session has no ledger of its own: adopt the one
+		// its predecessor was tracking, so the checklist survives the id change.
+		const path = readLedger(ownPath)
+			? ownPath
+			: (inheritedLedger({
+					previousSessionFile: event.previousSessionFile,
+					agentDir: getAgentDir(),
+					read: readLedger,
+				}) ?? ownPath)
+		const activePath = gate.armLedger(path)
 		try {
 			pruneLedgers(activePath)
 		} catch {
@@ -112,6 +152,12 @@ function watchSessions(pi: ExtensionAPI, gate: GoalGate): void {
 	})
 	pi.on('input', event => {
 		if (event.source === 'interactive') gate.noteHumanPrompt()
+	})
+	// A live prompt means a human is answering right now: whatever budget the
+	// previous cycle spent, the situation has changed - the answered question is
+	// exactly what the escalation was asking for.
+	pi.on('ui_prompt_start', (_event, ctx) => {
+		if (ctx.mode === 'tui') gate.noteHumanPrompt()
 	})
 }
 
@@ -164,20 +210,6 @@ function modifiedTime(path: string): number {
 }
 
 /**
- * The contract goes last in the system prompt: it is the last thing read before
- * the model decides what to do, which is where a rule about stopping belongs.
- */
-function injectContract(pi: ExtensionAPI, gate: GoalGate): void {
-	pi.on('before_agent_start', event => {
-		const path = gate.ledgerFile
-		if (!path) return
-		return {
-			systemPrompt: `${event.systemPrompt}\n\n${contractText(path)}`,
-		}
-	})
-}
-
-/**
  * The chain must not wait for a human. `agent_settled` is the first moment pi
  * will not continue on its own, so that is where the gate takes over - except
  * when another extension already did: `ctx.isIdle()` is false as soon as one of
@@ -199,6 +231,19 @@ function watchSettle(pi: ExtensionAPI, gate: GoalGate): void {
 		// one would break its caller.
 		if (ctx.mode !== 'tui') return
 		if (!ctx.isIdle()) return
+		// The goal is evaluated before everything else at this boundary - a
+		// completed checklist ends the session: no continuation, and
+		// context-budget (which runs the same ledger check before it requests,
+		// re-asks or compacts) stands down with it. The probe never touches
+		// the cycle state, so nothing is spent here.
+		const done = gate.probeDone()
+		if (done) {
+			ctx.ui.notify(
+				`Goal complete: all ${done.total} items at ${done.path} are checked.`,
+				'info',
+			)
+			return
+		}
 		if (isHandoffCycleActive()) {
 			ctx.ui.notify(
 				'Context handoff in progress - the goal continuation waits until it is done.',
@@ -223,11 +268,20 @@ function perform(
 		)
 		return
 	}
+	if (action.type === 'ask') {
+		pi.sendUserMessage(askText(action), { deliverAs: 'followUp' })
+		ctx.ui.notify(
+			`Goal blocked - ${action.reason}. Asking the run to raise the question: ${action.status.open.length} of ${action.status.items.length} item(s) still open. Ledger: ${action.path}`,
+			'warning',
+		)
+		return
+	}
 	if (action.type === 'stopped') {
+		const left = `${action.status.open.length} of ${action.status.items.length} item(s) still open`
 		ctx.ui.notify(
 			action.cause === 'blocked'
-				? `Goal blocked - ${action.reason}. Ledger: ${action.path}`
-				: `Goal gate stopped - ${action.reason}. Ledger: ${action.path}`,
+				? `Goal blocked - ${action.reason}. ${left}. Ledger: ${action.path}`
+				: `Goal gate stopped - ${action.reason}. ${left}. Ledger: ${action.path}`,
 			action.cause === 'blocked' ? 'warning' : 'error',
 		)
 		return
@@ -273,7 +327,7 @@ function registerGoalCommands(pi: ExtensionAPI, gate: GoalGate): void {
 			}
 			const path = gate.ledgerFile
 			if (!path) return
-			writeLedger(path, items)
+			writeLedger(path, renderLedger(items))
 			// An extension command never reaches the `input` event, so a human
 			// declaration has to reset the budget here: a fresh checklist is a fresh
 			// situation, not the remains of the run that gave up on the last one.

@@ -8,7 +8,7 @@
  * are unit-tested in `../tests/goal-gate.test.ts` without a session.
  */
 
-import { ledgerPath, ledgerStatus } from './ledger.ts'
+import { ledgerIsComplete, ledgerPath, ledgerStatus } from './ledger.ts'
 
 import type { LedgerStatus } from './ledger.ts'
 
@@ -20,17 +20,34 @@ import type { LedgerStatus } from './ledger.ts'
 export const MAX_CONTINUATIONS = 4
 
 /**
+ * Escalations allowed per cycle. A run that stops blocked - or that ignores the
+ * whole continuation budget - has asked the human nothing, so its pane settles
+ * exactly like a finished one. One message demanding the blocking decision be
+ * raised with `ask_user_question` is what makes the stop visible; bounded like
+ * the continuations, and reset by a human prompt with them.
+ */
+export const MAX_ESCALATIONS = 1
+
+/**
  * What the caller should do once the agent has settled:
  * - `idle`     - nothing to gate: no session, no ledger, or the cycle is closed
  * - `continue` - items are open: send the continuation and let the run resume
+ * - `ask`      - the run stopped without asking: demand the blocking question
  * - `done`     - every item is checked: report it and stop guarding
  * - `stopped`  - `blocked:` or a spent budget: report why and stop guarding
  */
 export type SettleAction =
 	| { type: 'idle' }
 	| { type: 'continue'; path: string; status: LedgerStatus; attempt: number }
+	| { type: 'ask'; path: string; reason: string; status: LedgerStatus }
 	| { type: 'done'; path: string; total: number }
-	| { type: 'stopped'; path: string; reason: string; cause: StopCause }
+	| {
+			type: 'stopped'
+			path: string
+			reason: string
+			cause: StopCause
+			status: LedgerStatus
+	  }
 
 /**
  * Why the gate stopped: `blocked` is the run asking for something it cannot get,
@@ -49,6 +66,8 @@ export class GoalGate {
 	private readonly options: GateOptions
 	private path: string | undefined
 	private attempts = 0
+	/** Escalations spent in this cycle; see `MAX_ESCALATIONS`. */
+	private escalations = 0
 	/** Set once the cycle is over: completion reported, blocked, or given up. */
 	private closed = false
 	/**
@@ -67,8 +86,18 @@ export class GoalGate {
 	 * `session_start`.
 	 */
 	arm(sessionId: string): string {
-		this.path = ledgerPath(this.options.agentDir, sessionId)
+		return this.armLedger(ledgerPath(this.options.agentDir, sessionId))
+	}
+
+	/**
+	 * Open a cycle tracking a ledger adopted from a predecessor session
+	 * (resume or fork): the checklist belongs to the work, not to the id pi
+	 * minted for this session.
+	 */
+	armLedger(path: string): string {
+		this.path = path
 		this.attempts = 0
+		this.escalations = 0
 		this.closed = false
 		this.reportedDone = undefined
 		return this.path
@@ -80,11 +109,30 @@ export class GoalGate {
 	}
 
 	/**
-	 * A human prompt reopens the cycle with a fresh budget: the goal stands
-	 * until the ledger is empty or `/goal-clear` removes it.
+	 * A human prompt reopens the cycle with a fresh budget: by the time someone
+	 * has typed "continue", the earlier budget was spent on a different
+	 * situation. The goal itself stands until the ledger has no open item, or
+	 * `/goal-clear` removes it.
 	 */
 	noteHumanPrompt(): void {
+		this.resetCycle()
+	}
+
+	/**
+	 * Work the run declared (`/goal`, or the `goal` tool). A closed cycle - every
+	 * item ticked, the budget spent, or `blocked:` - becomes live again with a
+	 * fresh budget; a cycle that is still live keeps the budget it has already
+	 * spent, so declaring more items cannot buy escapes from the continuation
+	 * limit.
+	 */
+	noteNewWork(): void {
+		if (!this.closed) return
+		this.resetCycle()
+	}
+
+	private resetCycle(): void {
 		this.attempts = 0
+		this.escalations = 0
 		this.closed = false
 	}
 
@@ -95,15 +143,18 @@ export class GoalGate {
 		if (!text) return { type: 'idle' }
 		const status = ledgerStatus(text)
 		if (status.blocked) {
+			const escalation = this.escalate(path, status.blocked, status)
+			if (escalation) return escalation
 			this.closed = true
 			return {
 				type: 'stopped',
 				path,
 				reason: status.blocked,
 				cause: 'blocked',
+				status,
 			}
 		}
-		if (status.items.length && !status.open.length) {
+		if (ledgerIsComplete(status)) {
 			this.closed = true
 			if (this.reportedDone === status.items.length)
 				return { type: 'idle' }
@@ -111,15 +162,46 @@ export class GoalGate {
 			return { type: 'done', path, total: status.items.length }
 		}
 		if (this.attempts >= MAX_CONTINUATIONS) {
+			const reason = `the checklist is still open after ${MAX_CONTINUATIONS} continuations`
+			const escalation = this.escalate(path, reason, status)
+			if (escalation) return escalation
 			this.closed = true
-			return {
-				type: 'stopped',
-				path,
-				reason: `the checklist is still open after ${MAX_CONTINUATIONS} continuations`,
-				cause: 'budget',
-			}
+			return { type: 'stopped', path, reason, cause: 'budget', status }
 		}
 		this.attempts += 1
 		return { type: 'continue', path, status, attempt: this.attempts }
+	}
+
+	/**
+	 * Completion check without touching the cycle state: the caller runs it
+	 * before any other extension's settle machinery, so a finished checklist
+	 * stops the session before a handoff request, a compaction or any
+	 * continuation can be paid for. `settled()` re-derives this with its
+	 * bookkeeping; this probe never mutates, so calling it speculatively costs
+	 * nothing.
+	 */
+	probeDone(): { path: string; total: number } | undefined {
+		const { path } = this
+		if (!path) return undefined
+		const text = this.options.read(path)
+		if (!text) return undefined
+		const status = ledgerStatus(text)
+		if (!ledgerIsComplete(status)) return undefined
+		return { path, total: status.items.length }
+	}
+
+	/**
+	 * The one message that turns a silent stop into a question, while the cycle's
+	 * escalation budget lasts. Undefined means the gate has escalated as often as
+	 * it may: the caller stops for good.
+	 */
+	private escalate(
+		path: string,
+		reason: string,
+		status: LedgerStatus,
+	): SettleAction | undefined {
+		if (this.escalations >= MAX_ESCALATIONS) return undefined
+		this.escalations += 1
+		return { type: 'ask', path, reason, status }
 	}
 }

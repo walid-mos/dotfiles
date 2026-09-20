@@ -125,8 +125,12 @@ function keepRowLine(input: {
 	const label = entry?.pin
 		? 'keep the stored override'
 		: 'leave this agent unchanged'
+	const labelInk = uiTheme.fg(
+		'text',
+		isSelected ? uiTheme.bold(label) : label,
+	)
 	const text = twoColumn(
-		` ${marker}${uiTheme.fg('text', label)}`,
+		`${INDENT}${marker} ${labelInk}`,
 		uiTheme.fg('dim', kept),
 		width,
 	)
@@ -174,9 +178,12 @@ function editorRowLine(input: {
 	const marker = isSelected
 		? uiTheme.fg('accent', SELECTED_MARKER)
 		: uiTheme.fg('dim', ' ')
-	const name = uiTheme.fg('text', row.reference)
+	const name = uiTheme.fg(
+		'text',
+		isSelected ? uiTheme.bold(row.reference) : row.reference,
+	)
 	const text = twoColumn(
-		` ${marker}${name}${rowTag(entry, row)}`,
+		`${INDENT}${marker} ${name}${rowTag(entry, row)}`,
 		effortBlock(
 			{
 				row,
@@ -210,7 +217,9 @@ export function renderAgentEditor(input: RenderInput): PickerLine[] {
 		{ text: input.searchLine },
 	]
 	if (!rows.length) {
-		lines.push({ text: `  ${uiTheme.fg('dim', 'no model matches')}` })
+		lines.push({
+			text: `${INDENT}  ${uiTheme.fg('dim', 'no model matches')}`,
+		})
 		return lines
 	}
 	const window = groupWindow({

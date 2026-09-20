@@ -28,7 +28,10 @@ import { editorCommitState, openEditorState } from './model-picker-editor.ts'
 import { keyIntent } from './model-picker-keymap.ts'
 import { searchLine } from './model-picker-line.ts'
 import { renderPicker } from './model-picker-render.ts'
-import { removeScopeRow, toggleScopeRow } from './model-picker-scope-edits.ts'
+import {
+	removeScopeRow,
+	unsaveCatalogueRow,
+} from './model-picker-scope-edits.ts'
 import {
 	clampCursor,
 	closeAgentEditor,
@@ -81,7 +84,6 @@ export class ModelPickerComponent implements Component, Focusable {
 	/** Set by pi-tui: the search fields position their own cursor markers. */
 	focused = false
 
-	private readonly deps: PickerComponentDeps
 	private readonly search = new Input({
 		prompt: '/ ',
 		placeholder: 'Type to search',
@@ -95,9 +97,7 @@ export class ModelPickerComponent implements Component, Focusable {
 		| { width: number; height: number; lines: PickerLine[] }
 		| undefined
 
-	constructor(deps: PickerComponentDeps) {
-		this.deps = deps
-	}
+	constructor(private readonly deps: PickerComponentDeps) {}
 
 	render(width: number): string[] {
 		const height = this.deps.height()
@@ -144,8 +144,8 @@ export class ModelPickerComponent implements Component, Focusable {
 		if (intent.kind === 'move') return this.move(intent.delta)
 		if (intent.kind === 'effort') return this.stepEffort(intent.delta)
 		if (intent.kind === 'activate') return this.activate()
-		if (intent.kind === 'toggle-scope')
-			return this.run(toggleScopeRow(this.rowCountInput()))
+		if (intent.kind === 'unsave')
+			return this.run(unsaveCatalogueRow(this.rowCountInput()))
 		if (intent.kind === 'save-default')
 			return this.run(saveDefaultModel(this.rowCountInput()))
 		if (intent.kind === 'reorder')

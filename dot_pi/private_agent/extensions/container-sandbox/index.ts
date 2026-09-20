@@ -10,14 +10,17 @@
  * is the same bytes through the mount - and because that write delivers no event
  * to the VM, a successful one makes the guest touch the file so its watchers
  * fire. A bare `git` command runs on the host instead: the VM mounts the worktree
- * but not the repository's git dir, which the worktree's `.git` file names.
+ * but not the repository's git dir, which the worktree's `.git` file names. Neither
+ * VM carries the host's `~/.gitconfig` either, so an activation hands the guest the
+ * identity this worktree's commits carry on the host (guest-git.ts).
  * Both bash tools cap a command that
  * passed no timeout, and each container call is guarded by a VM liveness probe,
  * because a starved VM turns every command into an unbounded wait.
  *
  * Modules: index.ts (wiring and the command timeout policy), session.ts
  * (per-session runtime, prompt suffix and activation), devvm.ts (the shared
- * dev VM contract: names, argv shapes, tree-path read), sandbox-prompt.ts (the
+ * dev VM contract: names, argv shapes, tree-path read), guest-git.ts (the host git
+ * identity, inherited into the guest at activation), sandbox-prompt.ts (the
  * sandbox section's text, the addresses a human may be given included),
  * container-command.ts (the /container surface), wt.ts (wt CLI boundary), container.ts (Apple container CLI
  * boundary and guest call lifecycle), container-cli.ts (the CLI process itself),

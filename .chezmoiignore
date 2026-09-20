@@ -51,6 +51,9 @@ README.md
 bootstrap.sh
 bootstrap/
 
+# pi: frontend-check specimens are throwaway test data
+.pi/agent/frontend-check
+
 # zsh: machine-local config and secrets - never version
 .config/zsh/local.zsh
 .config/zsh/secrets

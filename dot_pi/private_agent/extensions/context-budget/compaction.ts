@@ -7,11 +7,13 @@
  * wrote - never pi's own summary of the context being dropped, which is the
  * lossy pass this whole extension exists to avoid. The three session events
  * below are the only places pi asks for a summary or reports one, so this is
- * the one module that decides what replaces the conversation.
+ * the one module that decides what replaces the conversation. The kept tail is
+ * chosen in `boundary.ts`, by real weight.
  */
 
 import { endHandoffCycle } from '../settle-handshake/handshake.ts'
 
+import { pickKeptBoundary } from './boundary.ts'
 import { shortTokens } from './budget.ts'
 import { STATUS_KEY } from './command.ts'
 import { isUsableHandoff } from './handoff.ts'
@@ -94,7 +96,20 @@ export function watchCompaction(
 		return {
 			compaction: {
 				summary: claim.text,
-				firstKeptEntryId: preparation.firstKeptEntryId,
+				// The kept tail is chosen here, by the handoff's coverage: the
+				// handoff is the memory of everything written before it, so the
+				// kept tail is exactly the work it does not cover - the newest
+				// cut point at or before its write time. pi's own boundary comes
+				// from an estimate that truncates tool results, so a tail full of
+				// large tool outputs passes its walk while weighing several times
+				// the budget (measured 2026-09-19: 21 of 191 compactions left the
+				// next prompt above 100k). pi's boundary stays as the fallback for
+				// the no-floor case.
+				firstKeptEntryId: pickKeptBoundary({
+					entries: event.branchEntries,
+					fallbackId: preparation.firstKeptEntryId,
+					handoffWrittenAt: claim.modifiedAt,
+				}),
 				tokensBefore: preparation.tokensBefore,
 			},
 		}

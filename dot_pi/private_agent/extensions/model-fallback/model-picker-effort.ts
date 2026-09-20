@@ -42,10 +42,15 @@ export interface EffortDisplay {
 	isUnsupported?: boolean
 }
 
-function effortSquare(isReached: boolean): string {
-	return isReached
-		? uiTheme.fg('muted', EFFORT_FILLED)
-		: uiTheme.fg('dim', EFFORT_EMPTY)
+function effortSquare(square: {
+	isReached: boolean
+	isPending: boolean
+}): string {
+	if (square.isReached)
+		// An unsaved choice lights the whole column in the accent, so the edit
+		// reads as live before the word beside it is read.
+		return uiTheme.fg(square.isPending ? 'accent' : 'muted', EFFORT_FILLED)
+	return uiTheme.fg('border', EFFORT_EMPTY)
 }
 
 /** The level's name and ink: pending, chosen, inherited or pi's clamped off. */
@@ -72,7 +77,12 @@ export function effortBlock(display: EffortDisplay, width: number): string {
 		? display.row.levels.indexOf(display.level)
 		: -1
 	const squares = display.row.levels
-		.map((_, index) => effortSquare(index <= reached))
+		.map((_, index) =>
+			effortSquare({
+				isReached: index <= reached,
+				isPending: Boolean(display.isPending),
+			}),
+		)
 		.join('')
 	if (width < EFFORT_NAME_WIDTH) {
 		if (!display.isUnsupported) return squares

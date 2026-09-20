@@ -13,9 +13,13 @@
  * `tool_call` is the right hook: it blocks before execution and covers the
  * `bash` and `host` tools alike, without touching either registration. The
  * rules live in blind-wait.ts and shadowed-tools.ts behind policy.ts, the
- * parsing in shell-text.ts. Interactive sessions
- * add the discovery built-ins without replacing extension tools. Refusals
- * check the live active set, including in restricted child sessions.
+ * parsing in shell-text.ts, the suggested call in suggested-call.ts. The
+ * dedicated tools are activated at session start wherever pi exposes them,
+ * because pi's own prompt sends the model to bash for file operations while
+ * they are missing (measured: the `Use bash for file operations like ls, rg,
+ * find` guideline disappears as soon as `ls` is active), and refusing a call
+ * that names a tool the session does not have is a dead end. Refusals check
+ * the live active set, so a restricted child session keeps its grant.
  */
 import { guardCommand } from './policy.ts'
 
@@ -23,6 +27,9 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 /** Tools whose command string is judged. */
 const GUARDED_TOOLS = new Set(['bash', 'host'])
+
+/** The dedicated tools the rule can only be kept with. */
+const DEDICATED_TOOLS = ['grep', 'find', 'ls']
 
 /** The command of a tool call, when it has one. */
 function commandOf(input: unknown): string | undefined {
@@ -33,11 +40,14 @@ function commandOf(input: unknown): string | undefined {
 }
 
 export default function toolGuard(pi: ExtensionAPI): void {
-	pi.on('session_start', (_event, ctx) => {
-		if (ctx.mode !== 'tui') return
-		pi.setActiveTools([
-			...new Set([...pi.getActiveTools(), 'grep', 'find', 'ls']),
-		])
+	pi.on('session_start', () => {
+		const active = new Set(pi.getActiveTools())
+		const exposed = new Set(pi.getAllTools().map(tool => tool.name))
+		const missing = DEDICATED_TOOLS.filter(
+			name => exposed.has(name) && !active.has(name),
+		)
+		if (!missing.length) return
+		pi.setActiveTools([...active, ...missing])
 	})
 
 	pi.on('tool_call', event => {

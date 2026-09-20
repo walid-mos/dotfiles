@@ -56,7 +56,8 @@ If nothing can finish on its own, do other work or end the turn and come back wh
 - **A turn is not a task**: work through every item you were given, then report — never end a turn asking whether to continue.
 - Yielding the turn while detached work runs is not a finished task — resume when it reports.
 - Only a skill that explicitly requires a human decision may stop you earlier.
-- Multi-deliverable work starts by writing the `goal-gate` checklist (path and format live in the contract injected into your context); tick each item as it lands.
+- Multi-deliverable work starts by declaring the `goal-gate` checklist with the `goal` tool; close each item with it as it lands.
+- **Blocked is a question, not a stop**: when only a human decision unblocks the work, raise it with `ask_user_question` (the concrete options you see, 2-3, best marked recommended) and record it with the `goal` tool before stopping — a run that ends on prose alone settles exactly like a finished one.
 
 ## Development
 

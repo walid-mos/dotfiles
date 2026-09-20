@@ -148,7 +148,7 @@ export function savedScope(view: PickerView): Map<string, ScopeMembership> {
 	)
 }
 
-/** The catalogue search: the whole reference and the model's own name. */
+/** The catalogue search: pi's own fuzzy filter, over `filterRows`. */
 export function searchRows(
 	view: PickerView,
 	query: string,

@@ -5,8 +5,8 @@
  * Every row says where its membership comes from, in the picker's own words:
  * an entry is in the Ctrl+P list, a resolved session model no entry names says
  * `not in Ctrl+P list`, and one a saved pattern covers says `in Ctrl+P list via
- * <pattern>`. Enter (or space) toggles the highlighted model - an exact entry
- * leaves the list, a session-only model joins it as its own exact entry, a
+ * <pattern>`. Enter toggles the highlighted model - an exact entry leaves the
+ * list, a session-only model joins it as its own exact entry, a
  * pattern-covered model is added as one - while a wildcard row is never
  * expanded and never moved by enter; `backspace` removes one whole, which the
  * footer labels. pi resolves the list at session start and `ctx.scopedModels`
@@ -32,8 +32,8 @@ import type {
 	ScopeEntry,
 } from './model-picker-view.ts'
 
-/** Header lines the scope tab draws above its window. */
-export const SCOPE_HEADER_ROWS = 3
+/** Header lines the scope tab draws above its window: three notes, then air. */
+export const SCOPE_HEADER_ROWS = 4
 
 /** What the settings file holds, or why the tab cannot tell. */
 function listStatus(input: RenderInput): string {
@@ -63,7 +63,7 @@ function appliesNote(input: RenderInput): string {
 function scopeOwnerNote(input: RenderInput): string {
 	return twoColumn(
 		`${INDENT}${uiTheme.fg('text', '/scoped-models')} is pi\u2019s own editor for the ${CTRL_P_LIST}`,
-		uiTheme.fg('dim', 'space there saves it'),
+		uiTheme.fg('dim', '\u23ce there toggles it'),
 		input.size.width,
 	)
 }
@@ -97,20 +97,22 @@ function sessionMeta(entry: ScopeEntry, pattern: string | undefined): string {
 	return uiTheme.fg('dim', `not in ${CTRL_P_LIST} \u00b7 ${level}`)
 }
 
-function scopeRowText(
-	row: ScopeRow,
-	marker: string,
-	width: number,
-	saved: ReadonlyMap<string, ScopeMembership>,
-): string {
+function scopeRowText(input: {
+	row: ScopeRow
+	marker: string
+	width: number
+	saved: ReadonlyMap<string, ScopeMembership>
+	isSelected: boolean
+}): string {
+	const { row, marker, width, saved, isSelected } = input
 	if (row.kind === 'entry')
 		return twoColumn(
-			`${INDENT}${marker} ${uiTheme.fg('text', row.entry)}`,
+			`${INDENT}${marker} ${uiTheme.fg('text', isSelected ? uiTheme.bold(row.entry) : row.entry)}`,
 			entryMeta(row),
 			width,
 		)
 	return twoColumn(
-		`${INDENT}${marker} ${uiTheme.fg('muted', row.entry.reference)}`,
+		`${INDENT}${marker} ${uiTheme.fg('muted', isSelected ? uiTheme.bold(row.entry.reference) : row.entry.reference)}`,
 		sessionMeta(row.entry, saved.get(row.entry.reference)?.pattern),
 		width,
 	)
@@ -123,12 +125,13 @@ function scopeRowLine(
 	saved: ReadonlyMap<string, ScopeMembership>,
 ): PickerLine {
 	const selected = index === input.state.cursor
-	const text = scopeRowText(
+	const text = scopeRowText({
 		row,
-		cursorMarker(selected),
-		input.size.width,
+		marker: cursorMarker(selected),
+		width: input.size.width,
 		saved,
-	)
+		isSelected: selected,
+	})
 	return {
 		text: selected ? highlightRow(text, input.size.width) : text,
 		pick: index,
@@ -154,6 +157,7 @@ export function renderScope(input: RenderInput): PickerLine[] {
 			input.size.width,
 		),
 		{ text: scopeOwnerNote(input) },
+		{ text: '' },
 		...scrollHints(input, window, rows.length),
 		...groupedRows({
 			rows,
@@ -183,9 +187,9 @@ export function scopeHint(input: RenderInput): string {
 		const offer = pattern
 			? `adds an exact ${CTRL_P_LIST} entry (a pattern already covered it)`
 			: `adds it to the ${CTRL_P_LIST}`
-		return `\u2191\u2193 select \u00b7 \u23ce/space ${offer} \u00b7 ${ends}`
+		return `\u2191\u2193 select \u00b7 \u23ce ${offer} \u00b7 ${ends}`
 	}
 	if (row.isPattern)
 		return `\u2191\u2193 select \u00b7 \u232b removes this wildcard whole \u00b7 ${ends}`
-	return `\u2191\u2193 select \u00b7 \u23ce/space removes it from the ${CTRL_P_LIST} \u00b7 ${ends}`
+	return `\u2191\u2193 select \u00b7 \u23ce removes it from the ${CTRL_P_LIST} \u00b7 ${ends}`
 }

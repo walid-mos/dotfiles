@@ -10,6 +10,7 @@
  */
 
 import { getSupportedThinkingLevels } from '@earendil-works/pi-ai'
+import { fuzzyFilter } from '@earendil-works/pi-tui'
 
 import { modelReference } from './chain.ts'
 
@@ -281,15 +282,22 @@ export function catalogRows(input: CatalogInput): CatalogRow[] {
 	return rows.toSorted(compareRows)
 }
 
-/** Catalogue search: the whole reference and the model's own name. */
+/**
+ * Catalogue search: pi's own fuzzy filter over the whole reference and the
+ * model's own name, the same matcher pi's model selectors use. Every
+ * whitespace- or slash-separated token must match somewhere in that text and
+ * the best matches come first, so `codexmax` finds `gpt-5.1-codex-max` and
+ * `deep flash` finds `deepseek-v4-flash`.
+ */
 export function filterRows(
 	rows: readonly CatalogRow[],
 	query: string,
 ): CatalogRow[] {
-	const needle = query.trim().toLowerCase()
-	if (!needle) return [...rows]
-	return rows.filter(row =>
-		`${row.reference} ${row.model.name}`.toLowerCase().includes(needle),
+	if (!query.trim()) return [...rows]
+	return fuzzyFilter(
+		[...rows],
+		query,
+		row => `${row.reference} ${row.model.name}`,
 	)
 }
 

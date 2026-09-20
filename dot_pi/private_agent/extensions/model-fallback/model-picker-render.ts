@@ -12,18 +12,12 @@
 import { uiTheme } from '../ui/design-system/theme.ts'
 
 import { editorHint, renderAgentEditor } from './model-picker-editor-render.ts'
-import {
-	INDENT,
-	cursorMarker,
-	line,
-	separateLine,
-	twoColumn,
-} from './model-picker-line.ts'
+import { INDENT, line, separateLine, twoColumn } from './model-picker-line.ts'
 import { renderSessionBody, sessionWindow } from './model-picker-list.ts'
 import { renderScope, scopeHint } from './model-picker-scope.ts'
 import { PICKER_TABS, escapeStep } from './model-picker-state.ts'
 import { renderAgents, renderFallbacks } from './model-picker-tabs.ts'
-import { activeQuery, sessionRows } from './model-picker-view.ts'
+import { activeQuery, savedScope, sessionRows } from './model-picker-view.ts'
 import { CTRL_P_LIST, CTRL_P_TAB } from './model-picker-words.ts'
 
 import type {
@@ -60,18 +54,29 @@ const HINTS: Record<Exclude<PickerTab, 'scope' | 'session'>, string> = {
 }
 
 /**
- * The session footer: three actions plus what escape does, which is all that
- * fits at 100 columns. The row itself carries the membership tag, so the key is
- * named here and the scope tab keeps the per-row wording; when the file cannot
- * be read, neither key can save, so the footer says that instead of offering an
- * edit that cannot happen.
+ * The session footer: enter names what it will do to the row under the cursor -
+ * a model already in the Ctrl+P list is one this session can run now, one that
+ * is not joins the list first - and ctrl+x takes an exact entry back out, which
+ * is all that fits at 100 columns. The row itself carries the membership tag,
+ * so the keys are named here and the scope tab keeps the per-row wording; when
+ * the file cannot be read, no membership is known and no edit can be saved, so
+ * the footer says that instead of offering one that cannot happen.
  */
 function sessionHint(input: RenderInput): string {
 	const row = sessionRows(input.view, input.query)[input.state.cursor]
 	if (!row) return '↑↓ · {esc} · tab target'
 	if (!input.view.isSettingsReadable)
-		return '↑↓ · ←→ reasoning · ⏎ switch model · ctrl+s startup default · settings.json unreadable · {esc}'
-	return `↑↓ · ←→ reasoning · ⏎ switch model · space add to ${CTRL_P_LIST} · ctrl+s startup default · {esc}`
+		return '↑↓ · ←→ reasoning · ⏎ save or switch · ctrl+s startup default · settings.json unreadable · {esc}'
+	const membership = savedScope(input.view).get(row.reference)
+	if (!membership?.exact) {
+		// A pattern stands for every model it matches: removing it stays the
+		// scope tab's own explicit action, so ctrl+x is not offered here.
+		const via = membership?.pattern
+		if (!via)
+			return `↑↓ · ←→ reasoning · ⏎ add to ${CTRL_P_LIST} · ctrl+s startup default · {esc}`
+		return `↑↓ · ←→ reasoning · ⏎ switch model · in ${CTRL_P_LIST} via ${via} · {esc}`
+	}
+	return `↑↓ · ←→ reasoning · ⏎ switch model · ctrl+x unsave · ctrl+s startup default · {esc}`
 }
 
 /** The tab's own hint: these two name the action their highlighted row gets. */
@@ -92,14 +97,15 @@ function hintLine(input: RenderInput): string {
 }
 
 function tabStrip(state: PickerState): string {
+	// No cursor marker in the strip: the active tab is the bold accent one, so
+	// every gap stays equal and the strip never shifts when the selection moves.
 	return PICKER_TABS.map(tab => {
 		const isActive = tab === state.tab
 		const label = TAB_LABELS[tab]
-		const rendered = isActive
+		return isActive
 			? uiTheme.fg('accent', uiTheme.bold(label))
 			: uiTheme.fg('muted', label)
-		return `${cursorMarker(isActive)} ${rendered}`
-	}).join(uiTheme.fg('dim', '  '))
+	}).join(uiTheme.fg('dim', ' · '))
 }
 
 /**
@@ -133,7 +139,7 @@ function startupValue(view: PickerView): string {
 		return uiTheme.fg('warning', 'settings.json could not be read')
 	if (!view.startupDefault)
 		return uiTheme.fg('dim', 'none set - ctrl+s sets it')
-	return `${uiTheme.fg('text', view.startupDefault)}${uiTheme.fg('dim', ' (ctrl+s)')}`
+	return `${uiTheme.fg('muted', view.startupDefault)}${uiTheme.fg('dim', ' (ctrl+s)')}`
 }
 
 /** How many models the ctrl+p shortcut cycles, or why that count is unknown. */
@@ -153,19 +159,21 @@ function headerLines(view: PickerView, width: number): PickerLine[] {
 	const session = view.currentReference ?? 'none selected'
 	const level = view.sessionLevel ? ` · thinking ${view.sessionLevel}` : ''
 	return [
+		// The session model is the one fact that acts now: the only bold value
+		// in the block, so the three targets rank at a glance.
 		line(
-			`${uiTheme.fg('muted', 'Session')}  ${uiTheme.fg('text', session)}${uiTheme.fg('dim', level)}`,
+			`${uiTheme.fg('dim', 'Session')}  ${uiTheme.fg('text', uiTheme.bold(session))}${uiTheme.fg('dim', level)}`,
 			width,
 		),
 		{
 			text: twoColumn(
-				`${uiTheme.fg('muted', 'Startup')}  ${startupValue(view)}`,
+				`${uiTheme.fg('dim', 'Startup')}  ${startupValue(view)}`,
 				uiTheme.fg('dim', cycleValue(view)),
 				width,
 			),
 		},
 		line(
-			`${uiTheme.fg('muted', 'Agents')}   ${uiTheme.fg('dim', agentsNote(view))}`,
+			`${uiTheme.fg('dim', 'Agents')}   ${uiTheme.fg('dim', agentsNote(view))}`,
 			width,
 		),
 	]
@@ -196,14 +204,20 @@ function tabBody(input: RenderInput): PickerLine[] {
 export function renderPicker(input: RenderInput): PickerLine[] {
 	const { view, state, size } = input
 	const body = tabBody(input)
+	// The session tab ends on the price block, which closes the body flush
+	// against the footer's separator: no gap there for that tab alone.
+	const footerGap: PickerLine[] =
+		state.tab === 'session' ? [] : [{ text: '' }]
 	return [
 		line(
 			`${uiTheme.fg('accent', uiTheme.bold('Models'))}   ${tabStrip(state)}`,
 			size.width,
 		),
 		...headerLines(view, size.width),
+		{ text: '' },
 		separateLine(size.width),
 		...body,
+		...footerGap,
 		separateLine(size.width),
 		line(`${INDENT}${uiTheme.fg('dim', hintLine(input))}`, size.width),
 	]
