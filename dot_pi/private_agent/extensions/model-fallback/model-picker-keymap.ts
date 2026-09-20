@@ -17,7 +17,7 @@ export type PickerKeyIntent =
 	| { kind: 'move'; delta: number }
 	| { kind: 'effort'; delta: number }
 	| { kind: 'activate' }
-	| { kind: 'toggle-scope' }
+	| { kind: 'unsave' }
 	/** Save the highlighted row as the startup default for new sessions. */
 	| { kind: 'save-default' }
 	| { kind: 'reorder'; delta: number }
@@ -42,20 +42,13 @@ function cursorIntent(
 }
 
 /**
- * Space toggles membership of the saved `enabledModels` list: on the scope tab
- * for its own row, and on the session catalogue for the highlighted model. The
- * session tab's search field therefore gives up one character - no model id
- * contains a space - so the key that edits the wanted list is the same one on
- * both lists.
+ * Enter and ctrl+x edit the saved `enabledModels` membership of the row under
+ * the cursor: enter adds a model that is not in the list and switches to one
+ * that is, ctrl+x takes an exact entry back out. Both are keys a model id
+ * cannot contain - the session tab's search field owns every printable
+ * character, so `space` and every letter stay text and `codex` or `x-ai/grok`
+ * is searchable to its last character.
  */
-function spaceIntent(state: PickerState): PickerKeyIntent | undefined {
-	if (state.editor) return undefined
-	if (state.tab === 'scope' || state.tab === 'session')
-		return { kind: 'toggle-scope' }
-	return undefined
-}
-
-/** What commits, reorders or removes the row under the cursor. */
 function rowIntent(
 	keyData: string,
 	state: PickerState,
@@ -69,7 +62,12 @@ function rowIntent(
 		matchesKey(keyData, Key.ctrl('s'))
 	)
 		return { kind: 'save-default' }
-	if (matchesKey(keyData, Key.space)) return spaceIntent(state)
+	if (
+		!state.editor &&
+		state.tab === 'session' &&
+		matchesKey(keyData, Key.ctrl('x'))
+	)
+		return { kind: 'unsave' }
 	if (matchesKey(keyData, Key.alt('up')))
 		return { kind: 'reorder', delta: -1 }
 	if (matchesKey(keyData, Key.alt('down')))

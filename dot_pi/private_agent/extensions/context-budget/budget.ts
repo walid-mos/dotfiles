@@ -93,10 +93,17 @@ export type BudgetLevel = 'ok' | 'warn' | 'handoff'
 /** A disabled ceiling: no guard, no nudges. */
 export type Ceiling = number | 'off'
 
+/**
+ * Prompt size at which the handoff ask fires for a ceiling: the ceiling minus
+ * the runway the write-and-end turn needs, never below the warn line (on
+ * small ceilings `ceiling - runway` would fire before any warning did).
+ */
+export function handoffTrigger(ceiling: number): number {
+	return Math.max(ceiling - HANDOFF_RUNWAY, ceiling * WARN_RATIO)
+}
+
 export function budgetLevel(tokens: number, ceiling: number): BudgetLevel {
-	// The handoff trigger never sits below the warn line: on small ceilings
-	// `ceiling - runway` would fire before the burn rate was ever flagged.
-	const trigger = Math.max(ceiling - HANDOFF_RUNWAY, ceiling * WARN_RATIO)
+	const trigger = handoffTrigger(ceiling)
 	if (tokens >= trigger) return 'handoff'
 	if (tokens >= ceiling * WARN_RATIO) return 'warn'
 	return 'ok'

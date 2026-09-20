@@ -16,11 +16,11 @@ export const INDENT = '  '
 /** The cursor's own ink; one spelling, worn by every list row. */
 export const SELECTED_MARKER = '▸'
 /** Rows the session tab's chrome and price block claim before its list. */
-export const PICKER_CHROME_ROWS = 15
+export const PICKER_CHROME_ROWS = 17
 /** The same chrome without the gauge block and the legend, on a short terminal. */
-export const PICKER_COMPACT_CHROME_ROWS = 11
+export const PICKER_COMPACT_CHROME_ROWS = 14
 /** Rows the report tabs' chrome claims: header, separators and the hint line. */
-export const PICKER_TAB_CHROME_ROWS = 7
+export const PICKER_TAB_CHROME_ROWS = 9
 const COLUMN_GAP = 1
 const QUIET_MARKER = ' '
 

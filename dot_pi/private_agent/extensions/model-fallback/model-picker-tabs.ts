@@ -56,9 +56,10 @@ function fallbackRowLine(
 		const stateText = row.isOn
 			? uiTheme.fg('success', 'ON')
 			: uiTheme.fg('dim', 'OFF')
+		const isSelected = index === input.state.cursor
 		return {
 			text: twoColumn(
-				`${INDENT}${marker} ${uiTheme.fg('text', row.label)}`,
+				`${INDENT}${marker} ${uiTheme.fg('text', isSelected ? uiTheme.bold(row.label) : row.label)}`,
 				stateText,
 				input.size.width,
 			),
@@ -68,7 +69,7 @@ function fallbackRowLine(
 	if (row.kind === 'chain')
 		return {
 			text: twoColumn(
-				`${INDENT}${marker} ${uiTheme.fg('muted', String(row.index + 1))} ${uiTheme.fg('text', row.reference)}`,
+				`${INDENT}${marker} ${uiTheme.fg('muted', String(row.index + 1))} ${uiTheme.fg('text', index === input.state.cursor ? uiTheme.bold(row.reference) : row.reference)}`,
 				cooldownText(input, row.reference),
 				input.size.width,
 			),
@@ -148,7 +149,7 @@ function agentRowLine(
 	const marker = cursorMarker(selected)
 	if (row.kind === 'open') {
 		const text = twoColumn(
-			` ${marker}${uiTheme.fg(view.hasSubagentsCommand ? 'text' : 'dim', 'open per-agent models')}`,
+			`${INDENT}${marker} ${uiTheme.fg(view.hasSubagentsCommand ? 'text' : 'dim', 'open per-agent models')}`,
 			uiTheme.fg('dim', '/subagents'),
 			size.width,
 		)
@@ -159,8 +160,9 @@ function agentRowLine(
 	}
 	const { entry } = row
 	const modelRow = agentModelRow(view, entry.model)
+	const name = agentName(entry)
 	const text = twoColumn(
-		` ${marker}${agentName(entry)}${agentTag(view, entry, Boolean(modelRow))}`,
+		`${INDENT}${marker} ${selected ? uiTheme.bold(name) : name}${agentTag(view, entry, Boolean(modelRow))}`,
 		effortBlock(
 			{ row: modelRow, level: agentLevel(entry, modelRow) },
 			size.width,

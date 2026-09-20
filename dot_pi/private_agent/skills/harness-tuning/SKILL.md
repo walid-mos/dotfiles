@@ -67,7 +67,7 @@ Any code file created or modified under `~/.pi/agent` (extensions, tests, config
 ```bash
 pnpm run lint                    # oxlint
 pnpm exec oxfmt --write <files>  # format exactly the files you touched
-pnpm run test                    # node --test 'tests/**/*.test.ts' — when tests cover the change
+pnpm run test                    # node --experimental-transform-types --test 'tests/**/*.test.ts' — when tests cover the change
 ```
 
 - Fix every error and warning in the files you create or modify. Pre-existing issues in untouched files: leave alone (no unrelated churn).

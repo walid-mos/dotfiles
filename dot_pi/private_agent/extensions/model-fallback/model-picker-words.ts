@@ -18,10 +18,3 @@ export const STARTUP_DEFAULT = 'startup default'
 
 /** The tab that edits the list, named after its key rather than the concept. */
 export const CTRL_P_TAB = 'ctrl+p'
-
-/**
- * The line that tells the three targets apart, drawn on the one tab whose keys
- * edit all three: the row tags and the footer keep the short names, and this
- * says what those names mean before a key is pressed.
- */
-export const SESSION_LEGEND = `${CTRL_P_LIST} = what Ctrl+P cycles · ${STARTUP_DEFAULT} = what new sessions start on`

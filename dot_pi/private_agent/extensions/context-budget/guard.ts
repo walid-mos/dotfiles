@@ -8,8 +8,12 @@
  * stops waiting, because the margin the runway reserved is already spent and a
  * busy agent has no reason to settle soon. Once a request is out, the settle
  * boundary owns the rest of the cycle: compact from the file, re-ask while it
- * is missing, report when the retries run out. All pi and filesystem access is
- * injected, so the transitions are unit-tested in `../tests/context-budget.test.ts`
+ * is missing, report when the retries run out. The first reading after our own
+ * compaction is skipped - it can race the compaction being applied - and the
+ * reading after that flows through the ordinary rules: with the picker keeping
+ * only the post-handoff delta, a prompt still over the ceiling means the delta
+ * itself is oversized, and the ask that follows puts it into a new handoff.
+ * All pi and filesystem access is injected, so the transitions are testable
  * without a session.
  */
 
@@ -56,12 +60,12 @@ export type GuardAction =
 /**
  * What the caller should do once the agent has settled (idle, nothing left for
  * pi to run on its own):
- * - `idle`    - nothing to do: no outstanding request
- * - `handoff` - the ceiling was crossed too late for a request to go out: ask
- *               for the handoff now, before another turn is spent
- * - `compact` - the requested handoff exists: replace the conversation with it
- * - `reask`   - requested but not usable, retries left: steer the request again
- * - `givenUp` - requested, not usable, retries spent: report it and stop
+ * - `idle`      - nothing to do: no outstanding request
+ * - `handoff`   - the ceiling was crossed too late for a request to go out: ask
+ *                 for the handoff now, before another turn is spent
+ * - `compact`   - the requested handoff exists: replace the conversation with it
+ * - `reask`     - requested but not usable, retries left: steer the request again
+ * - `givenUp`   - requested, not usable, retries spent: report it and stop
  */
 export type SettleAction =
 	| { type: 'idle' }

@@ -10,10 +10,12 @@ import {
 	reapAbandonedGuestSessions,
 } from './container.ts'
 import { DEVVM_NAME, devvmEnvironmentPublished } from './devvm.ts'
+import { inheritGuestGitIdentity } from './guest-git.ts'
 import { containerRecentlyUnresponsive } from './liveness.ts'
 import {
 	activateRuntime,
 	sandboxGuestTarget,
+	sandboxHostOperations,
 	sandboxTailnetHost,
 	sandboxWorkspace,
 	sessionIdFromContext,
@@ -110,7 +112,48 @@ export async function startSandboxSession(
 		ctx.ui.theme.fg('accent', statusLine(workspace)),
 	)
 	notifyActivated(ctx, workspace)
+	await inheritGitIdentity(ctx, workspace, sessionId)
 	if (workspace.vehicle === 'devvm') publishDevvmEnvironment(ctx, workspace)
+}
+
+/**
+ * No VM carries the host's ~/.gitconfig - the share starts at the worktree's parent, never at
+ * the home directory - so the identity a commit needs is inherited before the session's first
+ * command (guest-git.ts owns what is written and how it is compared). Best effort in the sense
+ * that matters here: a VM that never answers must not fail the session, so the outcome is a
+ * notice. Nothing to inherit is silent - the host has no identity either, which is the human's
+ * own git configuration to fix, not an identity for a session to invent.
+ */
+async function inheritGitIdentity(
+	ctx: ExtensionContext,
+	workspace: SandboxWorkspace,
+	sessionId: string,
+): Promise<void> {
+	const hostOps = sandboxHostOperations()
+	const guest = sandboxGuestTarget()
+	if (!hostOps || !guest) return
+	// A starved VM is not queued behind: the session activates without it, and every later
+	// call fails at once with the recovery it needs.
+	if (containerRecentlyUnresponsive(workspace.containerName)) return
+	try {
+		const outcome = await inheritGuestGitIdentity({
+			hostOps,
+			worktreePath: workspace.path,
+			guest,
+			workdir: GUEST_WORKDIR,
+			ownerSession: sessionId,
+		})
+		if (outcome.kind !== 'inherited') return
+		ctx.ui.notify(
+			`Inherited the host's git identity into ${workspace.containerName} (git config --global user.name/user.email).`,
+			'info',
+		)
+	} catch (error) {
+		ctx.ui.notify(
+			`Could not inherit the host's git identity into ${workspace.containerName}: ${describe(error)}`,
+			'info',
+		)
+	}
 }
 
 /** The vehicle's own "make sure it runs": a container starts, a namespace answers or re-adds. */
