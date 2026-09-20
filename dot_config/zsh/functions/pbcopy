@@ -1,0 +1,14 @@
+# pbcopy — OSC 52 copy inside herdr panes
+#
+# Inside a herdr pane, writing the local NSPasteboard is wrong when the pane
+# runs on a remote machine (herdr --remote): pbcopy would set the clipboard of
+# the *server* machine. Instead, emit an OSC 52 sequence — herdr intercepts it
+# from pane output and applies it on the machine running the client.
+# Outside herdr, fall through to the real pbcopy.
+pbcopy() {
+	if [[ -n "$HERDR_ENV" ]]; then
+		printf '\033]52;c;%s\a' "$(base64 | tr -d '\n')" > /dev/tty
+	else
+		command pbcopy "$@"
+	fi
+}
