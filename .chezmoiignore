@@ -29,9 +29,11 @@
 .pi/agent/handoffs
 .pi/agent/run-history.jsonl
 
-# nextnode-qonto: Python cache and backups
+# nextnode-qonto: Python cache, backups and superseded iterations
 .config/nextnode-qonto/__pycache__
 .config/nextnode-qonto/*.bak
+.config/nextnode-qonto/check_inbox.py
+.config/nextnode-qonto/check_inbox2.py
 
 # chezmoi internal state
 .config/chezmoi
