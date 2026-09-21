@@ -8,6 +8,7 @@ import { Text } from '@earendil-works/pi-tui'
 
 import { QuestionnaireCaptures } from './questionnaire-captures.ts'
 import { runQuestionnaire } from './questionnaire-component.ts'
+import { QUESTIONNAIRE_MODE_EVENT } from './questionnaire-events.ts'
 import {
 	normalizeQuestions,
 	parseAskResult,
@@ -30,6 +31,7 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 import type { Component } from '@earendil-works/pi-tui'
 import type { Static } from 'typebox'
+import type { QuestionnaireMode } from './questionnaire-events.ts'
 import type {
 	AskResult,
 	QuestionnaireInitialState,
@@ -38,6 +40,7 @@ import type {
 interface AskSession {
 	resumeStates: Map<string, QuestionnaireInitialState>
 	sendFollowUp(message: string): void
+	setMode(mode: QuestionnaireMode): void
 }
 
 interface AskRowState {
@@ -45,7 +48,7 @@ interface AskRowState {
 }
 
 const TOOL_DESCRIPTION =
-	'Ask the user one or more questions with selectable options in interactive TUI mode. ALWAYS prefer this tool over questions in plain text; if TUI is unavailable, stop and report that clarification requires it. Group related questions in one call. Every question requires a short, unique, stable id (never omitted; reused as the answer key), e.g. id: "scope". The user can pick options (number keys), select multiple when multiSelect is true, or type a custom answer. Mark the best option with recommended: true when you have a preference. Omit options entirely for open-ended questions and do not suggest answers. If the user cancels, choose the most reasonable default and report that choice.'
+	'Ask only for a consequential decision that the human must make. Do not ask when context, established conventions, best practice, or a low-risk reversible default can decide; choose the default and continue. Before calling, gather every currently known human-only blocker into one questionnaire instead of asking across successive turns. A task should normally have one questionnaire round; ask later only when new evidence creates a new blocker. Use this tool instead of a plain-text question. Every question needs a short, unique, stable id reused as the answer key. The user can always write their own answer, select an option by number, or select multiple options when multiSelect is true. Mark the best option recommended when you have one. Omit options for a genuinely open-ended question. If the user cancels, choose the most reasonable default and report it.'
 
 /** No cached output: each render uses the current viewport and row state. */
 class TranscriptComponent implements Component {
@@ -64,6 +67,7 @@ export default function askUserQuestion(pi: ExtensionAPI): void {
 		resumeStates: new Map(),
 		sendFollowUp: message =>
 			pi.sendUserMessage(message, { deliverAs: 'followUp' }),
+		setMode: mode => pi.events.emit(QUESTIONNAIRE_MODE_EVENT, mode),
 	}
 	pi.on('session_shutdown', () => session.resumeStates.clear())
 	pi.registerTool<typeof AskParams, AskResult | undefined, AskRowState>({
@@ -111,6 +115,7 @@ async function runAskTool(
 	if (context.mode !== 'tui')
 		throw new Error('ask_user_question requires interactive TUI mode')
 	const questions = normalizeQuestions(params.questions)
+	session.setMode('answering')
 	const key = questionnaireKey(questions)
 	const captures = new QuestionnaireCaptures(context.cwd)
 	try {
@@ -125,6 +130,7 @@ async function runAskTool(
 		)
 		if (outcome.chat) {
 			session.resumeStates.set(key, outcome.chat.initialState)
+			session.setMode('discussing')
 			session.sendFollowUp(chatFollowUp(outcome.chat.question))
 			return {
 				content: [{ type: 'text', text: 'Chat paused' }],
@@ -133,22 +139,30 @@ async function runAskTool(
 			}
 		}
 		session.resumeStates.delete(key)
-		const resultImages = captures.modelAttachments(
-			(outcome.captures ?? []).map(record => record.alias),
-		)
-		return {
-			content: [
-				{
-					type: 'text',
-					text: outcome.cancelled
-						? 'User cancelled the question'
-						: formatAnswerLines(questions, outcome.answers),
-				},
-				...resultImages,
-			],
-			details: outcome,
-		}
+		return completedResult(questions, outcome, captures)
 	} finally {
 		await captures.dispose()
+	}
+}
+
+function completedResult(
+	questions: ReturnType<typeof normalizeQuestions>,
+	outcome: AskResult,
+	captures: QuestionnaireCaptures,
+): AgentToolResult<AskResult> {
+	const resultImages = captures.modelAttachments(
+		(outcome.captures ?? []).map(record => record.alias),
+	)
+	return {
+		content: [
+			{
+				type: 'text',
+				text: outcome.cancelled
+					? 'User cancelled the question'
+					: formatAnswerLines(questions, outcome.answers),
+			},
+			...resultImages,
+		],
+		details: outcome,
 	}
 }

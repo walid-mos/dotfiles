@@ -54,7 +54,7 @@ const RawQuestionSchema = Type.Object({
 	options: Type.Optional(
 		Type.Array(RawQuestionOptionSchema, {
 			description:
-				'Available options to choose from (2-5 recommended). Omit for open-ended questions: shows only a free-text editor.',
+				'Available options to choose from (2-5 recommended). The user can always write a different answer. Omit for open-ended questions.',
 		}),
 	),
 	multiSelect: Type.Optional(
@@ -63,17 +63,12 @@ const RawQuestionSchema = Type.Object({
 				'Allow selecting multiple options (Space toggles, Enter confirms)',
 		}),
 	),
-	allowOther: Type.Optional(
-		Type.Boolean({
-			description: "Allow 'Type something' option (default: true)",
-		}),
-	),
 })
 
 export const AskParams = Type.Object({
 	questions: Type.Array(RawQuestionSchema, {
 		description:
-			"Questions to ask the user. Ask only what's needed: 2-3 is usually enough, 5 max.",
+			'Every currently known human-only blocker, asked together. Prefer one question; five is the hard maximum.',
 		minItems: 1,
 		maxItems: 5,
 	}),
@@ -93,7 +88,6 @@ export const QuestionSchema = Type.Object({
 	label: Type.String(),
 	prompt: Type.String(),
 	options: Type.Array(OptionSchema, { default: [] }),
-	allowOther: Type.Boolean({ default: true }),
 	multiSelect: Type.Boolean({ default: false }),
 })
 

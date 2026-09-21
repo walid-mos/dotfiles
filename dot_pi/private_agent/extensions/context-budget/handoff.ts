@@ -8,7 +8,7 @@
  * input to the nudge.
  */
 
-import { readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { readdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 
 /** Session ids are uuids; eight characters are enough to name a file after one. */
@@ -152,20 +152,21 @@ function modifiedTime(path: string): number | undefined {
  */
 export const MIN_HANDOFF_BYTES = 512
 
-/** Every real handoff names what happens next; a doc without one is a stub. */
-const NEXT_STEP_MARKER = /next step/i
-
 /**
  * Whether a file can serve as the session's memory: a regular file of real
- * size that names a next step. Anything else takes the existing safe path -
- * the settle re-asks, and the compaction is cancelled rather than performed
- * with a stub in the handoff's place.
+ * size. Size is the only check - a content sniff (a literal "next step"
+ * heading) kept rejecting complete handoffs whose sections were worded
+ * differently, and every rejection bought a full re-ask turn, then a directed
+ * compaction (observed 2026-09-20, session 01a0bbda). The directive tells the
+ * agent what to cover; a file large enough not to be a stub is trusted to be
+ * one. Anything smaller takes the existing safe path - the settle re-asks,
+ * and the compaction is cancelled rather than performed with a stub in the
+ * handoff's place.
  */
 export function isUsableHandoff(path: string): boolean {
 	try {
 		const stats = statSync(path)
-		if (!stats.isFile() || stats.size < MIN_HANDOFF_BYTES) return false
-		return NEXT_STEP_MARKER.test(readFileSync(path, 'utf8'))
+		return stats.isFile() && stats.size >= MIN_HANDOFF_BYTES
 	} catch {
 		return false
 	}

@@ -5,7 +5,9 @@ import { pathToFileURL } from 'node:url'
 
 import { reflectMember } from './pi-members.ts'
 
-const SUPPORTED_PI_VERSION = '0.85.1'
+/** Pi release the display adapters were last audited against (DESIGN.md §10);
+ * bumped by the pi-renderer-update skill, never silently. */
+export const AUDITED_PI_VERSION = '0.86.1'
 const PACKAGE_NAME = '@earendil-works/pi-coding-agent'
 const BUNDLE_ENTRY = 'dist/bundle/index.js'
 
@@ -31,12 +33,22 @@ function findPackageRoot(entry: string): string {
 	return ''
 }
 
-export function assertSupportedPi(runtime: unknown, owner: string): void {
+export interface PiVersionDrift {
+	auditedVersion: string
+	runningVersion: string
+	drifted: boolean
+}
+
+/** Compare the running CLI against the audited release without blocking installation;
+ * the renderers extension surfaces `drifted` as a widget instead of refusing to load. */
+export function detectPiDrift(runtime: unknown): PiVersionDrift {
 	const version = reflectMember(runtime, 'VERSION')
-	if (version !== SUPPORTED_PI_VERSION)
-		throw new Error(
-			`${owner} supports Pi ${SUPPORTED_PI_VERSION}; found ${String(version)}. Re-audit the display adapters before upgrading.`,
-		)
+	const runningVersion = typeof version === 'string' ? version : 'unknown'
+	return {
+		auditedVersion: AUDITED_PI_VERSION,
+		runningVersion,
+		drifted: runningVersion !== AUDITED_PI_VERSION,
+	}
 }
 
 export async function loadPiRuntime(

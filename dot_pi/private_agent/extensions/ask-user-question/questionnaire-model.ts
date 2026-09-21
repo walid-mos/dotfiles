@@ -18,8 +18,8 @@ import type {
 
 // Domain vocabulary shared by the UI modules (state, render, component).
 export const UI_TEXT = {
-	otherOptionLabel: 'Type something.',
-	otherPlaceholder: 'Type something...',
+	otherOptionLabel: 'Write your own answer',
+	otherPlaceholder: 'Write your answer…',
 	noResponse: '(no response)',
 } as const
 

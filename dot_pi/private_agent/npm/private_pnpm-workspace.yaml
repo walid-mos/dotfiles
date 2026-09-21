@@ -16,4 +16,6 @@ allowBuilds:
     '@google/genai': false
     esbuild: true
     protobufjs: true
+minimumReleaseAgeExclude:
+  - pi-mcp-adapter@2.35.0
 nodeLinker: hoisted

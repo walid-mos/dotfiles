@@ -3,6 +3,7 @@
 
 import { IMAGE_ALIAS_PATTERN } from './image-paths.ts'
 
+
 import type { KeybindingsManager } from '@earendil-works/pi-coding-agent'
 import type { EditorComponent } from '@earendil-works/pi-tui'
 import type { AttachmentStore } from './attachment-store.ts'

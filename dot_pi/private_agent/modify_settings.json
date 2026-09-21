@@ -3,7 +3,7 @@
 # stdin = current target content, stdout = new target content.
 # Everything not listed here (lastChangelogVersion, defaultProvider, defaultModel,
 # enabledModels, any key pi adds later) is left to pi and never synced.
-# NOTE: output ends with a newline - pi writes the file with one (2026-12).
+# NOTE: pi 0.86.1 writes the file WITHOUT a trailing newline - match it (2026-12).
 pinned=$(jq -s 'if length == 0 then $pinned else .[0] * $pinned end' --argjson pinned '{
   "theme": "catppuccin-latte/catppuccin-macchiato",
   "npmCommand": ["pnpm", "--config.strict-dep-builds=false"],
@@ -16,6 +16,6 @@ pinned=$(jq -s 'if length == 0 then $pinned else .[0] * $pinned end' --argjson p
   "treeFilterMode": "no-tools",
   "tuiMode": "fullscreen",
   "fullscreenExitOutput": "transcript",
-  "packages": ["npm:pi-web-access", "/Users/walid-mos/Development/tools/pi-subagents", "../../Development/tools/syneva", "../../Development/tools/pi-frontend-check"]
+  "packages": ["npm:pi-web-access", "/Users/walid-mos/Development/tools/pi-subagents", "../../Development/tools/syneva", "../../Development/tools/pi-frontend-check", "npm:pi-mcp-adapter@2.35.0"]
 }')
-printf '%s\n' "$pinned"
+printf '%s' "$pinned"

@@ -44,6 +44,12 @@ definition — all four criteria together, single-homed in `~/.pi/agent/AGENTS.m
 § Git. Imperative message; explain the *why* when it is not obvious. Never a
 catch-all or WIP commit.
 
+**PR bodies — Fast POCing task references**: never write a bare `#NN` for a
+FastPOCing task — GitHub auto-links it to a PR/issue. Link the task page
+instead: `[task NN](https://fast-po-cing-dashboard.vercel.app/tasks/<task-id>)`;
+task ids come from the Jira comments or the FastPOC widget API (§5). No task id
+available: link the Jira ticket, plain text otherwise.
+
 **Base & flow**: branch from an up-to-date `develop`; open the PR **against
 `develop`** (integration → deploys the *dev* env; `main` = *prod*, promotions only).
 
@@ -147,6 +153,17 @@ Extract the `PAGE_ID` (integer) from the Confluence URL (segment after `/pages/`
 `atlas_doc_format` returns structured ADF JSON. If the fetch is truncated
 (30k-character limit), use `get_search_content` with the `responseId` and
 `offset` to retrieve the rest.
+
+### Ticket screenshots / media
+
+Jira attachment downloads are redirect-gated and **fail through `authFetch`** —
+never burn time retrying them. Go to **FastPOC** (the team's task dashboard,
+`https://fast-po-cing-dashboard.vercel.app`) instead: its widget API
+`GET /api/my-requests?email=<author>&project=<project key>` (e.g. project key
+`iaft_pk_041dc2c0c07aa05c8a11efb6348e01bb`, author
+`alexandre.corroy@consulting-for.accor.com`) lists tasks and can carry the
+media; the dashboard UI itself needs an email-code login. If the screenshot is
+not reachable there either, say so and proceed from the ticket's text.
 
 ## 6. Related skills
 

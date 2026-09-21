@@ -27,7 +27,7 @@ export function askText(input: {
 		'',
 		...status.open.map(openItem => `- [ ] ${openItem}`),
 		'',
-		'Ask the human now with `ask_user_question`: the one decision that unblocks the next item, with the concrete options you see (2-3, the best one marked recommended). Do not ask whether to continue. Then record it with the `goal` tool (`action: "block"`) and stop.',
+		'Ask with `ask_user_question` only if a consequential human-only decision blocks the work. Put every currently known blocker in one questionnaire instead of drip-feeding later questions; mark the best options recommended. If a defensible default exists, choose it and continue without asking. Never ask whether to continue. Record a real blocker with the `goal` tool (`action: "block"`) and stop.',
 	].join('\n')
 }
 

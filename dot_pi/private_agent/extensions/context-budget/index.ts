@@ -64,7 +64,7 @@ import { endHandoffCycle } from '../settle-handshake/handshake.ts'
 import { shortTokens } from './budget.ts'
 import { STATUS_KEY, registerCeilingCommand } from './command.ts'
 import { watchCompaction } from './compaction.ts'
-import { completedGoal, GoalWatch } from './goal.ts'
+import { completedGoal } from './goal.ts'
 import { ContextGuard } from './guard.ts'
 import { isUsableHandoff, pruneHandoffs } from './handoff.ts'
 import { HandoffSettler, requestHandoff } from './settle.ts'
@@ -86,9 +86,8 @@ export default function contextBudget(pi: ExtensionAPI): void {
 	// survive the reload: the guard state is rebuilt here, so is the claim.
 	endHandoffCycle()
 	const summary = new HandoffSummary()
-	const watch = new GoalWatch()
-	watchContext(pi, guard, watch)
-	new HandoffSettler(pi, guard, summary, watch).register()
+	watchContext(pi, guard)
+	new HandoffSettler(pi, guard, summary).register()
 	watchCompaction(pi, guard, summary)
 	registerCeilingCommand(pi, guard)
 }
@@ -126,11 +125,7 @@ function applyAction(
 	requestHandoff(pi, ctx, action)
 }
 
-function watchContext(
-	pi: ExtensionAPI,
-	guard: ContextGuard,
-	watch: GoalWatch,
-): void {
+function watchContext(pi: ExtensionAPI, guard: ContextGuard): void {
 	pi.on('session_start', (_event, ctx) => {
 		guard.enable(readCeiling(getAgentDir()))
 		// A fresh or resumed session inherits no claim: the guard restarts,
@@ -142,15 +137,6 @@ function watchContext(
 	pi.on('session_shutdown', (_event, ctx) => {
 		ctx.ui.setStatus(STATUS_KEY, undefined)
 	})
-	// The same two events goal-gate counts as a human prompt: an interactive
-	// message or an answered UI question lifts the goal stand-down, because
-	// resuming is the human's decision.
-	pi.on('input', event => {
-		if (event.source === 'interactive') watch.noteHumanPrompt()
-	})
-	pi.on('ui_prompt_start', (_event, ctx) => {
-		if (ctx.mode === 'tui') watch.noteHumanPrompt()
-	})
 	pi.on('turn_end', (_event, ctx) => {
 		// A handoff only pays off when a human can act on it: delegated
 		// subagent runs and scripted `-p` runs have no one to resume, and
@@ -158,13 +144,8 @@ function watchContext(
 		if (ctx.mode !== 'tui') return
 		// A completed checklist ends the session's work: the budget stands
 		// down before any warn, mark or steered ask - no prompt is paid for
-		// finished work. A human prompt lifts the stand-down (see `goal.ts`).
-		const completion = completedGoal(
-			getAgentDir(),
-			ctx.sessionManager.getSessionId(),
-			watch,
-		)
-		if (completion) {
+		// finished work. It stays down until the ledger changes (`goal.ts`).
+		if (completedGoal(getAgentDir(), ctx.sessionManager.getSessionId())) {
 			ctx.ui.setStatus(STATUS_KEY, undefined)
 			return
 		}

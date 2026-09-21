@@ -4,7 +4,11 @@
  * No filled pills: colored icons and tinted text sit directly on the
  * terminal background; groups are separated by thin verticals.
  * Line 1: 󰚩 model │ ✻ thinking │ path │····· statuses │ context gauge ▰▰▱▱ │ arrows │ cost
- * Line 2:  branch │ churn ▰▰▱▱ + counters + [PR #n] + [review] │····· provider quotas
+ * Line 2:  branch │ churn ▰▰▱▱ + counters │····· provider quotas
+ *
+ * The container status, the PR link and the review link left the footer: they
+ * form one contextual line above the prompt (context-line.ts), mounted at the
+ * highest above-editor priority and only visible while one of the three exists.
  *
  * The cost group prices DeepSeek Flash turns at their own peak/off-peak tariff,
  * and the credit segment names the tier in effect and when it moves
@@ -12,7 +16,10 @@
  * review desk for this repo while one runs (galley-data.ts).
  */
 
+import { CONTAINER_STATUS_KEY } from '../container-sandbox/runtime.ts'
+
 import { footerComponent } from './component.ts'
+import { mountContextLine, unmountContextLine } from './context-line.ts'
 import {
 	refreshGalleyForTurn,
 	refreshPrForBranchChange,
@@ -91,12 +98,16 @@ function safeInput(
 		tokens,
 		statuses: readThrough(
 			() =>
-				[...footerData.getExtensionStatuses().values()].filter(Boolean),
+				[...footerData.getExtensionStatuses()]
+					// The container workspace lives in the context line above the prompt
+					.filter(
+						([key, status]) =>
+							key !== CONTAINER_STATUS_KEY && Boolean(status),
+					)
+					.map(([, status]) => status),
 			[],
 		),
 		git: footerState.gitCache,
-		pr: footerState.prCache,
-		review: footerState.reviewCache,
 		quotas: footerState.quotaCache,
 		provider,
 		tier: deepseekTier(footerState.tariffCache, now, provider, modelId),
@@ -124,6 +135,7 @@ function installFooter(ctx: ExtensionContext): void {
 	startGitTracking(ctx.cwd)
 	startPrPolling(ctx.cwd)
 	startGalleyPolling(ctx.cwd)
+	mountContextLine(ctx.ui)
 
 	// Only install the footer component once - re-setFooter on every
 	// session_start / toggle stacks ghost rows with the split-footer renderer.
@@ -149,7 +161,8 @@ function buildComponentDeps(
 	}
 }
 
-function teardownFooter(): void {
+function teardownFooter(ui: ExtensionContext['ui']): void {
+	unmountContextLine(ui)
 	footerState.lifecycleGeneration += 1
 	footerState.prGeneration += 1
 	if (footerState.quotaTimer) clearInterval(footerState.quotaTimer)
@@ -173,6 +186,7 @@ function toggleFooter(ctx: ExtensionContext): void {
 		return
 	}
 	ctx.ui.setFooter(undefined)
+	unmountContextLine(ctx.ui)
 	footerState.isFooterInstalled = false
 	footerState.requestRender = null
 	ctx.ui.notify('Default footer restored', 'info')
@@ -185,7 +199,7 @@ async function refreshQuotaCommand(ctx: ExtensionContext): Promise<void> {
 
 export default function (pi: ExtensionAPI): void {
 	pi.on('session_start', (_event, ctx) => installFooter(ctx))
-	pi.on('session_shutdown', () => teardownFooter())
+	pi.on('session_shutdown', (_event, ctx) => teardownFooter(ctx.ui))
 
 	// Refresh stats after each turn: branch churn and the review link both move
 	// while the agent works, so neither needs a timer

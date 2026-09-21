@@ -14,6 +14,9 @@ import { inheritGuestGitIdentity } from './guest-git.ts'
 import { containerRecentlyUnresponsive } from './liveness.ts'
 import {
 	activateRuntime,
+	containerLink,
+	CONTAINER_STATUS_KEY,
+	publishContainerLink,
 	sandboxGuestTarget,
 	sandboxHostOperations,
 	sandboxTailnetHost,
@@ -107,10 +110,9 @@ export async function startSandboxSession(
 	}
 	const guest = sandboxGuestTarget()
 	if (guest) reapForSession(ctx, guest)
-	ctx.ui.setStatus(
-		'container-sandbox',
-		ctx.ui.theme.fg('accent', statusLine(workspace)),
-	)
+	const status = ctx.ui.theme.fg('accent', statusLine(workspace))
+	ctx.ui.setStatus(CONTAINER_STATUS_KEY, status)
+	publishContainerLink(containerLink(workspace, sandboxTailnetHost()))
 	notifyActivated(ctx, workspace)
 	await inheritGitIdentity(ctx, workspace, sessionId)
 	if (workspace.vehicle === 'devvm') publishDevvmEnvironment(ctx, workspace)

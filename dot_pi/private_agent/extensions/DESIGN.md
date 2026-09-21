@@ -3,7 +3,7 @@
 Single source of truth for restyling pi's TUI. Read this before migrating ANY render surface
 (tool rows, chrome, transcript surfaces) to the house design system.
 
-- Verified against installed `@earendil-works/pi-coding-agent@0.85.1` + `@earendil-works/pi-tui@0.85.1` dist sources.
+- Verified against installed `@earendil-works/pi-coding-agent@0.86.1` + `@earendil-works/pi-tui@0.86.1` dist sources.
 - Re-diff this matrix after every pi upgrade; glyph/format details can shift between versions.
 - Ownership rules live in `~/.pi/agent/ARCHITECTURE.md`. This file tracks *what renders*, not *who owns which module*.
 
@@ -39,7 +39,7 @@ those remain separate migrations below. Do not claim the entire TUI is migrated.
 - [x] Frames/surfaces: `ui/align.ts`, `ui/frame.ts`, `ui/selection-marker.ts`, `ui/surface.ts` + `ui/ordered-widget-stack.ts`.
 - [x] Editor decorator composition: `ui/editor-decorator.ts` chains on pi's `getEditorComponent` exactly once per session.
 - [x] Base editor: `ui/editor-decorator.ts` also exports `createDefaultEditor` (pi's `CustomEditor` with `embedWorkingStatus: true`), the base every decorator chains onto.
-- [x] Renderer adapter: `renderers/install-renderers.ts` binds the running CLI's classes, guarded by its supported Pi version. No duplicate `registerTool` ownership and no execution passthroughs.
+- [x] Renderer adapter: `renderers/install-renderers.ts` binds the running CLI's classes; version drift is warned by a widget (`ui/renderer-drift.ts`), never a refused load. No duplicate `registerTool` ownership and no execution passthroughs.
 - [x] Shared activity layout: `ui/activity-line.ts` / `ui/activity-details.ts`; semantic colors come from `ui/design-system`.
 
 ## 2. Activity design contract
@@ -94,7 +94,7 @@ those remain separate migrations below. Do not claim the entire TUI is migrated.
   stay available in details.
 - Native custom detail renderers retain their shared state and separate slot caches. Missing,
   malformed or throwing renderers fall back to readable source output; they never erase evidence.
-- Pi has no public global tool-renderer hook in the pinned release. The private display adapter
+- Pi has no public global tool-renderer hook in the audited release. The private display adapter
   is deliberate and tested, not a claim of an officially supported API. Upgrade verification is mandatory.
 
 ## 3. Tool coverage and first-pass presentations
@@ -252,7 +252,7 @@ Confirmed glyphs/dims in pi 0.85.1 — record decisions here instead of re-disco
 - [x] Working status: pi prints the loader as a standalone row above the widget container — whose `Spacer(1)` then reads as a blank gap above the prompt — unless the editor opts into the border with `embedWorkingStatus: true`.
 - [ ] Markdown glyphs: quote border `│ ` (+ italic quote), fences ` ```lang `, hr `"─".repeat(min(w,80))`, bullets `- ` / `1. ` / preserved markers / task `[x] ``[ ] `, tables bordered with `─`, h1 = bold+underline, h2+ = bold, links `mdLink` underline + ` (url)` in `mdLinkUrl` when href ≠ text, `addition/deletion` reusing `toolDiffAdded/Removed`, LaTeX via `renderLatex`, mermaid → ASCII art.
 - [ ] Editor glyphs `── `, ` ──`; settings cursor `accent "→ "`; footer glyphs `↑ ↓ R W CH •` (irrelevant — footer is owned).
-- [ ] Spinner frames `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` @80ms (pi-tui Loader default) — replaced by `setWorkingIndicator` (done).
+- [ ] Spinner frames `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` @80ms (pi-tui Loader default) — replaced by `setWorkingIndicator` (done). Re-checked in 0.86.1: `pi-tui` loader frames unchanged; pi's dist no longer inlines them.
 - [ ] Phrase set `... (N more lines, to expand)`, `[Truncated: ...]`, `[invalid arg]`, `[invalid content arg - expected string]` — restyle = our own phrasing in tool renderer overrides.
 - [ ] `PS>`/`$` prompts — inside tool renderers, overridable. (`[skill]` cards are house-styled by `raw-transcript/`, not this layer.)
 - [ ] Easter eggs (`/arminsayshi`, daxnuts, earendil announcement), mermaid ASCII colors — `- [~]`.
@@ -295,12 +295,19 @@ House rule per `ARCHITECTURE.md`: `palette.ts` reads `themes/catppuccin-latte.js
 8. Verify with Pi's real extension loader and bundled runtime, not just TypeScript import success.
    Automated tests do not establish font-specific visual quality; inspect the live TUI after `/reload`.
 
-## 10. Version-pinning note
+## 10. Version-drift workflow
 
-The private adapter and surface inventory are validated for Pi 0.85.1. After upgrading pi:
-`rg` the new `dist/core/tools/renderers/*.js`, `dist/modes/interactive/components/*.js`, and
-`@earendil-works/pi-tui/dist/components/markdown.js` for drift (line counts, glyph strings, token names),
-then update this file before continuing migration. Attachment composition also depends on
+There is no hard pin. `ui/pi-runtime.ts` exports `AUDITED_PI_VERSION` (the release the adapters
+were last audited against) and `detectPiDrift`; the renderers extension mounts a warning widget
+(`ui/renderer-drift.ts`) on drift and installs anyway — a broken adapter still surfaces its own
+"missing; re-audit" error at install or render time. After upgrading pi, run the
+`pi-renderer-update` skill: it executes `skills/pi-renderer-update/scripts/abi-audit.ts`
+(class-level ABI: runtime exports + patched prototype methods against the running bundle),
+then `rg` the new `dist/core/tools/renderers/*.js`, `dist/modes/interactive/components/*.js`, and
+`@earendil-works/pi-tui/dist/components/markdown.js` for glyph/format/token drift (line counts,
+strings, token names), fix the adapters, and bump `AUDITED_PI_VERSION` plus this file before
+continuing migration. The script cannot see instance-level fields (`host.text`, `contentContainer`,
+message shapes); those are covered by the §9 visual pass. Attachment composition also depends on
 `InteractiveMode.addCustomEntryToChat`, `CustomEntryComponent`'s native leading spacer/rebuild,
 and `UserMessageComponent`'s child layout. The thumbnail boundary separates iTerm2 cursor-up
 from its OSC with a style reset: Pi 0.85.1 otherwise mismeasures and can truncate the image payload.

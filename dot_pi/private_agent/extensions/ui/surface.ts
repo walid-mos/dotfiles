@@ -116,7 +116,31 @@ export function createSurfaceRegistry(): SurfaceRegistry {
 	}
 }
 
-export const surfaceRegistry = createSurfaceRegistry()
+// jiti loads every extension into its own module registry, so a module-level
+// singleton would give each extension a private surface list and silently split
+// the ordered stack. One process, one realm, one versioned key - the same idiom
+// the container-sandbox seam uses (runtime.ts).
+const REGISTRY_KEY = Symbol.for('pi.ui.surface-registry.v1')
+
+function isSurfaceRegistry(candidate: unknown): candidate is SurfaceRegistry {
+	if (typeof candidate !== 'object' || candidate === null) return false
+	const register = Reflect.get(candidate, 'register')
+	const render = Reflect.get(candidate, 'render')
+	const unregister = Reflect.get(candidate, 'unregister')
+	return (
+		typeof register === 'function' &&
+		typeof render === 'function' &&
+		typeof unregister === 'function'
+	)
+}
+
+const publishedRegistry: unknown = Reflect.get(globalThis, REGISTRY_KEY)
+export const surfaceRegistry: SurfaceRegistry = isSurfaceRegistry(
+	publishedRegistry,
+)
+	? publishedRegistry
+	: createSurfaceRegistry()
+Reflect.set(globalThis, REGISTRY_KEY, surfaceRegistry)
 
 export function subscribeSurfaceChanges(listener: () => void): () => void {
 	return surfaceRegistry.subscribe(listener)

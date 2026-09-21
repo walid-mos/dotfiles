@@ -1,5 +1,6 @@
 import { CustomEditor } from '@earendil-works/pi-coding-agent'
 
+
 /** Compose editor decorators from several extensions exactly once per session. */
 import type {
 	ExtensionAPI,

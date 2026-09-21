@@ -9,12 +9,15 @@
  * gets its own module registry, and a file read makes the handler order at
  * the settle boundary irrelevant.
  *
- * The stand-down is anchored to the completion, not permanent: it holds while
- * the ledger's last write is newer than the last interactive human prompt. A
- * human prompt lifts it - resuming is the human's decision, and the next
- * settle still over the ceiling arms the handoff then - and new work declared
- * through the `goal` tool rewrites the ledger, so a freshly completed
- * checklist arms the stand-down again on its own.
+ * The stand-down holds for as long as the ledger stays complete, and nothing
+ * but the ledger lifts it: work declared through the `goal` tool (or `/goal`)
+ * rewrites the file, and an open item puts the budget back in charge. A bare
+ * human prompt does not - lifting on the prompt alone re-armed the whole
+ * handoff pipeline for a finished checklist on every casual prompt (observed
+ * 2026-09-20, session 01a0bbda: "lance un syneva" after a completed spike
+ * fired a handoff request at a session whose goal was done, and the retry
+ * loop that followed burned three re-asks and a directed compaction on
+ * finished work).
  */
 
 import { readFileSync, statSync } from 'node:fs'
@@ -24,35 +27,6 @@ import {
 	ledgerPath,
 	ledgerStatus,
 } from '../goal-gate/ledger.ts'
-
-/**
- * The completion state one live session shares across decision points. A
- * class on purpose: the prompt clock and the notice marker are mutated from
- * event handlers, and mutating fields through methods keeps the linter's
- * no-param-reassign rule honest about where the state lives.
- */
-export class GoalWatch {
-	/** Milliseconds since the epoch of the last interactive human prompt. */
-	lastHumanPromptAt = 0
-
-	/** Completion whose stand-down notice already went out, if any. */
-	private noticedCompletionAt: number | undefined
-
-	/** A human is driving again: the stand-down lifts from this moment. */
-	noteHumanPrompt(): void {
-		this.lastHumanPromptAt = Date.now()
-	}
-
-	/** True when the stand-down notice for this completion already went out. */
-	hasNoticedCompletion(completedAt: number): boolean {
-		return this.noticedCompletionAt === completedAt
-	}
-
-	/** Record that the stand-down notice for this completion went out. */
-	noteCompletionNotice(completedAt: number): void {
-		this.noticedCompletionAt = completedAt
-	}
-}
 
 /** A completed goal, as the stand-down decision needs it. */
 export type GoalCompletion = {
@@ -66,13 +40,12 @@ export type GoalCompletion = {
 
 /**
  * The session's completed goal, or undefined while it does not govern: no
- * ledger, work still open, a `blocked:` marker, or a human prompt newer than
- * the ledger's last write (the human resumed - the budget governs again).
+ * ledger, work still open, or a `blocked:` marker. The completion stands
+ * until the ledger itself changes - see the module comment.
  */
 export function completedGoal(
 	agentDir: string,
 	sessionId: string,
-	watch: GoalWatch,
 ): GoalCompletion | undefined {
 	const path = ledgerPath(agentDir, sessionId)
 	const text = readLedgerText(path)
@@ -80,7 +53,7 @@ export function completedGoal(
 	const status = ledgerStatus(text)
 	if (!ledgerIsComplete(status)) return undefined
 	const completedAt = modifiedTime(path)
-	if (completedAt <= watch.lastHumanPromptAt) return undefined
+	if (!completedAt) return undefined
 	return { path, completedAt, total: status.items.length }
 }
 

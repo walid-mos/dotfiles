@@ -73,13 +73,22 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 		TILE_PREVIEW_BOX,
 	)
 
+	// Decorator registration must happen at load time, not inside session_start:
+	// a listener added during session_start dispatch misses that same dispatch
+	// (pi 0.86 event-bus semantics), so the editor would be built without the
+	// alias decorator for the whole first session. The decorate closure reads
+	// the session-scoped facts (cwd, styleAlias) at editor-build time instead.
+	registerEditorDecorator(pi, createDefaultEditor, (base, keybindings) => {
+		attachPromptImageEditor(base, { store, cwd, styleAlias }, keybindings)
+		return base
+	})
+
 	pi.on('session_start', (_event, context) => {
 		cwd = context.cwd
 		styleAlias = accentAlias(context)
 		previews = new PreviewService(() => repaintStrip(), TILE_PREVIEW_BOX)
 		repaintStrip = mountStripWidget(context.ui, store, previews)
 		repaintStrip()
-		registerPromptEditorDecorators(pi, store, cwd, styleAlias)
 	})
 
 	pi.on('session_shutdown', async (_event, context) => {
@@ -153,27 +162,6 @@ function registerStripScrollShortcuts(
 }
 
 const identityAlias = (alias: string): string => alias
-
-/** Decoratory wiring sees the session-start facts it was registered with. */
-function registerPromptEditorDecorators(
-	pi: ExtensionAPI,
-	store: AttachmentStore,
-	cwd: string,
-	styleAlias: AliasStylist,
-): void {
-	registerEditorDecorator(pi, createDefaultEditor, (base, keybindings) => {
-		attachPromptImageEditor(
-			base,
-			{
-				store,
-				cwd,
-				styleAlias,
-			},
-			keybindings,
-		)
-		return base
-	})
-}
 
 function accentAlias(context: ExtensionContext): AliasStylist {
 	return alias => context.ui.theme.fg('accent', context.ui.theme.bold(alias))

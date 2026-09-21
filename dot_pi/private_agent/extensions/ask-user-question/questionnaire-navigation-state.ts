@@ -112,7 +112,7 @@ export class QuestionnaireNavigationState {
 		const question = this.currentQuestion()
 		if (!question || this.isOnSubmitTab()) return []
 		const options: RenderOption[] = [...question.options]
-		if (question.allowOther) {
+		if (!this.isOpenEnded(question)) {
 			options.push({
 				value: '',
 				label: UI_TEXT.otherOptionLabel,
@@ -176,10 +176,7 @@ export class QuestionnaireNavigationState {
 		if (!question || this.isOnSubmitTab() || this.isChatAction())
 			return false
 		if (this.isOpenEnded(question)) return true
-		return Boolean(
-			question.allowOther &&
-			this.currentOptions()[this.optionIndex]?.isOther,
-		)
+		return Boolean(this.currentOptions()[this.optionIndex]?.isOther)
 	}
 
 	enterTab(index: number): void {
@@ -191,11 +188,7 @@ export class QuestionnaireNavigationState {
 			this.editor.setText('')
 			return
 		}
-		this.editor.setText(
-			this.isOpenEnded(question) || question.allowOther
-				? this.responses.draftFor(question.id)
-				: '',
-		)
+		this.editor.setText(this.responses.draftFor(question.id))
 		this.optionIndex = this.isOpenEnded(question)
 			? -1
 			: this.responses.initialOptionIndex(question, this.currentOptions())
