@@ -117,3 +117,6 @@ Movies
 Music
 Pictures
 Public
+
+# pi: regenerated MCP tool cache
+.pi/agent/mcp-cache.json
