@@ -10,6 +10,10 @@ const HOST_WIDGET_IDS: Record<SurfacePlacement, string> = {
 }
 
 export const ABOVE_EDITOR_PRIORITY = {
+	/** The context line (container · review · PR) sits above every other surface. */
+	contextLine: 0,
+	/** The pi version-drift warning sits under the context line, above everything else. */
+	driftWarning: 10,
 	goal: 100,
 	backgroundTasks: 200,
 	activity: 300,
@@ -23,14 +27,26 @@ export type OrderedWidgetEntry = {
 
 type WidgetPlacement = SurfacePlacement
 
-/**
- * Single source of truth for the adapter side: which host component is
- * currently mounted for each placement. Entry bookkeeping lives in the
- * surface registry; this map only tracks the mounted pi widget per placement.
- */
-type PlacementBinding = { host: OrderedWidgetHost | null }
+type PlacementBinding = {
+	ui: ExtensionUIContext | null
+	host: OrderedWidgetHost | null
+}
 
-const bindingsByPlacement = new Map<WidgetPlacement, PlacementBinding>()
+// jiti gives every extension its own module registry, so these bindings live on
+// globalThis: one host widget per placement for the whole process, whichever
+// extension mounts it first (see surface.ts for the same reasoning).
+const BINDINGS_KEY = Symbol.for('pi.ui.ordered-widget-bindings.v1')
+
+function isBindingMap(
+	candidate: unknown,
+): candidate is Map<WidgetPlacement, PlacementBinding> {
+	return candidate instanceof Map
+}
+
+const publishedBindings: unknown = Reflect.get(globalThis, BINDINGS_KEY)
+const bindingsByPlacement: Map<WidgetPlacement, PlacementBinding> =
+	isBindingMap(publishedBindings) ? publishedBindings : new Map()
+Reflect.set(globalThis, BINDINGS_KEY, bindingsByPlacement)
 
 class OrderedWidgetHost {
 	private readonly unsubscribe: () => void
@@ -60,7 +76,10 @@ class OrderedWidgetHost {
 	dispose(): void {
 		this.unsubscribe()
 		const binding = bindingsByPlacement.get(this.placement)
-		if (binding?.host === this) binding.host = null
+		if (binding?.host === this) {
+			binding.host = null
+			binding.ui = null
+		}
 	}
 }
 
@@ -102,9 +121,17 @@ function removeSurfaceEntry(
 	unmountHost(ui, placement)
 }
 
+/**
+ * Mount the host widget for a placement once per process. A session rebind
+ * (reload, session switch) disposes pi's component under a new ui context while
+ * the binding survives on globalThis, so a binding held by a different ui is
+ * stale and remounts under the caller's ui.
+ */
 function mountHost(ui: ExtensionUIContext, placement: WidgetPlacement): void {
 	const binding = getBinding(placement)
-	if (binding.host) return
+	if (binding.host && binding.ui === ui) return
+	binding.host?.dispose()
+	binding.ui = ui
 	ui.setWidget(
 		HOST_WIDGET_IDS[placement],
 		tui => {
@@ -120,11 +147,10 @@ function unmountHost(ui: ExtensionUIContext, placement: WidgetPlacement): void {
 	bindingsByPlacement.get(placement)?.host?.dispose()
 	ui.setWidget(HOST_WIDGET_IDS[placement], undefined)
 }
-
 function getBinding(placement: WidgetPlacement): PlacementBinding {
 	const existing = bindingsByPlacement.get(placement)
 	if (existing) return existing
-	const binding: PlacementBinding = { host: null }
+	const binding: PlacementBinding = { ui: null, host: null }
 	bindingsByPlacement.set(placement, binding)
 	return binding
 }

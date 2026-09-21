@@ -115,6 +115,8 @@
               },
               "ignore": [
                 "digitalocean",
+                "gmicloud",
+                "atlascloud",
                 "morph",
                 "parasail",
                 "coreweave",

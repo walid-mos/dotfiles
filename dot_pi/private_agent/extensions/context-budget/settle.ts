@@ -39,7 +39,7 @@ import type {
 	ExtensionAPI,
 	ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-import type { GoalCompletion, GoalWatch } from './goal.ts'
+import type { GoalCompletion } from './goal.ts'
 import type { ContextGuard, SettleAction } from './guard.ts'
 import type { HandoffSummary } from './summary.ts'
 
@@ -64,11 +64,12 @@ export function requestHandoff(
 }
 
 export class HandoffSettler {
+	private noticedCompletionAt: number | undefined
+
 	constructor(
 		private readonly pi: ExtensionAPI,
 		private readonly guard: ContextGuard,
 		private readonly summary: HandoffSummary,
-		private readonly watch: GoalWatch,
 	) {}
 
 	/** Register the `agent_settled` handler: the cycle's whole engine side. */
@@ -91,7 +92,6 @@ export class HandoffSettler {
 			const completion = completedGoal(
 				getAgentDir(),
 				ctx.sessionManager.getSessionId(),
-				this.watch,
 			)
 			if (completion) {
 				this.standDown(ctx, completion)
@@ -106,15 +106,17 @@ export class HandoffSettler {
 	 * released (goal-gate evaluates the same ledger first, and nothing of
 	 * ours may queue under a finished checklist) and the status is dropped.
 	 * The notice goes out once per completion - every settled run of a done
-	 * checklist would otherwise repeat it.
+	 * checklist would otherwise repeat it. The stand-down holds until the
+	 * ledger changes: a new `goal` declaration re-arms the budget, a bare
+	 * prompt does not.
 	 */
 	private standDown(ctx: ExtensionContext, completion: GoalCompletion): void {
 		endHandoffCycle()
 		ctx.ui.setStatus(STATUS_KEY, undefined)
-		if (this.watch.hasNoticedCompletion(completion.completedAt)) return
-		this.watch.noteCompletionNotice(completion.completedAt)
+		if (this.noticedCompletionAt === completion.completedAt) return
+		this.noticedCompletionAt = completion.completedAt
 		ctx.ui.notify(
-			`Goal complete (${completion.path}) - no handoff, no compaction, no continuation; the session stays idle. Prompt it to resume: the handoff arms then if the ceiling is still crossed.`,
+			`Goal complete (${completion.path}) - no handoff, no compaction, no continuation; the session stays idle. Declare a new goal to work past the ceiling again: the handoff arms then if it is still crossed.`,
 			'info',
 		)
 	}
@@ -227,12 +229,11 @@ export class HandoffSettler {
 			return
 		}
 		// The turn that wrote the handoff may have closed the checklist: a
-		// completed goal must not buy the continuation turn. A human prompt
-		// newer than the completion lifts the stand-down (see `goal.ts`).
+		// completed goal must not buy the continuation turn. The stand-down
+		// holds until the ledger changes (see `goal.ts`).
 		const completion = completedGoal(
 			getAgentDir(),
 			ctx.sessionManager.getSessionId(),
-			this.watch,
 		)
 		if (completion) {
 			ctx.ui.notify(

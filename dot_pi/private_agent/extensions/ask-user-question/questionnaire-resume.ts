@@ -25,7 +25,7 @@ function isAnswerCompatible(question: Question, answer: Answer): boolean {
 		return question.options.some(option => option.value === answer.value)
 	}
 	if (answer.value === UI_TEXT.noResponse) return isOpenEnded(question)
-	return isOpenEnded(question) || question.allowOther
+	return true
 }
 
 function multiAnswerCompatible(
@@ -34,8 +34,7 @@ function multiAnswerCompatible(
 ): boolean {
 	const skipsCustomText = !('customText' in answer)
 	const respectsCustomText =
-		skipsCustomText ||
-		(question.allowOther && Boolean(answer.customText?.trim()))
+		skipsCustomText || Boolean(answer.customText?.trim())
 	const hasSelection = answer.optionValues.length > 0 || !skipsCustomText
 	return (
 		respectsCustomText &&
@@ -127,9 +126,7 @@ export function restoreResponses(
 			candidate => candidate.id === questionId,
 		)
 		if (!draft.trim() || !question) continue
-		if (isOpenEnded(question) || question.allowOther) {
-			drafts.set(questionId, draft)
-		}
+		drafts.set(questionId, draft)
 	}
 	for (const answer of initialState.answers) {
 		const question = questions.find(candidate => candidate.id === answer.id)

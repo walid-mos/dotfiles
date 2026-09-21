@@ -6,7 +6,8 @@
  * mounts them. Shared activity layout, response dividers/Markdown and clocks live in ui/.
  * No tool registrations or execution wrappers: current, late-loaded and replayed tools
  * all cross the same display adapter. DESIGN.md records scope and upgrade checks. */
-import { loadPiRuntime } from '../ui/pi-runtime.ts'
+import { detectPiDrift, loadPiRuntime } from '../ui/pi-runtime.ts'
+import { showRendererDrift } from '../ui/renderer-drift.ts'
 
 import { installRenderers } from './install-renderers.ts'
 import { WriteSnapshots } from './write-snapshots.ts'
@@ -15,6 +16,7 @@ import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 export default async function renderers(pi: ExtensionAPI): Promise<void> {
 	const runtime = await loadPiRuntime()
+	const drift = detectPiDrift(runtime)
 	let dispose = installRenderers(runtime)
 	const writes = new WriteSnapshots()
 	pi.on('tool_call', async (event, context) => {
@@ -25,8 +27,9 @@ export default async function renderers(pi: ExtensionAPI): Promise<void> {
 		if (event.toolName === 'write') writes.complete(event)
 	})
 	pi.on('agent_end', () => writes.clear())
-	pi.on('session_start', () => {
+	pi.on('session_start', (_event, context) => {
 		dispose = installRenderers(runtime)
+		if (drift.drifted) showRendererDrift(context.ui, drift)
 	})
 	pi.on('session_shutdown', () => {
 		writes.clear()

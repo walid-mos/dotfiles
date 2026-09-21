@@ -61,6 +61,9 @@ interface SandboxRuntime {
  */
 const RUNTIME_KEY = Symbol.for('pi.container-sandbox.runtime.v1')
 
+/** The ui status key this extension publishes its line under; the footer's context line filters it. */
+export const CONTAINER_STATUS_KEY = 'container-sandbox'
+
 function isSandboxRuntime(candidate: unknown): candidate is SandboxRuntime {
 	return (
 		typeof candidate === 'object' &&
@@ -75,6 +78,31 @@ function currentRuntime(): SandboxRuntime | null {
 	const published: unknown = Reflect.get(globalThis, RUNTIME_KEY)
 	if (isSandboxRuntime(published)) return published
 	return null
+}
+
+/**
+ * Whether the sandbox is active in this process, for surfaces outside this extension's
+ * module registry (the footer's context line): their copy of this module has empty state,
+ * but the globalThis publication is one realm, so the read is honest everywhere.
+ */
+export function sandboxActive(): boolean {
+	return currentRuntime() !== null
+}
+
+// The workspace's context-line link, resolved once per activation (the tailnet
+// name it embeds is one exec). The same globalThis realm as the runtime seam
+// above; the footer's context line renders it as its [container] segment.
+const LINK_KEY = Symbol.for('pi.container-sandbox.link.v1')
+
+export function publishContainerLink(url: string | null): void {
+	Reflect.set(globalThis, LINK_KEY, url)
+}
+
+/** The human-openable URL of the active workspace, or null when none answers. */
+export function publishedContainerLink(): string | null {
+	const published: unknown = Reflect.get(globalThis, LINK_KEY)
+	if (typeof published !== 'string' || !published.length) return null
+	return published
 }
 
 function publishRuntime(next: SandboxRuntime | null): void {
@@ -102,6 +130,7 @@ function runtimeBashOps(
 
 /** Drop this session's claim on the workspace: the VM and its work stay warm for the next one. */
 export function clearRuntimeState(): void {
+	publishContainerLink(null)
 	const active = currentRuntime()
 	if (!active) return
 	clearRecord(
@@ -274,6 +303,28 @@ export function statusLine(workspace: SandboxWorkspace): string {
 	}
 	const ip = bestEffortContainerIp(containerName)
 	return `📦 container: ${containerName}${ip ? ` (${ip})` : ''}`
+}
+
+/** The only port the context line links to. */
+const CONTAINER_LINK_PORT = 9090
+
+/**
+ * The human-openable link for the context line: the workspace's tailnet address on the
+ * declared port - the same rule the prompt teaches (sandbox-prompt.ts). The port counts as
+ * declared whether the project lists it in `tailscale.ports` or reserves it as wt's own
+ * `tailscale.index` (always served there). A workspace off the tailnet, or with the port
+ * undeclared, gets a plain label instead of a URL nothing answers on.
+ */
+export function containerLink(
+	workspace: SandboxWorkspace,
+	tailnetHost: string | null,
+): string | null {
+	if (!tailnetHost) return null
+	const isDeclaredPort =
+		workspace.tailnetPorts.includes(CONTAINER_LINK_PORT) ||
+		workspace.tailnetIndex === CONTAINER_LINK_PORT
+	if (!isDeclaredPort) return null
+	return `https://${tailnetHost}:${CONTAINER_LINK_PORT}`
 }
 
 /** The session file's name, which identifies this session across restarts. */

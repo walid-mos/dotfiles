@@ -8,7 +8,8 @@ import {
 	CHURN_BAR_FULL_CHURN,
 	GIT_BAR_WIDTH,
 } from './git-scale.ts'
-// Line-2 git/PR/review rendering: churn meter, counters, the bracketed links.
+// Line-2 git rendering: churn meter and counters. The PR link and the review
+// desk link moved to the contextual line above the prompt (context-line.ts).
 import { bracketed, clampText, quietText, thinSep } from './text.ts'
 import { BAR_EMPTY, BAR_FULL, ICONS } from './theme.ts'
 
@@ -112,19 +113,4 @@ export function reviewLink(desk: GalleyDesk | null): string {
 	if (!desk) return ''
 	const linkText = bracketed(fgHex(LATTE.peach, 'review'))
 	return hyperlink(linkText, desk.url)
-}
-
-/** Branch meter + PR link + review desk link, joined and separated. */
-export function gitWithPr(
-	status: GitStatus | null,
-	pr: GitPr | null,
-	branch?: string,
-	review: GalleyDesk | null = null,
-): string {
-	const groups = [
-		gitLine(status, branch, BRANCH_MAX_CHARS),
-		prLink(pr),
-		reviewLink(review),
-	].filter(Boolean)
-	return groups.join(` ${thinSep()} `)
 }

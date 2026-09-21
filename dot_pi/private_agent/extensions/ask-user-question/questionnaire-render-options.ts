@@ -131,7 +131,7 @@ function renderOptionRow(
 	}
 }
 
-/** ctrl+g chat affordance row under the option list. */
+/** ctrl+g discussion affordance row under the option list. */
 function renderChatAction(canvas: QuestionnaireCanvas): void {
 	canvas.sink('')
 	const isCursor = canvas.state.isChatAction()
@@ -139,7 +139,10 @@ function renderChatAction(canvas: QuestionnaireCanvas): void {
 		isCursor ? 'accent' : 'dim',
 		isCursor ? GLYPH.radioOn : GLYPH.radioOff,
 	)
-	const prompt = theme.fg(isCursor ? 'accent' : 'muted', 'Chat about this')
+	const prompt = theme.fg(
+		isCursor ? 'accent' : 'muted',
+		'Discuss before answering',
+	)
 	const row = `${marker} ${prompt}${theme.fg('dim', '  ·  ctrl+g')}`
 	canvas.sink(isCursor ? highlightRow(row, canvas.width) : row)
 }

@@ -6,11 +6,12 @@ import { truncateTerminalLine as truncateToWidth } from '../ui/terminal-text.ts'
 
 import { BRANCH_DEGRADED_CHARS, BRANCH_MINIMAL_CHARS } from './git-scale.ts'
 import { contextGroup } from './render-context.ts'
-import { gitLine, gitWithPr } from './render-git.ts'
+import { gitLine } from './render-git.ts'
 import { quotaStrip } from './render-quota.ts'
 // Pure footer rendering (no IO): line 1 couples the hero pill with the
-// provider quota strip, line 2 couples git/PR/review desk with statuses,
-// context gauge, token arrows and cost. Exported for tests.
+// provider quota strip, line 2 couples git with statuses, context gauge,
+// token arrows and cost. The PR link and the review desk live in the
+// contextual line above the prompt (context-line.ts). Exported for tests.
 import {
 	compactPath,
 	fmtTokens,
@@ -20,8 +21,7 @@ import {
 import { ICONS, SEP_THIN, THINKING_COLORS } from './theme.ts'
 
 import type { ContextUsage } from '@earendil-works/pi-coding-agent'
-import type { GalleyDesk } from './galley-data.ts'
-import type { GitPr, GitStatus } from './git-data.ts'
+import type { GitStatus } from './git-data.ts'
 import type { QuotaCache } from './quotas.ts'
 import type { TariffTier } from './tariff-deepseek.ts'
 
@@ -45,9 +45,6 @@ export type FooterRenderInput = {
 	tokens: { input: number; output: number; cost: number }
 	statuses: readonly string[]
 	git: GitStatus | null
-	pr: GitPr | null
-	// The live Galley review desk for this repo, when one runs
-	review: GalleyDesk | null
 	quotas: QuotaCache
 	provider: string | undefined
 	// DeepSeek's peak/off-peak tier, rendered inside the credit segment
@@ -204,7 +201,7 @@ function firstFittingRow(
 	return undefined
 }
 
-/** Line 2: git/PR/review left │ statuses + context + arrows + cost right. */
+/** Line 2: git left │ statuses + context + arrows + cost right. */
 function composeStatusLine(
 	input: FooterRenderInput,
 	arrowsGroup: string,
@@ -218,7 +215,6 @@ function composeStatusLine(
 		costGroup,
 	]
 	const lefts = [
-		gitWithPr(input.git, input.pr, input.branch, input.review),
 		gitLine(input.git, input.branch),
 		gitLine(input.git, input.branch, BRANCH_DEGRADED_CHARS),
 		gitLine(input.git, input.branch, BRANCH_MINIMAL_CHARS),

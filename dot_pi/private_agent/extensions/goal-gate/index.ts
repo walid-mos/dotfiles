@@ -40,6 +40,7 @@
  *   tool.ts         - the `goal` tool: schema, wording, dispatch
  *   directive.ts    - the continuation and escalation texts (pure)
  *   gate.ts         - the settle state machine (pure, injected probe)
+ *   question-discussion-pause.ts - suppresses continuation while chat owns the decision
  *
  * Commands:
  *   /goal <item>; <item>  - declare or replace this session's checklist
@@ -58,6 +59,7 @@ import { basename, join } from 'node:path'
 
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
+import { QUESTIONNAIRE_MODE_EVENT } from '../ask-user-question/questionnaire-events.ts'
 import { isHandoffCycleActive } from '../settle-handshake/handshake.ts'
 
 import { askText, continueText } from './directive.ts'
@@ -71,6 +73,7 @@ import {
 	renderLedger,
 	splitItems,
 } from './ledger.ts'
+import { QuestionDiscussionPause } from './question-discussion-pause.ts'
 import { registerGoalTool } from './tool.ts'
 
 import type {
@@ -85,8 +88,12 @@ const MISSING_MODIFICATION_TIME = 0
 
 export default function goalGate(pi: ExtensionAPI): void {
 	const gate = new GoalGate({ agentDir: getAgentDir(), read: readLedger })
-	watchSessions(pi, gate)
-	watchSettle(pi, gate)
+	const questionDiscussion = new QuestionDiscussionPause()
+	pi.events.on(QUESTIONNAIRE_MODE_EVENT, mode =>
+		questionDiscussion.update(mode),
+	)
+	watchSessions(pi, gate, questionDiscussion)
+	watchSettle(pi, gate, questionDiscussion)
 	registerGoalTool(pi, {
 		path: () => gate.ledgerFile,
 		read: readLedger,
@@ -126,8 +133,13 @@ function writeLedger(path: string, text: string): void {
  * it is exactly what an escalation asked for, so the cycle it was stuck in is
  * over.
  */
-function watchSessions(pi: ExtensionAPI, gate: GoalGate): void {
+function watchSessions(
+	pi: ExtensionAPI,
+	gate: GoalGate,
+	questionDiscussion: QuestionDiscussionPause,
+): void {
 	pi.on('session_start', (event, ctx) => {
+		questionDiscussion.clear()
 		ensureGoalsDir()
 		const ownPath = ledgerPath(
 			getAgentDir(),
@@ -225,7 +237,11 @@ function modifiedTime(path: string): number {
  * not called, the attempt budget is untouched, and the next settle continues
  * the checklist as usual.
  */
-function watchSettle(pi: ExtensionAPI, gate: GoalGate): void {
+function watchSettle(
+	pi: ExtensionAPI,
+	gate: GoalGate,
+	questionDiscussion: QuestionDiscussionPause,
+): void {
 	pi.on('agent_settled', (_event, ctx) => {
 		// A delegated or scripted run has no one to continue it, and hijacking
 		// one would break its caller.
@@ -244,6 +260,7 @@ function watchSettle(pi: ExtensionAPI, gate: GoalGate): void {
 			)
 			return
 		}
+		if (questionDiscussion.pending) return
 		if (isHandoffCycleActive()) {
 			ctx.ui.notify(
 				'Context handoff in progress - the goal continuation waits until it is done.',

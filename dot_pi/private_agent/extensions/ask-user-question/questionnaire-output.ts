@@ -30,7 +30,7 @@ export function questionnaireKey(questions: Question[]): string {
 
 export function chatFollowUp(question: Question): string {
 	return [
-		`The user wants to chat about the question "${question.label}": ${question.prompt}`,
-		'Discuss it with the user. When they are ready to answer, call ask_user_question again with the same questionnaire to resume their saved responses.',
+		`The user paused the questionnaire to discuss "${question.label}": ${question.prompt}`,
+		'Explain the trade-offs and answer their questions in normal chat. Do not reopen the questionnaire or choose for them in this turn. Leave the conversation open; resume the same questionnaire only after the user explicitly says they are ready to answer.',
 	].join('\n')
 }

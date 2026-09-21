@@ -1,7 +1,6 @@
 /** Atomically bind the supported Pi display surfaces; expose one disposal boundary for reload/shutdown. */
 import { ActivityClock } from '../ui/activity-clock.ts'
 import { reflectMember, typedHost } from '../ui/pi-members.ts'
-import { assertSupportedPi } from '../ui/pi-runtime.ts'
 
 import { installAssistantSurface } from './assistant-surface.ts'
 import { installCompactionSurface } from './compaction-surface.ts'
@@ -46,7 +45,6 @@ export function installRenderers(
 	runtime: unknown,
 	clock = new ActivityClock(),
 ): () => void {
-	assertSupportedPi(runtime, 'renderers')
 	const prototype = typedHost(
 		reflectMember(
 			reflectMember(runtime, 'ToolExecutionComponent'),

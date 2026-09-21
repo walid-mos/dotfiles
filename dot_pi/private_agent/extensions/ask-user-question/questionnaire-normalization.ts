@@ -70,7 +70,6 @@ export function normalizeQuestions(raw: RawQuestion[]): Question[] {
 			),
 			prompt: requiredText(question.prompt, `Question "${id}" prompt`),
 			options,
-			allowOther: question.allowOther !== false,
 			multiSelect: options.length > 0 && question.multiSelect === true,
 		}
 	})
