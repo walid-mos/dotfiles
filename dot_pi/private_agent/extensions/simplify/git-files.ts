@@ -4,10 +4,11 @@
  * `git-scope.ts` selects the candidates, this module describes them.
  */
 
-import { stat } from 'node:fs/promises'
+import { createHash } from 'node:crypto'
+import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
 
-import { git, tryGit } from './git-shell.ts'
+import { git } from './git-shell.ts'
 import {
 	binaryPaths,
 	mergeRanges,
@@ -65,30 +66,38 @@ export interface InspectOutcome {
 }
 
 interface InspectInput {
-	repoRoot: string
+	workspaceRoot: string
 	relative: string
 	selected: SelectedFile
 	diffArgs: readonly string[] | undefined
+	isDirect: boolean
 	binaries: ReadonlySet<string>
 	submodules: ReadonlySet<string>
 }
 
 export async function inspectFiles(
-	repoRoot: string,
+	workspaceRoot: string,
 	candidates: readonly string[],
 	scope: SelectedScope,
 ): Promise<InspectOutcome> {
-	const binaries = await binaryFiles(repoRoot, scope.diffArgs, candidates)
-	const submodules = await submoduleFiles(repoRoot, candidates)
+	const binaries = await binaryFiles(
+		workspaceRoot,
+		scope.diffArgs,
+		candidates,
+	)
+	const submodules = scope.diffArgs
+		? await submoduleFiles(workspaceRoot, candidates)
+		: new Set<string>()
 	const results = await mapSequential(candidates, relative => {
 		const selected = scope.changed.get(relative)
 		if (!selected)
 			return Promise.resolve<InspectResult | undefined>(undefined)
 		return inspectFile({
-			repoRoot,
+			workspaceRoot,
 			relative,
 			selected,
 			diffArgs: scope.diffArgs,
+			isDirect: !scope.diffArgs,
 			binaries,
 			submodules,
 		})
@@ -104,13 +113,18 @@ export async function inspectFiles(
 }
 
 async function inspectFile(input: InspectInput): Promise<InspectResult> {
-	const { repoRoot, relative, selected } = input
+	const { workspaceRoot, relative, selected } = input
 	if (input.submodules.has(relative)) return skip(relative, 'submodule')
 	if (input.binaries.has(relative)) return skip(relative, 'binary file')
-	const stats = await fileStats(path.join(repoRoot, relative))
+	const stats = await fileStats(path.join(workspaceRoot, relative))
 	if (!stats?.isFile()) return skip(relative, 'not a readable regular file')
 	if (stats.size > MAX_FILE_BYTES)
 		return skip(relative, `larger than ${formatBytes(MAX_FILE_BYTES)}`)
+	if (
+		input.isDirect &&
+		(await isBinaryFile(path.join(workspaceRoot, relative)))
+	)
+		return skip(relative, 'binary file')
 	const ranges = await fileRanges(input)
 	if (!selected.isWholeFile && !ranges.length)
 		return skip(relative, 'no line was added or changed')
@@ -125,6 +139,14 @@ async function inspectFile(input: InspectInput): Promise<InspectResult> {
 	}
 }
 
+async function isBinaryFile(absolute: string): Promise<boolean> {
+	try {
+		return (await readFile(absolute)).includes(0)
+	} catch {
+		return false
+	}
+}
+
 function skip(relative: string, reason: string): InspectResult {
 	return { kind: 'skip', skipped: { path: relative, reason } }
 }
@@ -132,7 +154,7 @@ function skip(relative: string, reason: string): InspectResult {
 async function fileRanges(input: InspectInput): Promise<LineRange[]> {
 	const { diffArgs } = input
 	if (input.selected.isWholeFile || !diffArgs) return []
-	const stdout = await git(input.repoRoot, [
+	const stdout = await git(input.workspaceRoot, [
 		'diff',
 		'--unified=0',
 		'--no-ext-diff',
@@ -154,45 +176,42 @@ export async function fileStats(
 	}
 }
 
-/** Content identity through git itself, with a size/mtime token as the fallback. */
-export async function fileHash(absolute: string, cwd: string): Promise<string> {
-	const blob = await tryGit(cwd, ['hash-object', '--', absolute])
-	if (blob?.trim()) return `blob ${blob.trim()}`
-	const stats = await fileStats(absolute)
-	if (!stats?.isFile()) return 'missing'
-	return `stat ${stats.size} ${Math.round(Number(stats.mtimeMs))}`
+/** Content identity without relying on version control. */
+export async function fileHash(absolute: string): Promise<string> {
+	try {
+		const content = await readFile(absolute)
+		return `sha256 ${createHash('sha256').update(content).digest('hex')}`
+	} catch {
+		return 'missing'
+	}
 }
 
 export async function hashFiles(
-	repoRoot: string,
+	workspaceRoot: string,
 	relatives: readonly string[],
 ): Promise<string[]> {
 	const chunks = chunked(relatives, HASH_CHUNK)
 	const groups = await mapSequential(chunks, chunk =>
-		hashChunk(repoRoot, chunk),
+		hashChunk(workspaceRoot, chunk),
 	)
 	return groups.flat()
 }
 
 async function hashChunk(
-	repoRoot: string,
+	workspaceRoot: string,
 	relatives: readonly string[],
 ): Promise<string[]> {
-	const absolute = relatives.map(relative => path.join(repoRoot, relative))
-	const batch = await tryGit(repoRoot, ['hash-object', '--', ...absolute])
-	const lines = batch?.split('\n').filter(line => line.length > 0) ?? []
-	// The same prefix fileHash() uses: one content identity, wherever it came from.
-	if (lines.length === relatives.length)
-		return lines.map(line => `blob ${line}`)
-	return await mapSequential(absolute, one => fileHash(one, repoRoot))
+	return await mapSequential(relatives, relative =>
+		fileHash(path.join(workspaceRoot, relative)),
+	)
 }
 
 /** Current hashes for a set of repo-relative paths, for the staleness checks. */
 export async function hashManifestFiles(
-	repoRoot: string,
+	workspaceRoot: string,
 	relatives: readonly string[],
 ): Promise<Map<string, string>> {
-	const hashes = await hashFiles(repoRoot, relatives)
+	const hashes = await hashFiles(workspaceRoot, relatives)
 	const byPath = new Map<string, string>()
 	relatives.forEach((relative, index) => {
 		byPath.set(relative, hashes[index] ?? 'missing')

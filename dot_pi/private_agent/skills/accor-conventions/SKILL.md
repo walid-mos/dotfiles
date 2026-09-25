@@ -82,10 +82,14 @@ here. Delivery order: `dev → per-link self-review → global self-review → s
   (`pages → widgets → features → entities → shared`), never sideways or upward.
   Public API per slice (`index.ts`). Detail: `apps/menu-compliance/AGENTS.md`.
 - **Proto invariant**: the deployed prototype is the visual and behavioral truth
-  **only within the ticket's scope**; inspect the source repo and reimplement —
-  never copy. Full contract (asset retrieval, 1:1 fidelity, and the hard limits
-  of proto authority: never derive a schema or a business decision from it):
+  **only within the ticket's scope**; inspect the source repo and reimplement
+  its logic while preserving its markup, CSS and assets where they already
+  match — never copy the code wholesale. Visual parity is proven with a
+  fail-closed zero-changed-pixel gate. Full contract (asset retrieval, 1:1
+  fidelity, coverage manifest, pixel gate, and the hard limits of proto
+  authority: never derive a schema or a business decision from it):
   `~/.pi/agent/skills/accor-ship/proto-authority.md`.
+  For a Menu Compliance UI feature, including a dev/test widget or a change to one, load `accor-ship` and reconcile the prototype with numbered acceptance criteria **before editing code**.
 - **Auth**: SSO authenticates **identity only** (`{sub, email}`); `role` + `segment`
   come from the **Snowflake data mart**, never from the JWT nor the client; the
   whitelist (`whitelisted_emails`) is a **manual 403 guard** filled by SQL,
@@ -167,6 +171,7 @@ not reachable there either, say so and proceed from the ticket's text.
 
 ## 6. Related skills
 
+- `accor-debug` — reproduce and fix batches of 3+ product-data-apps bugs with parallel investigation and one grouped browser pass: `~/.pi/agent/skills/accor-debug/SKILL.md`.
 - `accor-ship` — deliver a Menu Compliance feature (stack, proto fidelity, acceptance matrix): `~/.pi/agent/skills/accor-ship/SKILL.md`.
 - `accor-comment` — format and post a charter-compliant review comment inline: `~/.pi/agent/skills/accor-comment/SKILL.md`.
 - `accor-triage` — triage review comments received on my PRs: `~/.pi/agent/skills/accor-triage/SKILL.md`.

@@ -20,11 +20,10 @@ import type { LedgerStatus } from './ledger.ts'
 export const MAX_CONTINUATIONS = 4
 
 /**
- * Escalations allowed per cycle. A run that stops blocked - or that ignores the
- * whole continuation budget - has asked the human nothing, so its pane settles
- * exactly like a finished one. One message demanding the blocking decision be
- * raised with `ask_user_question` is what makes the stop visible; bounded like
- * the continuations, and reset by a human prompt with them.
+ * Escalations allowed per cycle. A run that stops blocked without raising a
+ * questionnaire settles exactly like a finished one. One message demanding the
+ * blocking decision be raised with `ask_user_question` makes the stop visible;
+ * bounded like the continuations, and reset by a human prompt with them.
  */
 export const MAX_ESCALATIONS = 1
 
@@ -55,6 +54,7 @@ export type SettleAction =
  * the human, so the caller must not have to parse the reason to tell them apart.
  */
 export type StopCause = 'blocked' | 'budget'
+export type BlockingQuestionState = 'raised' | 'unraised'
 
 export type GateOptions = {
 	agentDir: string
@@ -136,13 +136,21 @@ export class GoalGate {
 		this.closed = false
 	}
 
-	settled(): SettleAction {
+	settled(
+		blockingQuestion: BlockingQuestionState = 'unraised',
+	): SettleAction {
 		const { path } = this
 		if (!path || this.closed) return { type: 'idle' }
 		const text = this.options.read(path)
 		if (!text) return { type: 'idle' }
 		const status = ledgerStatus(text)
 		if (status.blocked) {
+			// The questionnaire itself already made the stop visible. Close this
+			// cycle without injecting a second run that asks the same question.
+			if (blockingQuestion === 'raised') {
+				this.closed = true
+				return { type: 'idle' }
+			}
 			const escalation = this.escalate(path, status.blocked, status)
 			if (escalation) return escalation
 			this.closed = true

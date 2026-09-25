@@ -10,6 +10,7 @@ export type ScopeMode =
 	| { kind: 'staged' }
 	| { kind: 'last' }
 	| { kind: 'ref'; ref: string }
+	| { kind: 'target'; query: string }
 	| { kind: 'snapshot'; paths: string[] }
 
 export interface ScopeRequest {
@@ -41,16 +42,17 @@ export interface SkippedFile {
 }
 
 export interface ScopeManifest {
-	repoRoot: string
+	workspaceRoot: string
+	source: 'git' | 'files'
 	/** Human label for the resolved scope, shown in notices. */
 	label: string
 	files: ScopeFile[]
 	skipped: SkippedFile[]
-	/** The command that reproduces the analysed diff; absent for a snapshot. */
+	/** The command that reproduces the analysed diff; absent for direct files. */
 	diffCommand?: string
 }
 
-export type Lens = 'reuse' | 'quality' | 'efficiency'
+export type Lens = 'reuse' | 'quality' | 'efficiency' | 'solid'
 
 export type Risk = 'safe' | 'confirm' | 'review'
 
@@ -66,6 +68,8 @@ export interface Finding {
 	lines: string
 	risk: Risk
 	action: FindingAction
+	/** One-clause readable name, shown in lists; rootIssue is the full story. */
+	title: string
 	rootIssue: string
 	consequence: string
 	benefit: string

@@ -22,7 +22,13 @@
  * dev VM contract: names, argv shapes, tree-path read), guest-git.ts (the host git
  * identity, inherited into the guest at activation), sandbox-prompt.ts (the
  * sandbox section's text, the addresses a human may be given included),
- * container-command.ts (the /container surface), wt.ts (wt CLI boundary), container.ts (Apple container CLI
+ * container-command.ts (the /container surface), wt.ts (read-only wt CLI boundary:
+ * list, probe, failure reader), sync.ts (the one write verb: wt sync
+ * --refresh-config, which adopts the source repo's .pi/container.json at every
+ * sync), container-config.ts (the declaration fix: the session model derives
+ * .pi/container.json from the project facts, container-config-facts.ts reads
+ * those facts, container-config-schema.ts validates wt's declaration shape),
+ * container.ts (Apple container CLI
  * boundary and guest call lifecycle), container-cli.ts (the CLI process itself),
  * exec-session.ts (guest process ownership: one session per call, its kill token
  * and its host-side record), bash-ops.ts (BashOperations and host-to-guest path

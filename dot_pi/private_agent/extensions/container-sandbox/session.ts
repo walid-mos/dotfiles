@@ -28,6 +28,8 @@ import { GUEST_WORKDIR } from './sandbox-prompt.ts'
 import {
 	ensureContainerRunning,
 	ensureDevvmRunning,
+} from './sync.ts'
+import {
 	probeWorkspace,
 } from './wt.ts'
 
@@ -164,10 +166,12 @@ async function ensureSession(
 ): Promise<string | null> {
 	if (workspace.vehicle === 'devvm') {
 		if (await devvmWorkspaceAnswering(workspace.containerName)) return null
-		return ensureDevvmRunning(workspace.path)
+		const outcome = await ensureDevvmRunning(workspace.path)
+		return outcome.failure
 	}
 	if (workspace.containerState === 'running') return null
-	return ensureContainerRunning(workspace)
+	const outcome = await ensureContainerRunning(workspace)
+	return outcome.failure
 }
 
 /**

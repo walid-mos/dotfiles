@@ -1,4 +1,5 @@
-/** Persistent drift notice while the running Pi release is newer than the audited adapters. */
+/** Persistent drift notice while the running Pi release is newer than the audited adapters and
+ * extensions. */
 import {
 	ABOVE_EDITOR_PRIORITY,
 	setOrderedSurfaceWidget,
@@ -10,7 +11,7 @@ import type { PiVersionDrift } from './pi-runtime.ts'
 const WIDGET_ID = 'pi-renderer-drift'
 
 function driftLine(drift: PiVersionDrift): string {
-	return `⚠ pi ${drift.runningVersion} - display adapters audited for ${drift.auditedVersion} · run /skill:pi-renderer-update`
+	return `⚠ pi ${drift.runningVersion} - extensions audited for ${drift.auditedVersion} · run /skill:pi-updated`
 }
 
 /** Mount the warning above the editor, under the context line; replaces any previous line. */

@@ -6,10 +6,9 @@
 // (lib/sh.sh wt_sh_devvm), so the extension and wt enter the same way - same
 // namespace, same /workspace bind, same workspace user.
 //
-// Two properties of the VM shape everything here: the namespace has no egress
-// (installs run in the VM root namespace, wt handles them at provisioning), and a
-// bind mount carries no submounts - the install sits on a root-namespace bind over
-// the tree's node_modules, so the entry script binds it again after the tree bind.
+// The workspace namespace has egress and isolates ports; its install and pnpm store
+// live on VM disk under one bounded workspace-user identity. A bind mount carries no
+// submounts, so the entry script repeats the node_modules bind after binding the tree.
 import { runCapture } from './container-cli.ts'
 import { guestSessionScript } from './exec-session.ts'
 import { GUEST_WORKDIR } from './sandbox-prompt.ts'
@@ -29,12 +28,7 @@ export const DEVVM_RUN_ROOT = '/run/wt'
 
 /** Reading one fact from the VM must never hang the session start. */
 const DEVVM_READ_TIMEOUT_SECONDS = 15
-
-/**
- * The guest user a workspace runs as: `wt-<workspace name>`. The name compounds
- * (`wt-` + a name that usually starts `wt-`) - a recorded cosmetic gap, kept
- * because it is the identity wt provisioned.
- */
+/** The account created by wt's devvm-workspace-add.sh for this namespace. */
 export function devvmUser(workspaceName: string): string {
 	return `wt-${workspaceName}`
 }

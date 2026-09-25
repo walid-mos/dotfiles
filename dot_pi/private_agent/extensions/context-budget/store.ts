@@ -1,43 +1,97 @@
-/**
- * context-budget - persistence for the chosen ceiling.
- *
- * The ceiling is user state owned by this extension, so it lives in its own
- * file under the agent directory and never in `settings.json` (pi-managed,
- * rewritten by the app) nor in a session entry (lost on the next session).
- * Read once per session, written only by `/context-budget`.
- */
+/** Persist the user-selected ceiling and the dedicated summary model. */
 
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { DEFAULT_HANDOFF_TOKENS } from './budget.ts'
+import { DEFAULT_CEILING_TOKENS, MIN_CEILING } from './budget.ts'
 
 import type { Ceiling } from './budget.ts'
 
 export const STATE_FILE = 'context-budget.json'
+export const DEFAULT_SUMMARY_MODEL = 'deepseek/deepseek-v4-flash'
 
-/** The only shape this file stores; anything else falls back to the default. */
+export type SummaryModel = {
+	provider: string
+	id: string
+}
+
+type StoredBudget = {
+	ceilingTokens: Ceiling
+	summaryModel: string
+}
+
 export function readCeiling(agentDir: string): Ceiling {
+	return readBudget(agentDir).ceilingTokens
+}
+
+export function readSummaryModel(agentDir: string): SummaryModel {
+	const written = readBudget(agentDir).summaryModel
+	const separator = written.indexOf('/')
+	if (separator <= 0 || separator === written.length - 1) {
+		return splitSummaryModel(DEFAULT_SUMMARY_MODEL)
+	}
+	return {
+		provider: written.slice(0, separator),
+		id: written.slice(separator + 1),
+	}
+}
+
+export function writeCeiling(agentDir: string, ceiling: Ceiling): void {
+	const { summaryModel } = readBudget(agentDir)
+	mkdirSync(agentDir, { recursive: true })
+	writeFileSync(
+		join(agentDir, STATE_FILE),
+		`${JSON.stringify({ ceilingTokens: ceiling, summaryModel }, null, '\t')}\n`,
+	)
+}
+
+function readBudget(agentDir: string): StoredBudget {
 	try {
 		const parsed: unknown = JSON.parse(
 			readFileSync(join(agentDir, STATE_FILE), 'utf8'),
 		)
-		if (typeof parsed !== 'object' || parsed === null) {
-			return DEFAULT_HANDOFF_TOKENS
-		}
-		const stored = Reflect.get(parsed, 'handoffTokens')
-		if (stored === 'off') return 'off'
-		if (typeof stored === 'number' && Number.isFinite(stored)) return stored
+		return parseBudget(parsed)
 	} catch {
-		// Absent or unreadable: fall through to the default.
+		return defaultBudget()
 	}
-	return DEFAULT_HANDOFF_TOKENS
 }
 
-export function writeCeiling(agentDir: string, ceiling: Ceiling): void {
-	mkdirSync(agentDir, { recursive: true })
-	writeFileSync(
-		join(agentDir, STATE_FILE),
-		`${JSON.stringify({ handoffTokens: ceiling }, null, '\t')}\n`,
-	)
+function parseBudget(parsed: unknown): StoredBudget {
+	if (typeof parsed !== 'object' || parsed === null) return defaultBudget()
+	const ceiling = Reflect.get(parsed, 'ceilingTokens')
+	const summaryModel = Reflect.get(parsed, 'summaryModel')
+	return {
+		ceilingTokens: validCeiling(ceiling),
+		summaryModel:
+			typeof summaryModel === 'string' && summaryModel.includes('/')
+				? summaryModel
+				: DEFAULT_SUMMARY_MODEL,
+	}
+}
+
+function validCeiling(candidate: unknown): Ceiling {
+	if (candidate === 'off') return candidate
+	if (
+		typeof candidate === 'number' &&
+		Number.isFinite(candidate) &&
+		candidate >= MIN_CEILING
+	) {
+		return candidate
+	}
+	return DEFAULT_CEILING_TOKENS
+}
+
+function defaultBudget(): StoredBudget {
+	return {
+		ceilingTokens: DEFAULT_CEILING_TOKENS,
+		summaryModel: DEFAULT_SUMMARY_MODEL,
+	}
+}
+
+function splitSummaryModel(written: string): SummaryModel {
+	const separator = written.indexOf('/')
+	return {
+		provider: written.slice(0, separator),
+		id: written.slice(separator + 1),
+	}
 }

@@ -16,6 +16,13 @@ previous_tab = "ctrl+["
 next_workspace = "ctrl+shift+]"
 previous_workspace = "ctrl+shift+["
 
+# Agents pane: one-chord navigator + direct agent cycling
+# (revert: delete the three lines below to get prefix+g back)
+goto = "prefix+g"
+next_agent = "alt+]"
+previous_agent = "alt+["
+focus_agent = "prefix+alt+1..9"
+
 # Panes
 focus_pane_left = "alt+h"
 focus_pane_down = "alt+j"
@@ -37,6 +44,30 @@ light_name = "catppuccin-latte"
 key = "ctrl+alt+shift+f18"
 type = "plugin_action"
 command = "ghostty-focus.probe-studio"
+
+[ui]
+# Distinct glyphs for blocked/working/done/idle instead of same-shaped dots.
+status_indicators = "symbols"
+
+# Attention queue ordering (repo grouping rejected: duplicates the
+# machine/workspace grouping already in the spaces pane).
+agent_panel_sort = "priority"
+
+# Wider than the 26-col default: agent labels (repo/branch) truncate hard
+# at 36. Width auto-scales up to max when names are long.
+sidebar_width = 30
+sidebar_min_width = 20
+sidebar_max_width = 48
+
+# One line per agent: status glyph, optional tree indent ($indent, reported
+# by the mother pane's children), project dir + git branch.
+# ('agent' token dropped: every row here is pi, it carried no information)
+[ui.sidebar.agents]
+rows = [["state_icon", "$indent", "$proj"]]
+
+# One line per space instead of name row + branch/status row.
+[ui.sidebar.spaces]
+rows = [["state_icon", "workspace", "branch"]]
 
 # === Graphics ===
 # herdr 0.8.x: kitty graphics payloads in panes are opt-in (enabled by default in 0.9+).

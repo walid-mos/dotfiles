@@ -36,6 +36,16 @@ import { createInlineSkillsProvider } from './provider.ts'
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 export default function (pi: ExtensionAPI): void {
+	// Editor decorator: auto-opens the popup on mid-line `/skill:` typing.
+	// Registered at load time, NOT inside session_start: a listener added
+	// during the session_start dispatch misses that same dispatch (pi 0.86
+	// event-bus semantics), so the editor would be built without the trigger
+	// for the whole first session. Same pattern as prompt-attachments. The
+	// trigger is stateless, so there is nothing session-scoped to rebind.
+	registerEditorDecorator(pi, createDefaultEditor, editor =>
+		installInlineSkillTrigger(editor),
+	)
+
 	pi.on('session_start', (event, ctx) => {
 		// Refresh the skill cache when resources are reloaded.
 		if (event.reason === 'reload') {
@@ -44,13 +54,6 @@ export default function (pi: ExtensionAPI): void {
 
 		// Autocomplete: handles /skill: tokens mid-line (delegates otherwise).
 		ctx.ui.addAutocompleteProvider(createInlineSkillsProvider)
-
-		// Editor decorator: auto-opens the popup on mid-line `/skill:` typing.
-		// Goes through the shared decorator composition so other editor
-		// decorators (e.g. prompt-attachments) keep working alongside it.
-		registerEditorDecorator(pi, createDefaultEditor, editor =>
-			installInlineSkillTrigger(editor),
-		)
 	})
 
 	// Adopt pi's exact loaded skill list once an agent run starts

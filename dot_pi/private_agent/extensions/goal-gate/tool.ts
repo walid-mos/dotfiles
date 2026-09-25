@@ -15,9 +15,18 @@
 import { StringEnum } from '@earendil-works/pi-ai'
 import { Type } from 'typebox'
 
-import { blockLedger, declareItems, tickItem } from './ledger-edits.ts'
+import {
+	blockLedger,
+	declareItems,
+	dismissRequest,
+	tickItem,
+} from './ledger-edits.ts'
+import { canCloseRequest, isRequestItem, ledgerStatus } from './ledger.ts'
 
-import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+} from '@earendil-works/pi-coding-agent'
 import type { Static } from 'typebox'
 import type { LedgerStatus } from './ledger.ts'
 
@@ -25,18 +34,24 @@ const TOOL_NAME = 'goal'
 
 const TOOL_DESCRIPTION = `Keep this run's goal checklist - the ledger a settled run is held to: a run that ends with an item open is continued.
 
-- declare: the deliverables, before the work starts; appends, skipping items already on the list.
-- tick: close one item the moment it lands, with its outcome - what landed and where (commit, file, PR), since a later session reads that instead of re-deriving the work.
+- declare: the deliverables and discovered surfaces (files, screens, systems), before work starts; appends, skipping items already on the list. The ledger proposes scope and Jev reviews the request, surfaces, and deliverables; follow the returned delegation instruction.
+- tick: close one item the moment it lands, with its outcome - what landed and where (commit, file, PR). Request-level items close LAST, after concrete deliverables and verification are checked.
+- dismiss: this request was only a question, with no deliverable declared. Closes ONLY an empty request item, recording the reason; never use it to skip work.
 - block: you are stopped on a decision only the human can make; record it, raise it with ask_user_question, then stop.`
 
 const toolParameters = Type.Object({
-	action: StringEnum(['declare', 'tick', 'block'] as const, {
+	action: StringEnum(['declare', 'tick', 'dismiss', 'block'] as const, {
 		description: 'What this call does to the checklist.',
 	}),
 	items: Type.Optional(
 		Type.Array(Type.String(), {
+			description: 'declare: one entry per deliverable, in work order.',
+		}),
+	),
+	surfaces: Type.Optional(
+		Type.Array(Type.String(), {
 			description:
-				'declare: one entry per deliverable, in the order they will be worked through.',
+				'declare: discovered files, screens, systems, or other affected surfaces; Jev reviews these with the deliverables.',
 		}),
 	),
 	item: Type.Optional(
@@ -53,7 +68,7 @@ const toolParameters = Type.Object({
 	reason: Type.Optional(
 		Type.String({
 			description:
-				'block: the decision you need from the human, naming the follow-up it unblocks.',
+				'dismiss: why this request has no deliverable; block: the human-only decision and follow-up.',
 		}),
 	),
 })
@@ -67,6 +82,14 @@ export type LedgerStore = {
 	write: (path: string, text: string) => void
 	/** New work landed on the checklist: a closed cycle is guarded again. */
 	reopen: () => void
+	/** A new blocker supersedes any question raised for an earlier one. */
+	block: () => void
+	/** Review the discovered deliverables; fallback decisions still return an instruction. */
+	review: (
+		deliverables: string[],
+		surfaces: string[],
+		ctx: ExtensionContext,
+	) => Promise<string>
 }
 
 /** A field the call left empty; the ledger records nothing for a blank value. */
@@ -109,6 +132,19 @@ function checklistState(status: LedgerStatus): string {
 	return ' The checklist has no items yet - declare them first.'
 }
 
+function checkRequestCompletion(
+	declaredItem: string,
+	text: string | undefined,
+): void {
+	if (
+		isRequestItem(declaredItem) &&
+		!canCloseRequest(ledgerStatus(text ?? ''))
+	)
+		throw new Error(
+			'goal tick: finish and verify every concrete deliverable before closing the request-level item.',
+		)
+}
+
 /** One call onto the ledger, returning what to tell the model. */
 function apply(
 	params: GoalParams,
@@ -134,6 +170,7 @@ function apply(
 	if (params.action === 'tick') {
 		const declaredItem = requireField(params.item, 'item', 'tick')
 		const outcome = requireField(params.outcome, 'outcome', 'tick')
+		checkRequestCompletion(declaredItem, text)
 		const tick = tickItem(text ?? '', declaredItem, outcome)
 		if (tick.type === 'unknown')
 			throw new Error(
@@ -144,8 +181,14 @@ function apply(
 		const verb = tick.type === 'ticked' ? 'Ticked' : 'Already ticked'
 		return `${verb}: "${declaredItem}". ${checked} of ${tick.status.items.length} items checked.${openSuffix(tick.status)}`
 	}
+	if (params.action === 'dismiss') {
+		const reason = requireField(params.reason, 'reason', 'dismiss')
+		store.write(path, dismissRequest(text ?? '', reason))
+		return `Request dismissed with no deliverable: ${reason}.`
+	}
 	const reason = requireField(params.reason, 'reason', 'block')
 	store.write(path, blockLedger(text, reason))
+	store.block()
 	return `Blocked recorded: ${reason}\nRaise it with ask_user_question now, naming the follow-up, then stop.`
 }
 
@@ -156,19 +199,38 @@ export function registerGoalTool(pi: ExtensionAPI, store: LedgerStore): void {
 		description: TOOL_DESCRIPTION,
 		promptSnippet: "Declare or tick this run's goal checklist",
 		parameters: toolParameters,
-		execute: async (_toolCallId, params: GoalParams) => {
+		// oxlint-disable-next-line eslint/max-params -- Pi supplies context as the fifth execute argument.
+		execute: async (
+			_toolCallId,
+			params: GoalParams,
+			_signal,
+			_onUpdate,
+			ctx,
+		) => {
 			const path = store.path()
 			if (!path)
 				throw new Error(
 					'goal: this session has no checklist yet - it is armed at session start.',
 				)
+			const before = store.read(path)
+			let responseText = apply(params, before, path, store)
+			if (params.action === 'declare' && store.read(path) !== before) {
+				const status = ledgerStatus(store.read(path) ?? '')
+				const requestIndex = status.items.findLastIndex(
+					entry => !entry.done && isRequestItem(entry.text),
+				)
+				const deliverables = status.items
+					.slice(requestIndex + 1)
+					.filter(
+						entry =>
+							!isRequestItem(entry.text) &&
+							(requestIndex >= 0 || !entry.done),
+					)
+					.map(entry => entry.text)
+				responseText += `\n${await store.review(deliverables, params.surfaces ?? [], ctx)}`
+			}
 			return {
-				content: [
-					{
-						type: 'text' as const,
-						text: apply(params, store.read(path), path, store),
-					},
-				],
+				content: [{ type: 'text' as const, text: responseText }],
 				details: { action: params.action, path },
 			}
 		},

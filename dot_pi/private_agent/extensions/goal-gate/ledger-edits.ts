@@ -21,6 +21,7 @@ import {
 	ITEM_PATTERN,
 	ITEM_STATE_GROUP,
 	ITEM_TEXT_GROUP,
+	isRequestItem,
 	ledgerStatus,
 	renderLedger,
 } from './ledger.ts'
@@ -131,6 +132,29 @@ export function tickItem(
 		entry => entry.done && matchesRecorded(entry.text, wanted),
 	)
 	return { type: isTicked ? 'already' : 'unknown', status }
+}
+
+/** Close a false work classification only before this request declared any deliverable. */
+export function dismissRequest(text: string, reason: string): string {
+	if (!reason.trim()) throw new Error('goal dismiss needs a reason.')
+	const status = ledgerStatus(text)
+	const pending = status.items.filter(entry => !entry.done)
+	const [request] = pending
+	if (pending.length !== 1 || !request || !isRequestItem(request.text))
+		throw new Error('goal dismiss requires exactly one open request item.')
+	const requestIndex = status.items.findIndex(entry => !entry.done)
+	if (status.items.slice(requestIndex + 1).length)
+		throw new Error(
+			'goal dismiss refused: concrete work was declared for this request.',
+		)
+	const tick = tickItem(
+		text,
+		request.text,
+		`No deliverable: ${reason.trim()}`,
+	)
+	if (tick.type !== 'ticked')
+		throw new Error('goal dismiss could not close the request item.')
+	return tick.text
 }
 
 /**

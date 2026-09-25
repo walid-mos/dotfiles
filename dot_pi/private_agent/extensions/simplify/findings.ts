@@ -107,7 +107,7 @@ class MergeRun {
 	}
 
 	private mergeFinding(lens: Lens, raw: Finding): void {
-		const file = normalizePath(raw.file, this.input.manifest.repoRoot)
+		const file = normalizePath(raw.file, this.input.manifest.workspaceRoot)
 		const scopeFile = this.byPath.get(file)
 		if (!scopeFile) {
 			this.notes.push(`${raw.file}: ${raw.rootIssue} (outside the scope)`)
@@ -158,6 +158,7 @@ function withId(finding: MergedFinding, id: number): MergedFinding {
 		lines: finding.lines,
 		risk: finding.risk,
 		action: finding.action,
+		title: finding.title,
 		rootIssue: finding.rootIssue,
 		consequence: finding.consequence,
 		benefit: finding.benefit,
@@ -225,10 +226,10 @@ function lowerRisk(left: Risk, right: Risk): Risk {
 	return RISK_ORDER[left] <= RISK_ORDER[right] ? left : right
 }
 
-function normalizePath(file: string, repoRoot: string): string {
+function normalizePath(file: string, workspaceRoot: string): string {
 	const trimmed = file.trim().replace(/^\.\//u, '')
 	if (!path.isAbsolute(trimmed)) return trimmed
-	const relative = path.relative(repoRoot, trimmed)
+	const relative = path.relative(workspaceRoot, trimmed)
 	if (!relative || relative.startsWith(PARENT_PREFIX)) return trimmed
 	return relative
 }

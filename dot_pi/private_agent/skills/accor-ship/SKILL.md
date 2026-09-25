@@ -7,7 +7,8 @@ description: >-
     PRs, ticket/prototype as source of truth and a numbered acceptance matrix
     with per-AC proof. Use when the user asks to deliver a Menu Compliance
     feature in this repo ("accor-ship", "livre cette feature", "ship la feature
-    menu compliance"), or describes such a feature to build.
+    menu compliance"), or describes such a feature to build or change,
+    including dev/demo widgets in the Menu Compliance UI.
 ---
 
 # accor-ship — Menu Compliance feature delivery
@@ -22,7 +23,7 @@ its git naming (§1), perimeter (§2), baseline & commands (§4), and REST recip
 (§5) govern here and are not restated.
 
 **Sub-files (load on demand)**:
-- `proto-authority.md` — prototype source, 1:1 fidelity, hard limits of proto authority (schema/business decisions). Load before Phase 0 and whenever a front rendering decision is made.
+- `proto-authority.md` — prototype source, 1:1 fidelity, hard limits of proto authority (schema/business decisions), the persisted coverage manifest, and the deterministic pixel gate. Load before Phase 0, whenever a front rendering decision is made, and before building the manifest or running the visual gate.
 - `stack-contract.md` — slicing defaults, link mechanics without gh-stack, fix-on-origin + restack, stacked PR creation. Load at Phase 2, re-apply at every mid-run split.
 
 ## Arguments
@@ -56,7 +57,11 @@ Do all of this **before** the delivery loop. Ask the blocking questions now
 (via `ask_user_question`) — after this phase, no more questions except hard
 blockers (proto-derived schema, out-of-perimeter need).
 
-Build a **numbered and exhaustive acceptance matrix** in the transcript. One row
+Build a **numbered and exhaustive acceptance matrix** as a
+**scope-specific coverage manifest** (row format, citations,
+role/workspace/boundary dimensions, evidence rules: `proto-authority.md` §
+Coverage manifest). Summarize it in the transcript; transcript-only coverage
+is not accepted. One row
 per observable or business requirement, including informative non-interactive
 content (labels, previews, counters, pre-filled values, disabled/readonly
 states, per-segment/role variants). Every row contains:
@@ -65,12 +70,14 @@ states, per-segment/role variants). Every row contains:
   proto state/route);
 - the precise expected result;
 - the surfaces and variants concerned;
-- the required final proof: an existing automated test, a command/API call, or a flow
-  + DOM assertion + local/proto screenshot at the same viewport — never a test you wrote.
+- the required final proof: an existing automated test, a command/API call, or
+  a flow + DOM assertion + zero-delta `frontend_pixel_diff` with both capture
+  names at the same viewport — never a test you wrote.
 
 Run a **reconciliation pass ticket ↔ spec ↔ prototype ↔ matrix**: every
 requirement found appears in the matrix; every divergence is resolved by source
-authority (ticket/spec for business, proto for in-scope visuals). Any business
+authority (ticket/spec for business, proto for in-scope visuals) and recorded
+in the manifest. Any business
 decision that appears only in proto code is an **hypothesis to validate with the
 user**, never a fact to record (`proto-authority.md`).
 
@@ -98,25 +105,28 @@ For each link, in stack order:
 1. **Branch** — first link from `--base` (`develop`), each next link on top of
    the current tip; in `--no-stack`, one branch from `--base`.
 2. **Implement** — front and API code locally, in parallel where useful; on the
-   api, respect the clean-arch layout (§7); on the front, reimplement the proto,
-   never copy it (`proto-authority.md`).
-3. **Test for real** — full suite + lint + typecheck after applying changes
-   (accor-conventions §4). Red = the link does not advance; fix directly, no new
-   loop.
-4. **Visual comparison (mandatory for front links)** — start `pnpm
-   dev:compliance`; open the deployed proto URL and the local app; navigate
-   the same route/acceptance path with the session's browser automation
-   (`frontend_act`-style tools when provided); verify a **1:1 copy** of the
-   ticket surfaces/states — pixel-perfect layout, colors, spacing, typography,
-   responsive behavior, states, animations, screen behaviors identical to the
-   deployed prototype. No interpretation, no visual "improvement". Desktop
-   web-only: never mobile (proto-authority.md).
+   api, respect the clean-arch layout (§7); on the front, restructure the
+   proto's logic while preserving its markup, CSS and assets where they already
+   match (`proto-authority.md`).
+3. **Test for real** — after all changes for the link, submit independent
+   affected-package build/typecheck/lint/test gates through the generic
+   `parallel-gates` workflow once (accor-conventions §4). The workspace-wide
+   baseline runs once in Phase 4. Red = the link does not advance; fix directly,
+   no new loop.
+4. **Visual comparison (mandatory for front links) — deterministic pixel
+   gate.** Start `pnpm dev:compliance`; per state, capture the deployed proto
+   and the local app, then diff them (`frontend_capture_pixels` /
+   `frontend_pixel_diff`); **zero changed pixels at equal viewport/browser/
+   fonts/data** is the pass condition (full mechanics, selector scoping and
+   exclusions: `proto-authority.md` § Pixel gate).
    - Assert exact copy (text, placeholder, aria-label, states) via DOM
-     evaluation; compare local vs proto screenshots side-by-side at the **same
-     viewports**; console clean.
-   - Any visual delta **on a ticket surface or state** = link not finished.
-     Ignore deltas outside the ticket (features out of scope, third-party
-     UI/scripts requested by the PO, the local impersonation switcher).
+     evaluation; every capture/diff artifact is recorded as evidence in the
+     coverage manifest row for that state; console clean.
+   - A state that cannot be captured and diffed is **blocked and reported** —
+     never claim parity for it. Ignore deltas outside the ticket (features out
+     of scope, third-party UI/scripts requested by the PO, the local
+     impersonation switcher) — via declared selectors/exclusions, never by
+     hiding in-scope pixels.
    - Pure back/infra links are exempt — say so explicitly.
 5. **Self-review pass (per link)** — re-read the link diff under the `coding`
    skill's minimum-change lens (delete/simplify/reuse before adding; verify each
@@ -133,7 +143,11 @@ For each link, in stack order:
    chain rebased + re-tested (`stack-contract.md`).
 2. **Final verification** — full suite green across the stack; re-run the visual
    comparison on UI paths the global pass touched.
-3. **Submit** (unless `--stop-before-pr` / `--dry-run`) — stacked PRs bottom-up
+3. **Submit** (unless `--stop-before-pr` / `--dry-run`) only when every in-scope
+   manifest row is proven. A blocked row prevents submission; report it and
+   resume when unblocked, or obtain explicit approval for a reduced scope.
+   Before each push, obtain the user's approval for that exact branch and remote
+   (`~/Development/clients/accor/AGENTS.md`). Then create stacked PRs bottom-up
    per `stack-contract.md` §Stacked PRs. Each PR body **strictly** follows
    `.github/PULL_REQUEST_TEMPLATE.md` (Ticket — or the explicit in-Summary
    justification of its absence —, Summary, Scope checked, Changes, How was this
@@ -142,21 +156,23 @@ For each link, in stack order:
    discipline applies to the single PR.
 4. **No auto-merge.** Merging the stack is an explicit human gate.
 
-## Execution discipline (replaces a goal loop)
+## Execution discipline (runs inside the goal loop)
 
 - Keep going turn after turn until the exit conditions are met; one verifiable
-  step per turn; **prove, don't declare**.
+  step per turn; **prove, don't declare**. The goal loop drives pacing; these
+  exit conditions — not a turn count — decide when the run stops.
 - Green tests, a passing main flow, or "the UI looks compliant" are never proof
-  of matrix coverage: each AC row needs its own proof.
+  of matrix coverage: each manifest row needs its own checkable evidence.
 - No user questions after Phase 1 sign-off except hard blockers.
-- Stop budget: 30 turns. On exceeding it, stop and report the matrix state
-  honestly (proven rows, open rows, blockers).
-- **Exit conditions (all required)**: each `AC-01…AC-N` proven individually with
-  no omitted/unverified row; stack submitted from `develop` (unless
-  `--stop-before-pr` / `--dry-run`); ticket Done, or blockers listed with their
-  reason; suite green; both self-review passes done; visual comparison for
-  every surface/state/variant in the matrix at the same viewports with DOM
-  assertions and screenshots; exclusions listed openly;
+- **Delivery exit conditions (all required)**: each `AC-01…AC-N` proven
+  individually with no omitted/unverified/blocked row; the persisted coverage
+  manifest complete and attached (sources, role, PME/L&L workspace, boundaries,
+  replayable evidence per row); stack submitted from `develop` (unless
+  `--stop-before-pr` / `--dry-run`, or push approval is pending); ticket Done;
+  suite green; both self-review passes done; pixel gate (zero changed
+  pixels) for every surface/state/variant in the manifest at the same
+  viewports with DOM assertions and recorded diff artifacts; uncomparable
+  states reported, never claimed; exclusions listed openly;
   `apps/product-benchmark` untouched; PR descriptions template-compliant.
 
 ## Definition of done
@@ -168,14 +184,20 @@ For each link, in stack order:
 - No criterion counts as covered by proximity: a business gate does not prove
   the associated informative preview, and a passing submit test does not prove
   a modal's labels, pre-filled values or readonly states.
-- The feature is delivered in full, or the remainder is listed as blocked with
-  its reason.
+- The persisted coverage manifest is complete: every reachable in-scope outcome
+  (per role, per PME/L&L workspace, with empty/error/disabled boundaries)
+  cited to its source, with replayable per-row evidence. A blocked row prevents
+  submission until unblocked or explicitly removed from scope by the user.
+- The feature is delivered in full; blocked work is reported as incomplete,
+  not shipped as if it passed.
 - No DB schema, API contract, or business decision derived from proto code; any
   proto-sourced business hypothesis validated by the user in Phase 1.
-- Front rendering **1:1 vs the deployed proto** on ticket surfaces/states,
-  same desktop viewports (addresses in `proto-authority.md`), required assets compared side-by-side with DOM
-  assertions and screenshots in the transcript; out-of-scope deltas ignored;
-  proto code rewritten clean — never copied.
+- Front rendering proven **1:1 vs the deployed proto** on ticket surfaces/states,
+  same desktop viewports (addresses in `proto-authority.md`), via the pixel gate
+  (zero changed pixels) with diff artifacts recorded in the manifest;
+  out-of-scope deltas excluded via declared selectors; uncomparable states
+  blocked and reported; proto logic restructured clean, its markup/CSS/assets
+  preserved where they already match.
 - `apps/product-benchmark` untouched.
 - Sliced per `stack-contract.md`; every link compiles and tests green alone;
   several atomic commits per link.
@@ -189,5 +211,6 @@ For each link, in stack order:
 ## Final report
 
 One line per link: branch, ACs covered, files/lines vs the soft budgets, number
-of commits, PR URL. Matrix status per row (proven/blocked). What the visual
-comparison covered, and what remains open. No code recap.
+of commits, PR URL. Manifest status per row (proven/blocked). Pixel-gate
+coverage (states captured, diffed, exclusions declared, uncomparable states)
+and what remains open. Path of the persisted coverage manifest. No code recap.

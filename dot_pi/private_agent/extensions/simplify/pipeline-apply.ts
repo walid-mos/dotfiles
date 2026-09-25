@@ -1,8 +1,8 @@
 /**
- * The apply stage: the safe findings go in on their own, then the human picks
- * from the checkpoint, and every apply turn ends in the repository's own gates.
- * Hashes are re-read per phase - the safe pass edits files, so the gated
- * findings are checked against the tree as it is after those edits.
+ * The apply stage: safe Git-scoped findings go in on their own, then the human
+ * picks from the checkpoint. Direct-file findings always need that checkpoint.
+ * Every apply turn ends in the project's own gates. Hashes are re-read per
+ * phase so later findings are checked against the files after earlier edits.
  */
 
 import { buildApplyMessage } from './apply.ts'
@@ -33,7 +33,7 @@ export async function applyOutcome(
 	const run = new ApplyRun(
 		deps,
 		manifest,
-		await detectGates(manifest.repoRoot),
+		await detectGates(manifest.workspaceRoot),
 	)
 	const notice = await run.apply(outcome)
 	if (notice) return { ok: false, notice }
@@ -69,10 +69,16 @@ class ApplyRun {
 
 	/** The notice of a dead apply turn, or undefined when both phases finished. */
 	async apply(outcome: AnalysisOutcome): Promise<string | undefined> {
-		const safe = outcome.findings.filter(finding => finding.risk === 'safe')
+		const directFiles = this.manifest.source === 'files'
+		const safe = directFiles
+			? []
+			: outcome.findings.filter(finding => finding.risk === 'safe')
 		const safeNotice = await this.applySafe(safe)
 		if (safeNotice) return safeNotice
-		return await this.applyGated(outcome.findings.filter(isGated))
+		const gated = directFiles
+			? outcome.findings
+			: outcome.findings.filter(isGated)
+		return await this.applyGated(gated)
 	}
 
 	private async applySafe(
@@ -92,7 +98,7 @@ class ApplyRun {
 		if (!current.length) return undefined
 		const choice = await showFindingsSelector(this.deps.ctx, {
 			findings: current,
-			label: `${this.manifest.label} · ${this.dispatchedSafe} applied automatically`,
+			label: this.checkpointLabel(),
 		})
 		if (!choice) {
 			this.isCheckpointCancelled = true
@@ -103,11 +109,17 @@ class ApplyRun {
 		return await this.dispatch(selected, 'selection')
 	}
 
+	private checkpointLabel(): string {
+		if (this.manifest.source === 'files')
+			return `${this.manifest.label} · direct edits need approval`
+		return `${this.manifest.label} · ${this.dispatchedSafe} applied automatically`
+	}
+
 	private async current(
 		findings: readonly MergedFinding[],
 	): Promise<MergedFinding[]> {
 		const hashes = await hashManifestFiles(
-			this.manifest.repoRoot,
+			this.manifest.workspaceRoot,
 			this.manifest.files.map(file => file.path),
 		)
 		const split = staleSplit(findings, this.manifest, hashes)
@@ -122,7 +134,7 @@ class ApplyRun {
 	 */
 	private async rebase(): Promise<void> {
 		const hashes = await hashManifestFiles(
-			this.manifest.repoRoot,
+			this.manifest.workspaceRoot,
 			this.manifest.files.map(file => file.path),
 		)
 		this.manifest = {

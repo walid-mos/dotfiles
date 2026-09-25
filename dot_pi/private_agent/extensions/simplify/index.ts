@@ -1,23 +1,30 @@
 /**
- * /simplify - one command, one pipeline: a deterministic git scope, three
- * fresh-eyes lenses through the installed subagents package, a merge of what
- * they returned, an autonomous pass over the provable findings, a checkpoint
- * for the rest, and the repository's own gates after every edit.
+ * /simplify - deterministic scopes use the four-lens pipeline; Jev routes
+ * semantic targets to the parent agent to plan and execute each requested unit.
+ * The pipeline runs four fresh-eyes lenses through the installed subagents package,
+ * a merge of what they returned, an autonomous pass over provable Git-scoped
+ * findings, a checkpoint for the rest, and the project's gates after edits.
  *
- * This file is only the wiring: command registration, the preflight, the scope
- * call and the notices. The stages live in pipeline.ts; grammar in
- * command-args.ts; scope in git-scope.ts / git-files.ts / git-shell.ts; lens
+ * This file is only the wiring: command registration, the preflight, routing,
+ * scope call and notices. The stages live in pipeline.ts; grammar in
+ * command-args.ts, help in command-help.ts, semantic routing and handoff in
+ * target-routing.ts / target-message.ts; scope in git-scope.ts /
+ * git-files.ts / git-shell.ts; lens
  * contracts in lenses.ts; child results in capture.ts; merging in findings.ts;
  * gates in verify.ts; messages in apply.ts; the dialog in select-ui.ts.
  */
 
 import { createSubagentCapture } from './capture.ts'
-import { parseCommandArgs, USAGE } from './command-args.ts'
+import { parseCommandArgs } from './command-args.ts'
+import { USAGE } from './command-help.ts'
 import { collectScope } from './git-scope.ts'
 import { ScopeError } from './git-shell.ts'
+import { TargetResolutionError } from './git-snapshot.ts'
 import { errorMessage } from './json.ts'
 import { runPipeline } from './pipeline.ts'
 import { emptyScopeNotice, reportRun } from './report.ts'
+import { buildTargetMessage } from './target-message.ts'
+import { routeTarget } from './target-routing.ts'
 import { createTurnWatcher } from './turns.ts'
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
@@ -25,7 +32,7 @@ import type { RunDeps } from './run-deps.ts'
 import type { ScopeManifest, ScopeRequest } from './types.ts'
 
 const COMMAND_DESCRIPTION =
-	'Simplify the changed code: three lenses, evidence-backed fixes, verified'
+	'Simplify a natural target or Git changes with evidence-backed fixes'
 
 export default function simplify(pi: ExtensionAPI): void {
 	const capture = createSubagentCapture()
@@ -56,8 +63,23 @@ async function runSimplify(deps: RunDeps, rawArgs: string): Promise<void> {
 		ctx.ui.notify(refusal, 'warning')
 		return
 	}
+	const target = parsed.request.mode
+	if (
+		target.kind === 'target' &&
+		(await routeTarget(target.query)) === 'agent'
+	) {
+		handOffTarget(deps, rawArgs)
+		return
+	}
 	const collected = await collect(deps, parsed.request)
 	if (!collected.ok) {
+		if (
+			target.kind === 'target' &&
+			collected.error instanceof TargetResolutionError
+		) {
+			handOffTarget(deps, rawArgs)
+			return
+		}
 		ctx.ui.notify(collected.notice, collected.severity)
 		return
 	}
@@ -78,9 +100,18 @@ function preflight(deps: RunDeps): string | undefined {
 	return 'simplify needs the pi-subagents package: this session has no subagent tool.'
 }
 
+function handOffTarget(deps: RunDeps, rawArgs: string): void {
+	deps.pi.sendUserMessage(buildTargetMessage(rawArgs, deps.ctx.cwd))
+}
+
 type CollectResult =
 	| { ok: true; manifest: ScopeManifest }
-	| { ok: false; notice: string; severity: 'warning' | 'error' }
+	| {
+			ok: false
+			error: unknown
+			notice: string
+			severity: 'warning' | 'error'
+	  }
 
 async function collect(
 	deps: RunDeps,
@@ -91,6 +122,7 @@ async function collect(
 	} catch (error) {
 		return {
 			ok: false,
+			error,
 			notice: `simplify: ${errorMessage(error)}`,
 			severity: error instanceof ScopeError ? 'warning' : 'error',
 		}
