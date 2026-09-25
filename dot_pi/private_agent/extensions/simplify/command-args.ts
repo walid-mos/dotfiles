@@ -1,7 +1,4 @@
-/**
- * The /simplify argument grammar, as a pure parser: raw text in, a scope
- * request or a usage answer out. Nothing here reads the repository or the UI.
- */
+/** Pure /simplify argument grammar; no repository or UI reads. */
 
 import type { ScopeMode, ScopeRequest } from './types.ts'
 
@@ -9,21 +6,6 @@ export type CommandArgsOutcome =
 	| { kind: 'request'; request: ScopeRequest }
 	| { kind: 'help' }
 	| { kind: 'error'; message: string }
-
-export const USAGE = `/simplify [scope] [--focus <text>] [paths…]
-
-Analyse the changed code through three fresh-eyes lenses (reuse, quality,
-efficiency) and apply only evidence-backed simplifications.
-
-Scope - the default is the working tree against HEAD
-  --staged              staged changes only
-  --last, --previous    the last commit (HEAD~1..HEAD)
-  --ref <ref>           changes against <ref>
-  --snapshot <paths…>   whole files, no diff
-  --focus <text>        extra emphasis appended to every lens
-  --help                this text
-
-Paths narrow the scope to those files (every path for --snapshot).`
 
 const LAST_FLAGS = new Set(['--last', '--last-commit', '--previous', '--prev'])
 const VALUE_FLAGS = new Set(['--ref', '--focus'])
@@ -188,6 +170,7 @@ class ArgumentParser {
 		switch (name) {
 			case '--staged':
 				return this.setMode({ kind: 'staged' }, name)
+			case '--files':
 			case '--snapshot':
 				return this.snapshot(name)
 			case '--ref':
@@ -251,6 +234,17 @@ class ArgumentParser {
 	}
 
 	private request(): CommandArgsOutcome {
+		if (!this.isSnapshot && !this.mode && this.positionals.length)
+			return {
+				kind: 'request',
+				request: this.withFocus({
+					mode: {
+						kind: 'target',
+						query: this.positionals.join(' '),
+					},
+					paths: [],
+				}),
+			}
 		if (!this.isSnapshot)
 			return {
 				kind: 'request',
@@ -263,7 +257,7 @@ class ArgumentParser {
 		if (!paths.length)
 			return {
 				kind: 'error',
-				message: '--snapshot needs at least one path.',
+				message: `${this.modeFlag} needs at least one path.`,
 			}
 		return {
 			kind: 'request',
@@ -275,18 +269,16 @@ class ArgumentParser {
 	}
 
 	private withFocus(request: ScopeRequest): ScopeRequest {
-		if (!this.focus) return request
-		return { ...request, focus: this.focus }
+		const target =
+			request.mode.kind === 'target'
+				? `Target area: ${request.mode.query}`
+				: ''
+		const focus = [target, this.focus].filter(Boolean).join('. ')
+		if (!focus) return request
+		return { ...request, focus }
 	}
 }
 
 function unique(entries: readonly string[]): string[] {
-	const seen = new Set<string>()
-	const kept: string[] = []
-	for (const entry of entries) {
-		if (seen.has(entry)) continue
-		seen.add(entry)
-		kept.push(entry)
-	}
-	return kept
+	return [...new Set(entries)]
 }

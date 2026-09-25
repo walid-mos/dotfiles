@@ -1,0 +1,12 @@
+#!/bin/bash
+# herdr-pick — hotkey wrapper for herdr-jump: absolute paths, no shell env needed.
+# Optional stdin query prefills the picker (single match jumps without opening it).
+set -uo pipefail
+JUMP="$HOME/.pi/agent/bin/herdr-jump"
+[ -x "$JUMP" ] || JUMP="$(command -v herdr-jump || true)"
+[ -x "${JUMP:-}" ] || exit 1
+q="$(cat 2>/dev/null)"
+if [ -n "$q" ]; then
+  exec "$JUMP" "$q"
+fi
+exec "$JUMP"

@@ -8,11 +8,15 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
+import { loadConfig } from '../tool-scope/index.ts'
+import { resolvePlan } from '../tool-scope/policy.ts'
+
 import { childrenByKey, SUBAGENT_TOOL } from './capture.ts'
 import { mergeFindings, parseLensPayload } from './findings.ts'
 import { buildDispatchMessage, buildWorkflowScript, LENSES } from './lenses.ts'
 import { applyOutcome } from './pipeline-apply.ts'
 
+import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import type { CapturedChild, CaptureState } from './capture.ts'
 import type { LensResult } from './findings.ts'
 import type { RunTally } from './report.ts'
@@ -37,6 +41,32 @@ export async function runPipeline(
 	return await applyOutcome(deps, manifest, analysis.outcome)
 }
 
+/** Bring the deferred `subagent` schema back before the dispatch turn, so the
+ * dispatch message never has to ask the model to call `load_tools` first.
+ * Additive on the live set; refuses when the tool-scope plan does not merely
+ * defer the tool (explicit `off`, or not registered at all). Returns the
+ * refusal reason, or undefined when the tool is callable. */
+function ensureSubagentActive(
+	pi: ExtensionAPI,
+	cwd: string,
+): string | undefined {
+	const active = pi.getActiveTools()
+	if (active.includes(SUBAGENT_TOOL)) return undefined
+	const plan = resolvePlan(
+		loadConfig(),
+		cwd,
+		pi.getAllTools().map(tool => tool.name),
+	)
+	if (plan.deferred.includes(SUBAGENT_TOOL)) {
+		// Additive only: pi applies the change before the next request.
+		pi.setActiveTools([...new Set([...active, SUBAGENT_TOOL])])
+		return undefined
+	}
+	return plan.disabled.includes(SUBAGENT_TOOL)
+		? 'the tool-scope config disables the `subagent` tool in this project.'
+		: 'the `subagent` tool is not registered in this session.'
+}
+
 async function analyse(
 	deps: RunDeps,
 	manifest: ScopeManifest,
@@ -46,13 +76,14 @@ async function analyse(
 	try {
 		const scriptPath = await writeAnalysisFiles(directory, manifest, focus)
 		deps.capture.reset()
-		const needsToolActivation = !deps.pi
-			.getActiveTools()
-			.includes(SUBAGENT_TOOL)
+		const refusal = ensureSubagentActive(deps.pi, deps.ctx.cwd)
+		if (refusal)
+			return {
+				ok: false,
+				notice: `simplify: the lens analysis cannot run because ${refusal} Nothing was changed.`,
+			}
 		const settled = await deps.turns.run(() =>
-			deps.pi.sendUserMessage(
-				buildDispatchMessage(scriptPath, needsToolActivation),
-			),
+			deps.pi.sendUserMessage(buildDispatchMessage(scriptPath)),
 		)
 		await deps.ctx.waitForIdle()
 		if (settled === 'timeout')

@@ -53,8 +53,10 @@ import type { ScopePlan, ToolScopeConfig } from './policy.ts'
 const LOADER_NAME = 'load_tools'
 const CONFIG_FILE = 'tool-scope.json'
 
-/** The session's config; a missing or unreadable file means the defaults. */
-function loadConfig(): ToolScopeConfig {
+/** The session's config; a missing or unreadable file means the defaults.
+ * Exported so another extension resolves the same plan instead of re-reading
+ * the file under its own name. */
+export function loadConfig(): ToolScopeConfig {
 	try {
 		const raw: unknown = JSON.parse(
 			readFileSync(join(getAgentDir(), CONFIG_FILE), 'utf8'),

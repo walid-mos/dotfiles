@@ -95,7 +95,7 @@ function skippedNotice(input: ReportInput): Notice | undefined {
 function gateNotice(input: ReportInput): Notice | undefined {
 	if (input.gateCount) return undefined
 	return {
-		text: 'simplify: no verification gate was detected in this repository, so the edits were not proven by one.',
+		text: 'simplify: no project verification gate was detected, so the edits were not proven by one.',
 		severity: 'warning',
 	}
 }

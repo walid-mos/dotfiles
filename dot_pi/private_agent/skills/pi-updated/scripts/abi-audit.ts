@@ -2,7 +2,7 @@
  * Locates the installed pi bundle, greps the adapter sources for every reflected
  * runtime member, and checks each patched prototype method against the running
  * bundle. Run from ~/.pi/agent:
- *   node --experimental-transform-types skills/pi-renderer-update/scripts/abi-audit.ts
+ *   node --experimental-transform-types skills/pi-updated/scripts/abi-audit.ts
  * Keep COMPONENT_METHODS in sync with the *-surface.ts patch tables (see SKILL.md). */
 import { execFileSync } from 'node:child_process'
 import { readdirSync, readFileSync, realpathSync, existsSync } from 'node:fs'

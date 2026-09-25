@@ -4,7 +4,7 @@
   "VIEWPORT_WIDTH": 960,
   "VIEWPORT_HEIGHT": 720,
   "NAV_TIMEOUT_MS": 60000,
-  "AUTO_SHOT": true,
+  "AUTO_SHOT": false,
   "FULL_PAGE": false,
   "SHOT_FORMAT": "jpeg",
   "SHOT_QUALITY": 70,

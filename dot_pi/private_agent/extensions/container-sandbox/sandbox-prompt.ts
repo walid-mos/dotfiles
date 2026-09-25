@@ -67,7 +67,7 @@ function pageSummary(host: string, index: number | null): string {
 /** How the guest reaches the project's host-side services, by vehicle and gateway. */
 function hostServicesLine(facts: SandboxFacts): string {
 	if (facts.vehicle === 'devvm') {
-		return "The project's host-side services (database, Keycloak, MinIO) are relayed by wt onto this workspace's own localhost, so your own commands reach them at localhost:<port>; the namespace has no other egress, so anything wt does not relay is unreachable from here."
+		return "The project's host-side services (database, Keycloak, MinIO) are relayed by wt onto this workspace's own localhost, so your own commands reach them at localhost:<port>; other network traffic uses the namespace's default route."
 	}
 	if (facts.gateway) {
 		return `The project's host-side services (database, Keycloak, MinIO) are relayed by wt onto this VM's own localhost, so your own commands reach them at localhost:<port>; anything wt does not relay is reachable at ${facts.gateway}:<port>.`
@@ -85,10 +85,9 @@ export function sandboxPromptSection(facts: SandboxFacts): string {
 		!devvm && facts.ports.length > 0
 			? ` also on the host at ${facts.ports.join(', ')}`
 			: ''
-	// A namespace has no egress at all: the relays are the only path to the host's
-	// services, so naming a gateway there would send the model to an address that
-	// cannot answer. The tailnet serve path reaches a dev server through the
-	// workspace's veth, which is why the 0.0.0.0 rule survives the vehicle change.
+	// Host services keep their localhost relay contract while other traffic uses the
+	// namespace's forwarded default route. The tailnet serve path reaches a dev server
+	// through the workspace's veth, which is why the 0.0.0.0 rule survives the vehicle change.
 	const hostServices = hostServicesLine(facts)
 	const reach = devvm
 		? "A server the tailnet must reach through this namespace's veth has to listen on 0.0.0.0, not only loopback (nothing is published to the host from here). The workspace's environment is already published into your calls - its own tailnet name among it - so a dev server you start accepts the name the human opens."

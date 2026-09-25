@@ -41,6 +41,25 @@ export type LedgerItem = {
 	text: string
 }
 
+/** The request-level item is the final audit gate, not a second task list. */
+const REQUEST_ITEM_PATTERN =
+	/^Request [a-z0-9]+-\d+: complete this user task end-to-end \(see user prompt\)(?: - .*)?$/
+
+export function requestItem(id: string): string {
+	return `Request ${id}: complete this user task end-to-end (see user prompt)`
+}
+
+export function isRequestItem(text: string): boolean {
+	return REQUEST_ITEM_PATTERN.test(text)
+}
+
+export function canCloseRequest(status: LedgerStatus): boolean {
+	return (
+		status.items.some(entry => !isRequestItem(entry.text)) &&
+		status.items.every(entry => entry.done || isRequestItem(entry.text))
+	)
+}
+
 /**
  * How long a ledger file stays on disk. One file is written per session that
  * declares work, so without a window this directory grows forever; two weeks are
@@ -50,6 +69,7 @@ export type LedgerItem = {
 export const LEDGER_RETENTION_DAYS = 14
 
 const MILLISECONDS_PER_DAY = 86_400_000
+export const LEDGER_RETENTION_MS = LEDGER_RETENTION_DAYS * MILLISECONDS_PER_DAY
 
 /** One ledger file on disk, as retention sees it. */
 export type LedgerFile = {
@@ -153,7 +173,7 @@ export function expiredLedgers(
 	now: number,
 	keepName: string,
 ): string[] {
-	const cutoff = now - LEDGER_RETENTION_DAYS * MILLISECONDS_PER_DAY
+	const cutoff = now - LEDGER_RETENTION_MS
 	return entries
 		.filter(
 			entry =>

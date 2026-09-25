@@ -5,6 +5,7 @@
  */
 
 import { isRecord } from './json.ts'
+import { isStructuredRecoveryKey } from './lenses.ts'
 
 import type { ToolExecutionEndEvent } from '@earendil-works/pi-coding-agent'
 import type { Lens } from './types.ts'
@@ -113,10 +114,12 @@ export function childrenByKey(
 ): Map<Lens, CapturedChild | undefined> {
 	const byKey = new Map<Lens, CapturedChild | undefined>()
 	keys.forEach((key, index) => {
-		const matched =
-			state.children.find(child => child.workflowKey === key) ??
-			state.children[index]
-		byKey.set(key, matched)
+		const matching = state.children.filter(
+			child =>
+				child.workflowKey === key ||
+				isStructuredRecoveryKey(key, child.workflowKey),
+		)
+		byKey.set(key, matching.at(-1) ?? state.children[index])
 	})
 	return byKey
 }

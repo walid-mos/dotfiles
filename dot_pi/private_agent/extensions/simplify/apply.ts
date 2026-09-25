@@ -37,7 +37,7 @@ export function buildApplyMessage(input: ApplyInput): string {
 	return lines([
 		`## /simplify - apply ${input.findings.length} finding(s)`,
 		'',
-		`Scope: ${input.manifest.label} in ${input.manifest.repoRoot}`,
+		`Scope: ${input.manifest.label} in ${input.manifest.workspaceRoot}`,
 		`Files involved: ${files.join(', ')}`,
 		'',
 		'### Findings',
@@ -47,8 +47,9 @@ export function buildApplyMessage(input: ApplyInput): string {
 		'',
 		'- Behaviour preservation is absolute: no change to outputs, return values, error behaviour, ordering, side effects or resource ownership.',
 		'- The line numbers above are hints. Locate each finding by the quoted evidence and the current file contents. If the evidence is no longer there, skip that finding and say so - never guess at what it meant.',
-		'- Touch only the files listed above. Do not reformat, do not fix anything not listed, do not add tests, comments or abstractions, and do not commit or stage anything.',
-		'- Follow the repository conventions the code already shows. If a finding contradicts a project rule or a loaded skill, skip it and report the conflict.',
+		'- Touch only the files listed above. Do not reformat, do not fix anything not listed, and do not add tests, comments or abstractions.',
+		versionControlContract(input.manifest),
+		'- Follow the project conventions the code already shows. If a finding contradicts a project rule or a loaded skill, skip it and report the conflict.',
 		'',
 		'### Verification',
 		'',
@@ -58,9 +59,25 @@ export function buildApplyMessage(input: ApplyInput): string {
 		'',
 		'- One line per finding: `applied` or `skipped: <reason>`.',
 		'- The exact commands you ran and their results, in order.',
-		'- The output of `git diff --stat` for the files above.',
-		`- The revert command for these files: \`git -C ${input.manifest.repoRoot} restore -- ${files.join(' ')}\`.`,
+		...changeReport(input.manifest, files),
 	])
+}
+
+function versionControlContract(manifest: ScopeManifest): string {
+	if (manifest.source === 'git') return '- Do not commit or stage anything.'
+	return '- This is a direct-file scope. Do not run version-control commands.'
+}
+
+function changeReport(
+	manifest: ScopeManifest,
+	files: readonly string[],
+): string[] {
+	if (manifest.source === 'files')
+		return ['- The files you changed, or `none`.']
+	return [
+		'- The output of `git diff --stat` for the files above.',
+		`- The revert command for these files: \`git -C ${manifest.workspaceRoot} restore -- ${files.join(' ')}\`.`,
+	]
 }
 
 function findingBlock(finding: MergedFinding): string[] {
@@ -83,12 +100,12 @@ function verificationBlock(input: ApplyInput): string[] {
 	const block: string[] = []
 	if (!input.gates.length) {
 		block.push(
-			'No gate was detected in this repository. Run the checks this project actually has, or state plainly that none could be run.',
+			'No project gate was detected. Run the checks this project actually has, or state plainly that none could be run.',
 		)
 		return block
 	}
 	block.push(
-		`Run these from ${input.manifest.repoRoot} with your own shell tool, in this order, and report each command with its result:`,
+		`Run these from ${input.manifest.workspaceRoot} with your own shell tool, in this order, and report each command with its result:`,
 	)
 	for (const gate of cheap)
 		block.push(`- \`${gate.command}\` (${gate.label})`)
@@ -96,10 +113,14 @@ function verificationBlock(input: ApplyInput): string[] {
 		block.push(
 			`Ask the user before running \`${gate.command}\` (${gate.label}): it is a long suite. If they decline, say it was left unrun.`,
 		)
-	block.push(
-		'If a gate fails, fix only what these edits broke. If it is not yours to fix, revert that one finding and report it - do not paper over a failure.',
-	)
+	block.push(gateFailureContract(input.manifest))
 	return block
+}
+
+function gateFailureContract(manifest: ScopeManifest): string {
+	if (manifest.source === 'git')
+		return 'If a gate fails, fix only what these edits broke. If it is not yours to fix, revert that one finding and report it - do not paper over a failure.'
+	return 'If a gate fails, fix only what these edits broke. Otherwise reverse that finding from the before/after change you just made and report it - there is no Git baseline to restore from.'
 }
 
 function lines(entries: readonly string[]): string {

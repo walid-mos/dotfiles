@@ -1,3 +1,4 @@
 {
-	"handoffTokens": 192000
+	"ceilingTokens": 160000,
+	"summaryModel": "deepseek/deepseek-v4-flash"
 }

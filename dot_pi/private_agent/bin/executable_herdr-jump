@@ -1,0 +1,94 @@
+#!/bin/bash
+# herdr-jump — pick a running agent pane by project/branch and focus it.
+#
+# Usage:
+#   herdr-jump              interactive picker (fzf)
+#   herdr-jump <query>      filter first; direct jump on a single match,
+#                           interactive picker (prefilled) otherwise
+#   herdr-jump --print ...  same selection logic, prints the pane id instead of focusing
+#
+# Rows: <number>  <project[/branch]>  <state>  <name>
+# Label comes from the pane cwd: worktree paths collapse to <repo>/<branch>,
+# other paths to their directory name. Duplicate labels get a pane suffix.
+# Source of truth: `herdr agent list` (live state, no session files).
+set -euo pipefail
+
+MODE=focus
+if [ "${1:-}" = "--print" ] || [ "${1:-}" = "-p" ]; then
+  MODE=print
+  shift
+fi
+QUERY="${1:-}"
+HERDR="${HERDR_BIN_PATH:-herdr}"
+
+if ! command -v fzf >/dev/null 2>&1; then
+  echo "herdr-jump: fzf not found" >&2
+  exit 1
+fi
+
+json="$("$HERDR" agent list 2>/dev/null || true)"
+if [ -z "$json" ]; then
+  echo "herdr-jump: no herdr session reachable" >&2
+  exit 1
+fi
+
+rows="$(printf '%s\n' "$json" | jq -r '
+  [ .result.agents | to_entries[]
+    | { n: ((.key + 1) | tostring),
+        l: ((.value.cwd // "") | (if contains("/worktrees/")
+              then split("/worktrees/")[1]
+              else split("/")[-1] end)),
+        s: (.value.agent_status // "unknown"),
+        a: (.value.name // ""),
+        p: (.value.pane_id // "") } ]
+  | (group_by(.l) | map({(.[0].l): (length > 1)}) | add // {}) as $dup
+  | .[]
+  | [ .n,
+      (.l + (if $dup[.l] then " · " + (.p | split(":")[-1]) else "" end)),
+      .s, .a, .p ]
+  | @tsv')"
+
+if [ -z "$rows" ]; then
+  echo "herdr-jump: no running agents" >&2
+  exit 1
+fi
+
+interactive_pick() {
+  local prefill="${1:-}"
+  # No TTY (hotkey daemons, pipes): interactive mode is impossible.
+  if [ ! -t 0 ]; then
+    return 1
+  fi
+  local args=(--delimiter='\t' --with-nth=1,2,3,4 --tiebreak=length
+              --height=60% --reverse --border
+              --header='num · project/branch · state · name'
+              --preview="$HERDR agent read {5} 2>/dev/null | tail -25"
+              --preview-window=right:55%:wrap)
+  if [ -n "$prefill" ]; then
+    args+=(--query="$prefill")
+  fi
+  printf '%s\n' "$rows" | fzf "${args[@]}"
+}
+
+target=""
+if [ -n "$QUERY" ]; then
+  matches="$(printf '%s\n' "$rows" \
+    | fzf --filter="$QUERY" --delimiter='\t' --with-nth=1,2,3,4 --tiebreak=length)" || matches=""
+  count="$(printf '%s\n' "$matches" | grep -c . || true)"
+  if [ "$count" -eq 1 ]; then
+    target="$(printf '%s\n' "$matches" | head -1 | cut -f5)"
+  else
+    target="$(interactive_pick "$QUERY" || true)"
+  fi
+else
+  target="$(interactive_pick || true)"
+fi
+
+[ -n "$target" ] || exit 130
+
+if [ "$MODE" = "print" ]; then
+  printf '%s\n' "$target"
+  exit 0
+fi
+
+"$HERDR" agent focus "$target"

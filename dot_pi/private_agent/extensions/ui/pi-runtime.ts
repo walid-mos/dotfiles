@@ -6,8 +6,8 @@ import { pathToFileURL } from 'node:url'
 import { reflectMember } from './pi-members.ts'
 
 /** Pi release the display adapters were last audited against (DESIGN.md §10);
- * bumped by the pi-renderer-update skill, never silently. */
-export const AUDITED_PI_VERSION = '0.86.1'
+ * bumped by the pi-updated skill, never silently. */
+export const AUDITED_PI_VERSION = '0.87.1'
 const PACKAGE_NAME = '@earendil-works/pi-coding-agent'
 const BUNDLE_ENTRY = 'dist/bundle/index.js'
 

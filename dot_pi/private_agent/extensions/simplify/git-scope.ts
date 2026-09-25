@@ -12,6 +12,7 @@ import {
 	selectFiles,
 } from './git-selection.ts'
 import { ScopeError } from './git-shell.ts'
+import { resolveWorkspaceRoot } from './git-snapshot.ts'
 
 import type { InspectedFile, ScopeSelection } from './git-files.ts'
 import type {
@@ -28,32 +29,46 @@ export async function collectScope(
 	cwd: string,
 	request: ScopeRequest,
 ): Promise<ScopeManifest> {
-	const repoRoot = await resolveRepoRoot(cwd)
-	await assertNoConflicts(repoRoot)
+	const source =
+		request.mode.kind === 'snapshot' || request.mode.kind === 'target'
+			? 'files'
+			: 'git'
+	const workspaceRoot =
+		source === 'files'
+			? await resolveWorkspaceRoot(cwd)
+			: await resolveRepoRoot(cwd)
+	if (source === 'git') await assertNoConflicts(workspaceRoot)
 	const selection = await selectFiles(
-		repoRoot,
+		workspaceRoot,
 		request.mode,
 		request.paths,
 		cwd,
 	)
 	const candidates = [...selection.changed.keys()].toSorted()
 	assertFileCount(candidates)
-	const inspection = await inspectFiles(repoRoot, candidates, selection)
+	const inspection = await inspectFiles(workspaceRoot, candidates, selection)
 	assertRangeCount(inspection.files)
-	return await assembleManifest(repoRoot, selection, inspection.files, [
-		...selection.dropped,
-		...inspection.skipped,
-	])
+	return await assembleManifest({
+		workspaceRoot,
+		source,
+		selection,
+		inspected: inspection.files,
+		skipped: [...selection.dropped, ...inspection.skipped],
+	})
 }
 
-async function assembleManifest(
-	repoRoot: string,
-	selection: ScopeSelection,
-	inspected: readonly InspectedFile[],
-	skipped: readonly SkippedFile[],
-): Promise<ScopeManifest> {
+interface ManifestInput {
+	workspaceRoot: string
+	source: ScopeManifest['source']
+	selection: ScopeSelection
+	inspected: readonly InspectedFile[]
+	skipped: readonly SkippedFile[]
+}
+
+async function assembleManifest(input: ManifestInput): Promise<ScopeManifest> {
+	const { workspaceRoot, source, selection, inspected, skipped } = input
 	const hashes = await hashFiles(
-		repoRoot,
+		workspaceRoot,
 		inspected.map(file => file.path),
 	)
 	const files: ScopeFile[] = inspected.map((file, index) => ({
@@ -64,12 +79,13 @@ async function assembleManifest(
 		hash: hashes[index] ?? 'missing',
 	}))
 	const manifest: ScopeManifest = {
-		repoRoot,
+		workspaceRoot,
+		source,
 		label: selection.label,
 		files,
 		skipped: [...skipped],
 	}
-	const diffCommand = diffCommandFor(repoRoot, selection.diffArgs)
+	const diffCommand = diffCommandFor(workspaceRoot, selection.diffArgs)
 	if (diffCommand) manifest.diffCommand = diffCommand
 	return manifest
 }

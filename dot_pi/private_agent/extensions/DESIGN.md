@@ -3,7 +3,7 @@
 Single source of truth for restyling pi's TUI. Read this before migrating ANY render surface
 (tool rows, chrome, transcript surfaces) to the house design system.
 
-- Verified against installed `@earendil-works/pi-coding-agent@0.86.1` + `@earendil-works/pi-tui@0.86.1` dist sources.
+- Verified against installed `@earendil-works/pi-coding-agent@0.87.1` + `@earendil-works/pi-tui@0.87.1` dist sources.
 - Re-diff this matrix after every pi upgrade; glyph/format details can shift between versions.
 - Ownership rules live in `~/.pi/agent/ARCHITECTURE.md`. This file tracks *what renders*, not *who owns which module*.
 
@@ -301,9 +301,13 @@ There is no hard pin. `ui/pi-runtime.ts` exports `AUDITED_PI_VERSION` (the relea
 were last audited against) and `detectPiDrift`; the renderers extension mounts a warning widget
 (`ui/renderer-drift.ts`) on drift and installs anyway — a broken adapter still surfaces its own
 "missing; re-audit" error at install or render time. After upgrading pi, run the
-`pi-renderer-update` skill: it executes `skills/pi-renderer-update/scripts/abi-audit.ts`
-(class-level ABI: runtime exports + patched prototype methods against the running bundle),
-then `rg` the new `dist/core/tools/renderers/*.js`, `dist/modes/interactive/components/*.js`, and
+`pi-updated` skill: its changelog-diff script prints the installed CHANGELOG.md sections between the
+audited and installed versions (read every Breaking Changes entry against the surfaces the
+extensions use); `skills/pi-updated/scripts/extension-audit.ts` verifies every `pi.on` event,
+registration call and `ctx.ui` call under `extensions/` against the installed
+`ExtensionAPI`/`ExtensionUIContext` declarations; `skills/pi-updated/scripts/abi-audit.ts` checks
+class-level ABI (runtime exports + patched prototype methods against the running bundle). Then
+`rg` the new `dist/core/tools/renderers/*.js`, `dist/modes/interactive/components/*.js`, and
 `@earendil-works/pi-tui/dist/components/markdown.js` for glyph/format/token drift (line counts,
 strings, token names), fix the adapters, and bump `AUDITED_PI_VERSION` plus this file before
 continuing migration. The script cannot see instance-level fields (`host.text`, `contentContainer`,
@@ -314,3 +318,14 @@ from its OSC with a style reset: Pi 0.85.1 otherwise mismeasures and can truncat
 Mutation rendering also relies on the public numbered-diff format and on execution-end extension
 handlers preceding the TUI's result update. Re-check `createResultRegion` when upgrading: Pi wraps
 renderer content in its own click-to-toggle region, which expanded mutation code must bypass.
+
+Drift record 0.86.1 → 0.87.1 (2026-09-23, `pi-updated`): class-level ABI intact, no adapter
+changes. pi-tui's `↑ N more` scroll-end indicator now centers on the full editor width and truncates
+before the scrollbar column (`tui-alt-screen.js`) — the prompt's activity block keeps its
+right-aligned reserve; recheck overlap on a narrow viewport in the next §5/§9 pass. 0.87.1 adds
+`custom_message` replay and a compaction-boundary chat rebuild (`interactive-mode.js`); the rebuild
+still adds the same `CompactionSummaryMessageComponent`, so `compaction-surface.ts` is unaffected,
+and custom message cards remain on the §4 open list. Image `resizeOptions` plumbing
+(`core/tools/read.js`, `utils/tool-result-images.js`) only feeds provider-side input limits, not the
+display pipeline. No glyph/format drift in `dist/core/tools/renderers/`, the patched message
+components, or `pi-tui/dist/components/markdown.js`.

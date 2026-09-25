@@ -1,9 +1,8 @@
 // wt CLI boundary. This extension never creates, names or removes containers:
 // the wt workspace registry owns that identity, and wt owns creation, repair
 // and teardown - including the shared dev VM a devvm workspace lives on. Everything
-// here is read-only except `wt sync`, which asks wt to reconcile the workspace:
-// start or rebuild its container, or re-run the idempotent devvm add. Nothing
-// parses the registry file directly.
+// here is read-only: list, probe and the failure reader the sync boundary
+// (sync.ts, the one write verb) reuses. Nothing parses the registry file directly.
 import { execFile } from 'node:child_process'
 import { realpathSync } from 'node:fs'
 import { promisify } from 'node:util'
@@ -23,6 +22,8 @@ export interface SandboxWorkspace {
 	/** Canonical checkout path, exactly as the registry records it. */
 	path: string
 	branch: string
+	/** The source repo the checkout belongs to; empty when wt named none. */
+	repo: string
 	containerName: string
 	/** How wt provisioned this workspace; decides how the exec boundary reaches it. */
 	vehicle: Vehicle
@@ -54,7 +55,7 @@ function describe(error: unknown): string {
 	return error instanceof Error ? error.message : String(error)
 }
 
-function stringField(source: object, key: string): string | null {
+export function stringField(source: object, key: string): string | null {
 	const fieldValue: unknown = Reflect.get(source, key)
 	if (typeof fieldValue !== 'string') return null
 	return fieldValue
@@ -140,6 +141,8 @@ function workspaceFromRow(row: object, path: string): SandboxWorkspace {
 	return {
 		path,
 		branch: stringField(row, 'branch') ?? '',
+		/** The source repo the checkout belongs to, where .pi/container.json lives. */
+		repo: stringField(row, 'repo') ?? '',
 		containerName: stringField(row, 'container_name') ?? '',
 		vehicle,
 		// A devvm workspace has no container state machine to read, and nothing it
@@ -176,25 +179,13 @@ function canonicalCwd(cwd: string): string {
 	}
 }
 
-async function wtJson(args: string[], cwd: string): Promise<unknown> {
+export async function wtJson(args: string[], cwd: string): Promise<unknown> {
 	const { stdout } = await execFileAsync('wt', args, {
 		cwd,
 		timeout: COMMAND_TIMEOUT_MS,
 		maxBuffer: MAX_OUTPUT_BYTES,
 	})
 	return JSON.parse(stdout)
-}
-
-/** What `wt sync` reported, mapped to a human reason; null when the container runs. */
-function syncOutcome(payload: unknown): string | null {
-	if (typeof payload !== 'object' || payload === null)
-		return 'wt sync returned an unexpected reply'
-	const report: unknown = Reflect.get(payload, 'sync')
-	if (typeof report !== 'object' || report === null)
-		return 'wt sync returned no sync report'
-	const state = stringField(report, 'container')
-	if (state === 'running') return null
-	return `wt sync left the container ${state ?? 'in an unknown state'}`
 }
 
 /**
@@ -245,7 +236,7 @@ function plainTail(output: string): string | null {
  * Envelopes are read across both streams before any tail: the structured message
  * names the failure, where the tail may only be the last line of a chatty log.
  */
-function failureReason(error: unknown): string {
+export function failureReason(error: unknown): string {
 	if (typeof error !== 'object' || error === null) return describe(error)
 	const outputs = [
 		stringField(error, 'stdout'),
@@ -291,30 +282,5 @@ export async function probeWorkspace(cwd: string): Promise<WorkspaceProbe> {
 			}
 		default:
 			return { lookup, reason: '' }
-	}
-}
-
-/** Start or rebuild the row's container. Returns null on success. */
-export async function ensureContainerRunning(
-	workspace: SandboxWorkspace,
-): Promise<string | null> {
-	if (workspace.containerState === 'running') return null
-	return syncWorkspace(workspace.path)
-}
-
-/**
- * Reconcile a devvm workspace: the idempotent `wt devvm add` behind `wt sync`
- * ensures the VM, the namespace and the relays. There is no state to consult -
- * the add is the state machine.
- */
-export async function ensureDevvmRunning(path: string): Promise<string | null> {
-	return syncWorkspace(path)
-}
-
-async function syncWorkspace(path: string): Promise<string | null> {
-	try {
-		return syncOutcome(await wtJson(['sync', path, '--json'], path))
-	} catch (error) {
-		return `wt sync failed: ${failureReason(error)}`
 	}
 }

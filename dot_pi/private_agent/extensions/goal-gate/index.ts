@@ -10,33 +10,37 @@
  * deliverables in a per-session checklist, and a run that settles with items
  * still open is continued automatically, bounded, until they are closed.
  *
- * The checklist is written through the `goal` tool (`tool.ts`) rather than by
- * hand-editing the file: declaring, ticking and blocking each ride a turn the
- * model is already running, so the bookkeeping costs no extra request and the
- * ledger's format has one owner. The policy that asks for it lives in
- * AGENTS.md (# Task completion) and in the tool's own description, which is
- * re-sent on every turn - there is no third copy injected into the prompt.
+ * The goal tool owns checklist edits. Prompt routing distinguishes answer
+ * from work and seeds a request item; after discovery the ledger proposes a
+ * scope and Jev reviews the deliverables before delegation. Both decisions
+ * are logged without storing the raw human prompt.
  *
  * A run that stops blocked - or that ignores the whole continuation budget -
- * has still asked the human nothing, and both settle exactly like a finished
- * run. The gate answers that with one escalation: a follow-up whose only demand
- * is the blocking question, raised with `ask_user_question`. That tool's prompt
- * is what marks the pane blocked and tells the human, in one glance, that the
- * work is unfinished and what to answer.
+ * may still have asked the human nothing. The gate answers that with one
+ * escalation whose only demand is the blocking question. A questionnaire
+ * raised after the latest blocker closes that cycle directly; it must not be
+ * followed by another run asking the same question.
+ *
+ * An explicit abort always wins: when Escape ends a run, the gate leaves the
+ * checklist open without injecting another continuation. The next interactive
+ * prompt re-arms the normal continuation cycle.
  *
  * The settle boundary is shared: `context-budget` claims it through
- * `extensions/settle-handshake/` while a handoff cycle is live (the handoff
- * replaces the conversation and carries the goal state, so it must go first).
- * The gate evaluates the ledger before any of that machinery: a completed
+ * `extensions/settle-handshake/` while threshold or recovery compaction is
+ * live. The gate evaluates the ledger before that machinery: a completed
  * checklist ends the session - no continuation, and context-budget (which
- * runs the same ledger check before it requests, re-asks or compacts) stands
- * down with it. Only with work still open does the claim defer this gate's
+ * runs the same ledger check before compacting) stands down with it. Only
+ * with work still open does the claim defer this gate's
  * continuation, without spending its attempt budget; the next settle after
  * the compaction continues the checklist as usual.
  *
  * Modules:
  *   ledger.ts       - path, item syntax, open items (pure)
- *   ledger-edits.ts - declare, tick, block: what each `goal` call produces (pure)
+ *   ledger-edits.ts - declare, tick, dismiss, block: pure checklist edits
+ *   ledger-store.ts - filesystem access and retention
+ *   routing.ts      - two Jev questions and conservative decisions
+ *   task-routing.ts - human-prompt hook and post-declaration review
+ *   routing-log.ts  - per-session decision evidence and retention
  *   tool.ts         - the `goal` tool: schema, wording, dispatch
  *   directive.ts    - the continuation and escalation texts (pure)
  *   gate.ts         - the settle state machine (pure, injected probe)
@@ -47,33 +51,26 @@
  *   /goal-clear           - drop it and stand the gate down
  */
 
-import {
-	mkdirSync,
-	readFileSync,
-	readdirSync,
-	rmSync,
-	statSync,
-	writeFileSync,
-} from 'node:fs'
-import { basename, join } from 'node:path'
+import { rmSync } from 'node:fs'
 
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
 import { QUESTIONNAIRE_MODE_EVENT } from '../ask-user-question/questionnaire-events.ts'
-import { isHandoffCycleActive } from '../settle-handshake/handshake.ts'
+import { isSettleClaimActive } from '../settle-handshake/handshake.ts'
 
+import { AgentAbortPause, watchAgentAborts } from './agent-abort-pause.ts'
 import { askText, continueText } from './directive.ts'
 import { GoalGate } from './gate.ts'
 import { inheritedLedger } from './inherit.ts'
 import {
-	expiredLedgers,
-	goalsDir,
-	ledgerPath,
-	ledgerStatus,
-	renderLedger,
-	splitItems,
-} from './ledger.ts'
+	ensureGoalsDir,
+	pruneLedgers,
+	readLedger,
+	writeLedger,
+} from './ledger-store.ts'
+import { ledgerPath, ledgerStatus, renderLedger, splitItems } from './ledger.ts'
 import { QuestionDiscussionPause } from './question-discussion-pause.ts'
+import { watchTaskRouting } from './task-routing.ts'
 import { registerGoalTool } from './tool.ts'
 
 import type {
@@ -81,43 +78,32 @@ import type {
 	ExtensionCommandContext,
 	ExtensionContext,
 } from '@earendil-works/pi-coding-agent'
-import type { LedgerFile } from './ledger.ts'
-
-/** Sentinel for a file that vanished between `readdir` and `stat`. */
-const MISSING_MODIFICATION_TIME = 0
 
 export default function goalGate(pi: ExtensionAPI): void {
+	// Delegated Pi runs report into their parent's ledger; they never own one.
+	if (process.env.PI_SUBAGENT_CHILD === '1') return
+	const abortPause = new AgentAbortPause()
 	const gate = new GoalGate({ agentDir: getAgentDir(), read: readLedger })
 	const questionDiscussion = new QuestionDiscussionPause()
 	pi.events.on(QUESTIONNAIRE_MODE_EVENT, mode =>
 		questionDiscussion.update(mode),
 	)
+	watchAgentAborts(pi, abortPause)
 	watchSessions(pi, gate, questionDiscussion)
-	watchSettle(pi, gate, questionDiscussion)
+	const router = watchTaskRouting(pi, gate, {
+		read: readLedger,
+		write: writeLedger,
+	})
+	watchSettle(pi, gate, questionDiscussion, abortPause)
 	registerGoalTool(pi, {
 		path: () => gate.ledgerFile,
 		read: readLedger,
 		write: writeLedger,
 		reopen: () => gate.noteNewWork(),
+		block: () => questionDiscussion.noteBlock(),
+		review: router.reviewDeclared,
 	})
 	registerGoalCommands(pi, gate)
-}
-
-/** Ledger text at `path`, or undefined when there is nothing readable there. */
-function readLedger(path: string): string | undefined {
-	try {
-		const text = readFileSync(path, 'utf8')
-		if (!text.trim()) return undefined
-		return text
-	} catch {
-		return undefined
-	}
-}
-
-/** Write ledger text, creating the goals directory the first time. */
-function writeLedger(path: string, text: string): void {
-	mkdirSync(goalsDir(getAgentDir()), { recursive: true })
-	writeFileSync(path, text)
 }
 
 /**
@@ -163,7 +149,9 @@ function watchSessions(
 		}
 	})
 	pi.on('input', event => {
-		if (event.source === 'interactive') gate.noteHumanPrompt()
+		if (event.source !== 'interactive') return
+		gate.noteHumanPrompt()
+		questionDiscussion.noteHumanPrompt()
 	})
 	// A live prompt means a human is answering right now: whatever budget the
 	// previous cycle spent, the situation has changed - the answered question is
@@ -171,54 +159,6 @@ function watchSessions(
 	pi.on('ui_prompt_start', (_event, ctx) => {
 		if (ctx.mode === 'tui') gate.noteHumanPrompt()
 	})
-}
-
-/** Best effort: an unwritable directory must not take the session down. */
-function ensureGoalsDir(): void {
-	try {
-		mkdirSync(goalsDir(getAgentDir()), { recursive: true })
-	} catch {
-		// Reading a ledger that cannot exist is already handled: the gate idles.
-	}
-}
-
-/** Drop the ledgers past the retention window, never this session's own. */
-function pruneLedgers(activePath: string): void {
-	const dir = goalsDir(getAgentDir())
-	const expired = expiredLedgers(
-		ledgerFiles(dir),
-		Date.now(),
-		basename(activePath),
-	)
-	for (const name of expired) {
-		rmSync(join(dir, name), { force: true })
-	}
-}
-
-/** Every file in the goals directory with its modification time. */
-function ledgerFiles(dir: string): LedgerFile[] {
-	let names: string[]
-	try {
-		names = readdirSync(dir)
-	} catch {
-		// No directory yet: there is nothing to prune.
-		return []
-	}
-	const entries: LedgerFile[] = []
-	for (const name of names) {
-		const modifiedAt = modifiedTime(join(dir, name))
-		if (modifiedAt) entries.push({ name, modifiedAt })
-	}
-	return entries
-}
-
-/** Modification time in milliseconds, or 0 when the file vanished or is unreadable. */
-function modifiedTime(path: string): number {
-	try {
-		return statSync(path).mtimeMs
-	} catch {
-		return MISSING_MODIFICATION_TIME
-	}
 }
 
 /**
@@ -229,24 +169,27 @@ function modifiedTime(path: string): number {
  *
  * `isIdle()` alone arbitrates nothing between extensions queued from the same
  * dispatch: a message's run starts asynchronously, so every handler still sees
- * an idle agent. The handshake does - a live context-budget handoff cycle owns
- * this boundary, and a continuation queued under it would race the compaction
- * that replaces the conversation (observed 2026-09-19: interleaved re-asks,
- * continuations and compactions burned both budgets into an error storm). The
- * handoff carries the goal state, so deferring loses nothing: `settled()` is
- * not called, the attempt budget is untouched, and the next settle continues
- * the checklist as usual.
+ * an idle agent. The handshake does - a live context-budget compaction owns
+ * this boundary, and a continuation queued under it would race context
+ * replacement (observed 2026-09-19: interleaved continuations and compactions
+ * burned both budgets into an error storm). The checkpoint carries the goal
+ * state, so deferring loses nothing: `settled()` is not called, the attempt
+ * budget is untouched, and the next settle continues the checklist as usual.
  */
 function watchSettle(
 	pi: ExtensionAPI,
 	gate: GoalGate,
 	questionDiscussion: QuestionDiscussionPause,
+	abortPause: AgentAbortPause,
 ): void {
 	pi.on('agent_settled', (_event, ctx) => {
 		// A delegated or scripted run has no one to continue it, and hijacking
 		// one would break its caller.
 		if (ctx.mode !== 'tui') return
 		if (!ctx.isIdle()) return
+		// Escape is an explicit command to stop. Keep the ledger open, but do not
+		// turn that same cancellation into another run for the user to abort.
+		if (abortPause.pending) return
 		// The goal is evaluated before everything else at this boundary - a
 		// completed checklist ends the session: no continuation, and
 		// context-budget (which runs the same ledger check before it requests,
@@ -261,14 +204,22 @@ function watchSettle(
 			return
 		}
 		if (questionDiscussion.pending) return
-		if (isHandoffCycleActive()) {
+		if (isSettleClaimActive()) {
 			ctx.ui.notify(
-				'Context handoff in progress - the goal continuation waits until it is done.',
+				'Context compaction in progress - the goal continuation waits until it is done.',
 				'info',
 			)
 			return
 		}
-		perform(pi, ctx, gate.settled())
+		perform(
+			pi,
+			ctx,
+			gate.settled(
+				questionDiscussion.blockingQuestionRaised
+					? 'raised'
+					: 'unraised',
+			),
+		)
 	})
 }
 
