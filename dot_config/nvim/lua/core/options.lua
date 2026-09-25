@@ -10,8 +10,8 @@ vim.g.loaded_netrwPlugin = 1
 -- herdr and applied on the machine running the client, so yanks reach the
 -- MacBook when attached with `herdr --remote` to the Studio. Outside herdr,
 -- the default native providers (pbcopy) are used.
--- Note: OSC 52 paste is a clipboard *query*, gated by most terminals —
--- use terminal paste (Cmd+V) instead of "+p in panes.
+-- OSC 52 clipboard reads can time out in herdr. Keep plain y/p on Neovim's
+-- registers there; use "+y to copy to the client and Cmd+V to paste from it.
 if vim.env.HERDR_ENV then
 	vim.g.clipboard = {
 		name = "OSC 52",
@@ -25,7 +25,7 @@ if vim.env.HERDR_ENV then
 		},
 	}
 end
-vim.opt.clipboard = "unnamedplus"
+vim.opt.clipboard = vim.env.HERDR_ENV and "" or "unnamedplus"
 
 vim.opt.number = true
 vim.opt.relativenumber = true
