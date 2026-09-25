@@ -1,0 +1,7 @@
+#!/bin/sh
+# Forward `open` to the MacBook when running over SSH; local open otherwise.
+if [ -n "$SSH_CONNECTION" ]; then
+  args=$(printf ' %q' "$@")
+  exec ssh macbook-pro "exec open$args"
+fi
+exec /usr/bin/open "$@"

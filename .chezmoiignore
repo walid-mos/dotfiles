@@ -3,10 +3,10 @@
 .pi/agent/sessions
 .pi/agent/models-store.json
 # herdr bin scripts are synced (herdr-jump picker + herdr-pick hotkey wrapper)
-# pi bin shims: arm64 binaries and generated/machine-local shims stay out
+# pi bin shims: arm64 binaries and generated shims stay out; open is synced
+# (machine-forwarding wrapper, small and reviewed)
 .pi/agent/bin/fd
 .pi/agent/bin/rg
-.pi/agent/bin/open
 .pi/agent/bin/syneva
 # only the installed tree is volatile - pi's pnpm-workspace.yaml there is
 # managed, the extension layout depends on it
