@@ -2,7 +2,7 @@
 .pi/agent/auth.json
 .pi/agent/sessions
 .pi/agent/models-store.json
-.pi/agent/bin
+# herdr bin scripts are synced (herdr-jump picker + herdr-pick hotkey wrapper)
 # only the installed tree is volatile - pi's pnpm-workspace.yaml there is
 # managed, the extension layout depends on it
 .pi/agent/npm/node_modules
@@ -98,6 +98,12 @@ bin/
 .config/wt/secrets
 
 # macOS home: volatile state, caches and user data - never version
+.bash_history
+.docker/.token_seed
+.docker/.token_seed.lock
+.docker/buildx
+.pi/agent/context-artifacts
+.sentry
 .DS_Store
 .CFUserTextEncoding
 .config/homebrew
