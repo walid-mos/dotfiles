@@ -9,7 +9,7 @@ and apply only evidence-backed simplifications.
   /simplify the backend changes on this branch
                         let the agent resolve the changed-line subset
   /simplify PR #256 / #251 / #252, commit in each PR
-                        handle each PR in its own worktree and commit as asked
+                        use existing checkouts and commit as asked
   /simplify             simplify the branch against its mother branch
                         (main/master), uncommitted edits included
 
@@ -24,5 +24,5 @@ Scope
 
 Jev routes a bare target: a literal file/directory is selected directly; a
 semantic, partial or multi-target request goes to the agent to plan and execute.
-For PR branches, use an existing worktree or create a temporary one. Commits
+For PR branches, use an existing checkout; ask if none is available. Commits
 happen only when explicitly requested. Explicit scope flags stay deterministic.`

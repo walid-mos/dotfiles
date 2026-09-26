@@ -23,15 +23,13 @@ Follow `pi-subagents` writer-isolation rules after the parallel diagnosis freeze
 
 ## 3. Reproduce in one browser pass
 
-Follow `frontend-testing`'s fast evidence discipline. Start the stack once and group reports by persona, campaign, and route so each login and setup serves several bugs. In a dev VM, use the host-reachable tailnet URL, never the VM's `localhost` URL.
+Follow `frontend-testing`'s fast evidence discipline. Start the stack once and group reports by persona, campaign, and route so each login and setup serves several bugs.
 
 Classify code-proven variants that fixtures cannot produce as `code-confirmed`; do not manufacture data only to obtain a screenshot.
 
 ## 4. Fix by contract
 
 Freeze the shared API/frontend shape before editing. Group fixes by domain and shared files, then apply the minimum-change ladder. Keep unrelated bug fixes in separate atomic commits when each commit compiles on its own.
-
-After host-side edits to a VM-mounted worktree, trigger one VM-side watcher refresh for all changed files before the final browser pass. Do not debug stale HMR as application behavior.
 
 ## 5. Validate once
 
@@ -40,7 +38,7 @@ During implementation, run only the narrow existing command needed to answer a c
 1. build the API when frontend types depend on it;
 2. submit independent touched-package typecheck, lint, and existing-test gates through the generic `parallel-gates` workflow once;
 3. run the grouped live browser pass once on the final code;
-4. retry only a timed-out untouched test file, once, when VM load is the proven cause.
+4. report timed-out gates as unverified; rerun only after resolving the cause.
 
 Slow gates follow the global detached-work rule.
 

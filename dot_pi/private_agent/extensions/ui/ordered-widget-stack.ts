@@ -10,7 +10,7 @@ const HOST_WIDGET_IDS: Record<SurfacePlacement, string> = {
 }
 
 export const ABOVE_EDITOR_PRIORITY = {
-	/** The context line (container · review · PR) sits above every other surface. */
+	/** The review / PR context line sits above every other surface. */
 	contextLine: 0,
 	/** The pi version-drift warning sits under the context line, above everything else. */
 	driftWarning: 10,

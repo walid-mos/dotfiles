@@ -6,17 +6,14 @@
  * Line 1: 󰚩 model │ ✻ thinking │ path │····· statuses │ context gauge ▰▰▱▱ │ arrows │ cost
  * Line 2:  branch │ churn ▰▰▱▱ + counters │····· provider quotas
  *
- * The container status, the PR link and the review link left the footer: they
- * form one contextual line above the prompt (context-line.ts), mounted at the
- * highest above-editor priority and only visible while one of the three exists.
+ * The PR and review links form one contextual line above the prompt
+ * (context-line.ts), visible only while at least one link exists.
  *
  * The cost group prices DeepSeek Flash turns at their own peak/off-peak tariff,
  * and the credit segment names the tier in effect and when it moves
  * (tariff-deepseek.ts). The bracketed [review] link opens the live Galley
  * review desk for this repo while one runs (galley-data.ts).
  */
-
-import { CONTAINER_STATUS_KEY } from '../container-sandbox/runtime.ts'
 
 import { footerComponent } from './component.ts'
 import { mountContextLine, unmountContextLine } from './context-line.ts'
@@ -99,11 +96,7 @@ function safeInput(
 		statuses: readThrough(
 			() =>
 				[...footerData.getExtensionStatuses()]
-					// The container workspace lives in the context line above the prompt
-					.filter(
-						([key, status]) =>
-							key !== CONTAINER_STATUS_KEY && Boolean(status),
-					)
+					.filter(([, status]) => Boolean(status))
 					.map(([, status]) => status),
 			[],
 		),
