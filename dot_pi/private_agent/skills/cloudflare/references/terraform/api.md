@@ -36,6 +36,10 @@ data "cloudflare_accounts" "main" {
 
 # Use account ID
 resource "cloudflare_worker_script" "api" {
+  # NOTE: `cloudflare_worker_script` is the v4 resource name (see the v5 table
+  # above — the v5 name is `cloudflare_workers_script`). Verify the resource
+  # name and schema in the official documentation for your pinned provider
+  # version before copying.
   account_id = data.cloudflare_accounts.main.accounts[0].id
   # ...
 }
@@ -141,7 +145,8 @@ data "cloudflare_zone" "main" {
 
 resource "cloudflare_worker_route" "api" {
   zone_id = data.cloudflare_zone.main.id
-  pattern = "api.${var.domain}/*"
+  pattern = "api.$ {
+    var.domain}/*"
   script_name = cloudflare_worker_script.api.name
 }
 ```
@@ -155,7 +160,8 @@ output "zone_id" {
 }
 
 output "worker_url" {
-  value = "https://${cloudflare_worker_domain.api.hostname}"
+  value = "https://$ {
+    cloudflare_worker_domain.api.hostname}"
   description = "Worker API endpoint"
 }
 

@@ -63,14 +63,14 @@ export function stringField(source: object, key: string): string | null {
 
 function containerState(reportedState: unknown): ContainerState {
 	if (
-		reportedState === 'running' ||
+		!(reportedState === 'running' ||
 		reportedState === 'stopped' ||
 		reportedState === 'absent' ||
-		reportedState === 'unknown'
+		reportedState === 'unknown')
 	) {
-		return reportedState
+		return 'unknown'
 	}
-	return 'unknown'
+	return reportedState
 }
 
 function readPorts(row: object): string[] {

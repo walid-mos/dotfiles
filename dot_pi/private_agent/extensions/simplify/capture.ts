@@ -78,9 +78,9 @@ function childResults(event: ToolExecutionEndEvent): CapturedChild[] | string {
 	const captured = results.flatMap((entry, index) =>
 		captureEntry(entry, index),
 	)
-	if (!captured.length)
-		return 'the subagent tool result carried no child results'
-	return captured
+	if (captured.length)
+		return captured
+	return 'the subagent tool result carried no child results'
 }
 
 function captureEntry(entry: unknown, index: number): CapturedChild[] {

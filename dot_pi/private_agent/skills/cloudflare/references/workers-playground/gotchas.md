@@ -7,7 +7,7 @@
 | Safari broken | Preview fails | Use Chrome/Firefox/Edge |
 | TypeScript unsupported | TS syntax errors | Write plain JS or use JSDoc |
 | No bindings | `env` always `{}` | Mock data or use external APIs |
-| No env vars | Can't access secrets | Hardcode for testing |
+| No env vars | Can't access secrets | Mock with non-secret placeholder values; move credential-dependent examples to a real Worker with secrets |
 
 ## Common Runtime Errors
 

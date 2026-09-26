@@ -38,7 +38,9 @@ complexity at 3,000,000 points per hour and a 10,000-point maximum for one query
 
 Linear does not version this GraphQL API. Inspect schema deprecations and the `[API]` changelog
 before relying on a field. When a query fails after a schema change, re-run public introspection in
-Apollo Studio, update the narrow field selection, and add an offline contract test before release.
+Apollo Studio and update the narrow field selection. Author an offline contract test only when the
+current user request explicitly authorizes writing tests; otherwise prove the fix with a run the
+user can reproduce (e.g. a bounded `raw` read against the updated field).
 
 Archived records are excluded from paginated responses by default and can be included with
 `includeArchived: true` when the connection supports it. Do not add polling loops for updates:

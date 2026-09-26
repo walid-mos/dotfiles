@@ -43,10 +43,9 @@ const provider = new cloudflare.Provider("cf", { apiUserServiceKey: process.env.
 ```yaml
 name: my-cloudflare-app
 runtime: nodejs
-config:
-  cloudflare:apiToken:
-    value: ${CLOUDFLARE_API_TOKEN}
 ```
+
+The provider reads `CLOUDFLARE_API_TOKEN` from the environment (see [Authentication](#authentication)); do not place token values in YAML config — use Pulumi's encrypted secrets when configuration is unavoidable.
 
 **Pulumi.<stack>.yaml:**
 ```yaml

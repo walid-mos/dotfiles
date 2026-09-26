@@ -3,10 +3,13 @@
 ## Common Errors
 
 ### 1000: "Snippet execution failed"
-Runtime error or syntax error. Wrap code in try/catch:
+Runtime error or syntax error. Wrap code in try/catch and return a generic 500 — exception details can disclose internals; send them to protected diagnostics only:
 ```javascript
 try { return await fetch(request); }
-catch (error) { return new Response(`Error: ${error.message}`, { status: 500 }); }
+catch (error) {
+  // Log details only to protected diagnostics; visitors get a generic error.
+  return new Response("Internal error", { status: 500 });
+}
 ```
 
 ### 1100: "Exceeded execution limit"

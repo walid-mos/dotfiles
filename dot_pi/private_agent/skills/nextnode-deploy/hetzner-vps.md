@@ -1,5 +1,7 @@
 # Hetzner VPS Architecture
 
+> Extends the Hetzner VPS target deep-dive in the DeployTarget section in `SKILL.md` — read that section first; its core rules are not restated here.
+
 Deep-dive into the Hetzner VPS deploy target: internal mode, adapter modules, state management, cloud-init, and domain logic.
 
 ## Internal mode

@@ -30,11 +30,12 @@ V8-based JS/Wasm runtime powering Cloudflare Workers. Use as app server, dev too
 - **Backwards compatible**: Version = max compat date supported
 
 ## Architecture
-```
-Config (workerd.capnp)
-├── Services (workers/endpoints)
-├── Sockets (HTTP/HTTPS listeners)
-└── Extensions (global capabilities)
+
+```mermaid
+graph TD
+    C[Config — workerd.capnp] --> S[Services — workers/endpoints]
+    C --> K[Sockets — HTTP/HTTPS listeners]
+    C --> E[Extensions — global capabilities]
 ```
 
 ## Quick Start

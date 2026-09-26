@@ -53,9 +53,11 @@ const val = await env.FLAGS.getStringValue("checkout-flow", "original");
 // ❌ BAD — no targetingKey, rollout is random per request
 const val = await env.FLAGS.getBooleanValue("gradual-rollout", false);
 
-// ✅ GOOD — stable userId for consistent bucketing
+// ✅ GOOD — stable targetingKey for consistent bucketing (the rollout
+// attribute defaults to targetingKey; pass userId only if you configured the
+// rollout with "attribute": "userId")
 const val = await env.FLAGS.getBooleanValue("gradual-rollout", false, {
-  userId: sessionUserId,
+  targetingKey: sessionUserId,
 });
 ```
 

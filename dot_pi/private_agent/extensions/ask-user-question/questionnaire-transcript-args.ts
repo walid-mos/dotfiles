@@ -8,10 +8,10 @@ function previewLabel(entry: unknown): string | undefined {
 	) {
 		return entry.label.trim()
 	}
-	if ('id' in entry && typeof entry.id === 'string' && entry.id.trim()) {
-		return entry.id.trim()
+	if (!('id' in entry && typeof entry.id === 'string' && entry.id.trim())) {
+		return '?'
 	}
-	return '?'
+	return entry.id.trim()
 }
 
 export function previewLabels(args: unknown): string[] {

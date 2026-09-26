@@ -36,7 +36,10 @@ export default {
       env.ANALYTICS.writeDataPoint({
         blobs: [url.pathname, request.method, response.status.toString()],
         doubles: [Date.now() - start, 1],
-        indexes: [request.headers.get("x-api-key") || "anonymous"]
+        // Index by a non-secret caller identifier (e.g. an account/tenant ID).
+        // Never index raw credentials such as API keys — the index is stored
+        // and queryable.
+        indexes: [request.headers.get("x-account-id") || "anonymous"]
       });
       return response;
     } catch (error) {

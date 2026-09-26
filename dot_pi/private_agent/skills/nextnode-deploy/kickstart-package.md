@@ -1,5 +1,7 @@
 # Kickstarting a New Package
 
+> Extends the `publish` / `publish-result` commands in the CLI commands table in `SKILL.md` — read that section first; its core rules are not restated here.
+
 Step-by-step guide to add a new publishable package to the `@nextnode/core` monorepo with a fully working CI/CD pipeline. Based on the working `logger` and `standards` packages.
 
 ## Directory structure
@@ -274,10 +276,12 @@ publish-package.yml
   +-- Publish (main only, after quality passes):
         1. Build:  pnpm turbo run build --filter=@nextnode-solutions/<name>
         2. Token:  GitHub App token via NEXTNODE_APP_ID + NEXTNODE_APP_PRIVATE_KEY
-        3. Tags:   git tag -l | xargs -r git tag -d  (clear local tags)
+        3. Tags:   git tag -l | xargs -r git tag -d  (clear local tags — isolated CI runner only)
         4. Release: pnpm exec semantic-release
         5. Summary: infra publish-result parses output
 ```
+
+The `git tag -l | xargs -r git tag -d` step above is **isolated-CI-only**: it clears tags on the ephemeral publish runner (a fresh checkout whose tags were fetched only to feed semantic-release), never in a working checkout. A developer checkout's local tags are not task-owned — deleting them there would destroy unrelated history; do not run that command locally.
 
 ## Required secrets
 

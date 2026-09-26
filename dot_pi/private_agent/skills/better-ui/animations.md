@@ -41,7 +41,7 @@ Prefer CSS transitions for interactive elements. Reserve keyframes for one-shot 
 
 ## Scale on press
 
-A subtle scale-down on click gives buttons tactile feedback. Always `scale(0.96)`, never below `0.95`, which feels exaggerated. Use CSS transitions so a release mid-press returns smoothly.
+A subtle scale-down on click gives buttons tactile feedback. Use `scale(0.97)` as specified by `emil-design-eng`. Use CSS transitions so a release mid-press returns smoothly.
 
 Not every button needs it. Add a `static` prop that disables the scale where the motion would distract.
 
@@ -55,14 +55,14 @@ Not every button needs it. Add a `static` prop that disables the scale where the
 }
 
 .button:active {
-  scale: 0.96;
+  scale: 0.97;
 }
 ```
 
 ### Tailwind example
 
 ```tsx
-<button className="transition-transform duration-150 ease-out active:scale-[0.96]">
+<button className="transition-transform duration-150 ease-out active:scale-[0.97]">
   Click me
 </button>
 ```
@@ -70,7 +70,7 @@ Not every button needs it. Add a `static` prop that disables the scale where the
 ### Motion example
 
 ```tsx
-<motion.button whileTap={{ scale: 0.96 }}>
+<motion.button whileTap={{ scale: 0.97 }}>
   Click me
 </motion.button>
 ```
@@ -80,7 +80,7 @@ Not every button needs it. Add a `static` prop that disables the scale where the
 Extract the scale class into a variable and apply it conditionally on a `static` prop:
 
 ```tsx
-const tapScale = "active:not-disabled:scale-[0.96]";
+const tapScale = "active:not-disabled:scale-[0.97]";
 
 function Button({ static: isStatic, className, children, ...props }) {
   return (

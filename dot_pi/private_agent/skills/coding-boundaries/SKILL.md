@@ -42,15 +42,17 @@ class StripeGateway implements PaymentGateway {
 
 A library's exception types are distinctions the LIBRARY needs, not distinctions your code needs. Catch them inside the wrapper only, and rethrow types you defined (`StorageFailure`, `PaymentDeclined`). Application code never imports a library error type - otherwise a provider swap means editing every catch block.
 
-## Write the Adapter First
+## Add an Adapter When a Boundary Is Real
 
-When the real provider is not ready, or its shape does not match what your code needs:
+Apply the wrap-or-use-directly judgment below first. When callers already need
+to work before the provider is ready, or its shape differs from the domain:
 
-1. Define the interface your CALLERS need - its shape comes from your use, not from the provider.
-2. Build against it today with a fake (approves every charge). Tests then exercise your logic, not theirs.
-3. Translate the mismatch (cents vs dollars, token vs card) inside ONE adapter implementing your interface.
+1. Define the interface callers need from the actual use case, not a hypothetical provider swap.
+2. Translate the mismatch (cents vs dollars, token vs card) inside one adapter.
+3. If the current request authorizes test work, use a fake at that boundary for caller tests; otherwise validate through a runnable flow without adding tests.
 
-Result: when the provider finally ships, or must be swapped (`S3` to `GCS`), you write a new adapter - every line of already-finished code stays untouched.
+A first, stable pure utility with no translated failure or domain mismatch does
+not justify an adapter.
 
 ## Wrap or Use Directly - the Judgment
 

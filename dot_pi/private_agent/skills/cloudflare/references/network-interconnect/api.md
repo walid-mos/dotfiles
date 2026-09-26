@@ -90,6 +90,7 @@ Body: `default_asn`
 
 ```typescript
 import Cloudflare from 'cloudflare';
+import fs from 'node:fs';
 
 const client = new Cloudflare({ apiToken: process.env.CF_TOKEN });
 
@@ -152,6 +153,7 @@ await client.networkInterconnects.slots.list({
 
 ```python
 from cloudflare import Cloudflare
+import os
 
 client = Cloudflare(api_token=os.environ["CF_TOKEN"])
 
@@ -172,10 +174,15 @@ client.network_interconnects.slots.list(account_id=id, occupied=False)
 curl "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/cni/interconnects" \
   -H "Authorization: Bearer ${CF_TOKEN}"
 
-# Create interconnect
+# Validate-only check (NOT creation — see SDK example above for creation)
 curl -X POST "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/cni/interconnects?validate_only=true" \
   -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json" \
-  -d '{"account": "id", "slot_id": "slot_abc", "type": "direct", "facility": "EWR1", "speed": "10G"}'
+  -d "{\"account\": \"${ACCOUNT_ID}\", \"slot_id\": \"slot_abc\", \"type\": \"direct\", \"facility\": \"EWR1\", \"speed\": \"10G\"}"
+
+# Create interconnect (omit the validate_only query parameter)
+curl -X POST "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/cni/interconnects" \
+  -H "Authorization: Bearer ${CF_TOKEN}" -H "Content-Type: application/json" \
+  -d "{\"account\": \"${ACCOUNT_ID}\", \"slot_id\": \"slot_abc\", \"type\": \"direct\", \"facility\": \"EWR1\", \"speed\": \"10G\"}"
 
 # LOA PDF
 curl "https://api.cloudflare.com/client/v4/accounts/${ACCOUNT_ID}/cni/interconnects/${ICON_ID}/loa" \

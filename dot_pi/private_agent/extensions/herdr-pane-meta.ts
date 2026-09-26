@@ -16,7 +16,7 @@ import { execFile } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const HERDR_ENV = process.env.HERDR_ENV;
+const {HERDR_ENV} = process.env;
 const paneId = process.env.HERDR_PANE_ID;
 const SOURCE = "herdr-pi-meta";
 const REFRESH_MS = 4 * 60 * 1000; // below the report TTL so tokens never lapse

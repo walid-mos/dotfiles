@@ -62,33 +62,19 @@ zaraz.set('userId', 'user_123');
 | Track custom events | README → api.md |
 | Debug tracking issues | gotchas.md |
 | SPA tracking | api.md → patterns.md (SPA section) |
-| E-commerce tracking | api.md#ecommerce → patterns.md#ecommerce |
+| E-commerce tracking | api.md `zaraz.ecommerce()` → patterns.md E-commerce Funnel |
 | Worker integration | patterns.md#worker-integration |
-| GDPR compliance | api.md#consent → configuration.md#consent |
+| GDPR compliance | api.md `zaraz.consent` → configuration.md Consent Management |
 
 ## Decision Tree
 
-```
-What do you need?
-
-├─ Track events in browser → api.md
-│   ├─ Page views, clicks → zaraz.track()
-│   ├─ User properties → zaraz.set()
-│   └─ E-commerce → zaraz.ecommerce()
-│
-├─ Configure Zaraz → configuration.md
-│   ├─ Add GA4/Facebook → tools setup
-│   ├─ When tools fire → triggers
-│   └─ GDPR consent → consent purposes
-│
-├─ Integrate with Workers → patterns.md#worker-integration
-│   ├─ Enrich context → Context Enrichers
-│   └─ Inject tracking → HTML rewriting
-│
-└─ Debug issues → gotchas.md
-    ├─ Events not firing → troubleshooting
-    ├─ Consent issues → consent debugging
-    └─ Performance → debugging tools
+```mermaid
+graph TD
+    Q[What do you need?]
+    Q -->|Track events in browser — api.md| T[zaraz.track / zaraz.set / zaraz.ecommerce]
+    Q -->|Configure Zaraz — configuration.md| C[Tools setup / triggers / GDPR consent purposes]
+    Q -->|Integrate with Workers — patterns.md Worker Integration| W[Context Enrichers / HTML rewriting]
+    Q -->|Debug issues — gotchas.md| D[Events not firing / consent / performance]
 ```
 
 ## Key Features
@@ -108,4 +94,4 @@ What do you need?
 
 ---
 
-This skill focuses exclusively on Zaraz. For Workers development, see `cloudflare-workers` skill.
+This skill focuses exclusively on Zaraz. For Workers development, see `skills/workers-best-practices/SKILL.md`.

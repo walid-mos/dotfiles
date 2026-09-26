@@ -60,7 +60,10 @@ async function validateArgoEligibility(client: Cloudflare, zoneId: string) {
   
   const issues: string[] = [];
   if (!status.editable) issues.push('Zone not editable');
-  if (['free', 'pro'].includes(zone.plan.legacy_id)) issues.push('Requires Business+ plan');
+  // Plan eligibility is not hard-coded here: plan requirements differ across
+  // references and change over time. Rely on the API's own `editable`
+  // eligibility result (and official plan documentation) rather than a
+  // locally asserted plan list.
   if (zone.status !== 'active') issues.push('Zone not active');
   
   return { canEnable: issues.length === 0, issues };

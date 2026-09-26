@@ -11,7 +11,7 @@ When reviewing, slow the interface down. What feels off at 10% speed is what is 
 
 Keep the project's component library, tokens and density, and match its motion language except where a rule below prescribes an exact interaction.
 
-Every duration, curve, scale and blur below is a specific value, not a range to approximate. `cubic-bezier(0.2, 0, 0, 1)` is not `cubic-bezier(0.4, 0, 0.2, 1)`, and `0.96` is not `0.95`. Use what is written.
+Every duration, curve, scale and blur below is a specific value, not a range to approximate. `cubic-bezier(0.2, 0, 0, 1)` is not `cubic-bezier(0.4, 0, 0.2, 1)`, and `0.97` is not `0.95`. Use what is written.
 
 Text wrapping, font rendering, tabular numbers and text spacing belong to `better-typography`. Hit areas, focus, keyboard support, ARIA and reduced motion belong to `better-accessibility`. Grouping, section spacing, breakpoints and spatial RTL belong to `better-layout`.
 
@@ -43,7 +43,7 @@ Use a small fixed `translateY` rather than full height. Exits should be softer t
 
 Animate icons with `opacity`, `scale` and `blur` rather than toggling visibility. Use exactly these values: scale `0.25` to `1`, opacity `0` to `1`, blur `4px` to `0px`.
 
-With a motion library (`motion` or `framer-motion` in `package.json`), match that package's import path, or nearby imports where both exist. Use `transition: { type: "spring", duration: 0.3, bounce: 0 }`. Bounce is always `0`.
+With a motion library (`motion` or `framer-motion` in `package.json`), match that package's import path, or nearby imports where both exist. Use `transition: { type: "spring", duration: 0.3, bounce: 0 }`. Keep contextual icon transitions free of bounce; use subtle bounce only for drag gestures where it serves the interaction, per `emil-design-eng`.
 
 Without one, keep both icons in the DOM with one absolutely positioned, and cross-fade with `cubic-bezier(0.2, 0, 0, 1)`. That gives you enter and exit with no dependency. Both recipes are in [icon-transitions.md](icon-transitions.md).
 
@@ -53,7 +53,7 @@ Give images a `1px` outline at low opacity for consistent depth. Pure black in l
 
 ## Scale on press
 
-A `scale(0.96)` on click gives a button tactile feedback. Always `0.96`; anything below `0.95` feels exaggerated. Add a `static` prop to switch it off where motion would distract. See [recipes for CSS, Tailwind and Motion](animations.md#scale-on-press).
+A `scale(0.97)` on click gives a button tactile feedback, as specified by `emil-design-eng`. Add a `static` prop to switch it off where motion would distract. See [recipes for CSS, Tailwind and Motion](animations.md#scale-on-press).
 
 ## Skip animation on page load
 

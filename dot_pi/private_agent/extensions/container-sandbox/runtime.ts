@@ -76,8 +76,8 @@ function isSandboxRuntime(candidate: unknown): candidate is SandboxRuntime {
 
 function currentRuntime(): SandboxRuntime | null {
 	const published: unknown = Reflect.get(globalThis, RUNTIME_KEY)
-	if (isSandboxRuntime(published)) return published
-	return null
+	if (!isSandboxRuntime(published)) return null
+	return published
 }
 
 /**
@@ -154,10 +154,10 @@ async function resolveGuest(
 		return { kind: 'container', containerName: workspace.containerName }
 	}
 	const treePath = await readDevvmTreePath(workspace.containerName)
-	if (!treePath) {
-		return `Workspace ${workspace.containerName} has no tree recorded on the dev VM (${DEVVM_NAME}); run /container sync (or wt sync) and retry.`
+	if (treePath) {
+		return { kind: 'devvm', containerName: workspace.containerName, treePath }
 	}
-	return { kind: 'devvm', containerName: workspace.containerName, treePath }
+	return `Workspace ${workspace.containerName} has no tree recorded on the dev VM (${DEVVM_NAME}); run /container sync (or wt sync) and retry.`
 }
 
 /** The host as this guest addresses it: the bridge gateway for a container, none for a namespace. */

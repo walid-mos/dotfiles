@@ -99,9 +99,9 @@ function responseNotice(
 			text: `Error: ${description || 'Unknown error'}`,
 			tone: 'danger',
 		}
-	if (reason === 'aborted')
-		return { text: description || 'Response interrupted.', tone: 'warning' }
-	return undefined
+	if (!(reason === 'aborted'))
+		return undefined
+	return { text: description || 'Response interrupted.', tone: 'warning' }
 }
 
 export function readResponseMessage(

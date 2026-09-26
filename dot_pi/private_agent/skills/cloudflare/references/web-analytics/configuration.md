@@ -15,10 +15,7 @@ Dashboard → Web Analytics → Add site → Select hostname → Done
 
 **Fails if response has:** `Cache-Control: public, no-transform`
 
-**CSP required:**
-```
-script-src https://static.cloudflareinsights.com https://cloudflareinsights.com;
-```
+**CSP required:** use the complete example in [integration.md](integration.md) — the beacon needs both `script-src` and `connect-src` permissions; a `script-src`-only policy blocks event delivery under a restrictive `connect-src`.
 
 ### Non-Proxied Sites (Manual)
 

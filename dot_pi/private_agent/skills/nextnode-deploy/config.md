@@ -1,5 +1,7 @@
 # Config Schema Reference
 
+> Extends the Config: nextnode.toml section in `SKILL.md` — read that section first; its core rules are not restated here.
+
 ## Full nextnode.toml
 
 ```toml
@@ -54,7 +56,7 @@ build_args = ["ANALYTICS_ID"]                # Optional, build only -- extra Git
 # ref = "ghcr.io/some-org/app:v1.2.3"        # Required when source = "upstream"
 # registry_auth_secret = "GHCR_READ_TOKEN"   # Optional, upstream only -- see field table
 
-[[deploy.cron]]                              # Optional (Hetzner only) -- scheduled HTTP jobs, table-array, see field table
+[[deploy.cron]]                              # Optional (not cloudflare-pages) -- scheduled jobs, table-array, see field table
 name = "cleanup"                             # Required -- kebab identifier, unique across jobs
 schedule = "0 3 * * *"                       # Required -- standard 5-field cron expression
 path = "/api/cron/cleanup"                   # Required -- absolute path; hit on the target service INTERNALLY
@@ -202,7 +204,7 @@ interface HetznerVpsDeploySection extends BaseDeploySection {
   readonly secrets: ReadonlyArray<string>  // pull pool — see [deploy] field table
   readonly hetzner: HetznerDeployConfig
   readonly services: Readonly<Record<string, UserServiceConfig>>  // keyed by KEBAB instance name, at least one
-  readonly cron: ReadonlyArray<CronJobConfig>  // [[deploy.cron]] jobs; [] when none. Hetzner only.
+  readonly cron: ReadonlyArray<CronJobConfig>  // [[deploy.cron]] jobs; [] when none. Rejected on cloudflare-pages.
 }
 
 const CRON_METHODS = ['GET', 'POST'] as const
@@ -440,7 +442,7 @@ deploy.services.<name>.<field> is not supported with deploy target "cloudflare-w
 
 Cross-service rules for routed URLs are the VPS ones: `url` unique and within `project.domain`. See [cloudflare-workers.md](cloudflare-workers.md).
 
-### `[[deploy.cron]]` (optional, Hetzner only)
+### `[[deploy.cron]]` (optional — Hetzner-vps sidecar, native triggers on cloudflare-workers; rejected on cloudflare-pages)
 
 Scheduled HTTP jobs, declared as a **table-array**. Each entry fires a request at one of THIS project's services over the compose network, on a cron schedule. The infra renders all jobs into a single `cron` sidecar (alpine BusyBox `crond` + `wget`) in the compose file — no host port, no Docker socket, no app-image dependency, no external config. Runs in **both dev and prod**: each environment is its own compose stack with its own `cron` sidecar hitting its own app, so the two are isolated by construction (unlike the prod-only postgres backup loop). Forbidden on `cloudflare-pages` (a static site has no always-on runtime). On `cloudflare-workers` the block is accepted but realized differently: only `schedule` + `service` reach the config (mapped to the target Worker's native `triggers.crons`, a workerd `scheduled` handler); `path`/`method` are the sidecar-only metadata and are unused there. See [cron-service.md](cron-service.md) and [cloudflare-workers.md](cloudflare-workers.md).
 
@@ -448,7 +450,7 @@ Scheduled HTTP jobs, declared as a **table-array**. Each entry fires a request a
 | ----- | ---- | -------- | ------- | ----------- |
 | `name` | `string` | Yes | -- | Kebab identifier, unique across jobs. Becomes the crontab line's logical id. |
 | `schedule` | `string` | Yes | -- | Standard **5-field** cron expression (`min hour dom month dow`). Each field validated against its real range (minute 0–59, hour 0–23, dom 1–31, month 1–12, dow 0–7) + grammar (`*`, `N`, `N-M`, `*/STEP`, comma-lists). Out-of-range, inverted ranges (`5-1`), `*/0`, bare operators, and `@daily`-style macros fail loud at parse rather than silently never firing on the VPS. |
-| `path` | `string` | Yes | -- | Absolute request path (`/...`). Hit INTERNALLY as `http://<service>:<port><path>` — the dev never spells a host, because the public URL is infra-generated. **Single-quoted** into the wget command; cannot contain whitespace or quote characters (a query string like `?a=1&b=2` is safe, the quoting makes `&` inert). |
+| `path` | `string` | Yes | -- | Absolute request path (`/...`). Hit INTERNALLY as `http://<service>:<port><path>` on the Hetzner sidecar — the dev never spells a host, because the public URL is infra-generated. Required at parse on every target; **unused on `cloudflare-workers`** (the Worker's `scheduled` handler fires with no HTTP request). **Single-quoted** into the wget command; cannot contain whitespace or quote characters (a query string like `?a=1&b=2` is safe, the quoting makes `&` inert). |
 | `method` | `"GET" \| "POST"` | No | `"POST"` | HTTP method. POST is the default (a cron usually TRIGGERS work; GET risks prefetch/cache). Kept to what BusyBox `wget` implements. |
 | `service` | `string` | No | primary service | Which `[deploy.services.<name>]` to hit. Must reference a declared service. Omitted = the primary (first declared) service. The name `cron` is **reserved** for the sidecar — a `[deploy.services.cron]` is rejected at parse. |
 
@@ -490,7 +492,7 @@ A single D1 database, realized by the `cloudflare-workers` Terraform block as `<
 
 | Field | Type | Required | Default | Description |
 | ----- | ---- | -------- | ------- | ----------- |
-| `migrations_folder` | `string` | No | `"drizzle"` | Drizzle migrations folder relative to `nextnode.toml`. Read by `wrangler d1 migrations apply --remote` (between provision and deploy) and by `detect-migration-changes` — the same folder postgres uses (`DEFAULT_MIGRATIONS_FOLDER`). |
+| `migrations_folder` | `string` | No | `"drizzle"` | Drizzle migrations folder relative to `nextnode.toml`. Read by `wrangler d1 migrations apply --remote` (between provision and deploy). The same folder postgres uses (`DEFAULT_MIGRATIONS_FOLDER`). |
 | `check_command` | `string` | No | -- | Shell command run on the GH runner during quality to validate the local migrations folder (no DB, filesystem-only). |
 
 ### `[services.kv]` (optional, Cloudflare Workers only)

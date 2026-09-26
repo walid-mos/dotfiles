@@ -22,12 +22,12 @@ interface SelectionMarker {
 
 /** Identical selection contrast in live controls and transcript replays. */
 export function selectionMarker(selection: SelectionMarker): string {
-	if (selection.kind === 'multi') {
+	if (!(selection.kind === 'multi')) {
 		return selection.isChecked
-			? uiTheme.fg('success', uiTheme.bold(GLYPH.checkOn))
-			: uiTheme.fg('muted', GLYPH.checkOff)
-	}
-	return selection.isChecked
 		? uiTheme.fg('success', uiTheme.bold(GLYPH.radioOn))
 		: uiTheme.fg('dim', GLYPH.radioOff)
+	}
+	return selection.isChecked
+			? uiTheme.fg('success', uiTheme.bold(GLYPH.checkOn))
+			: uiTheme.fg('muted', GLYPH.checkOff)
 }

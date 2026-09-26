@@ -13,12 +13,13 @@ See [README.md](README.md) for overview.
 - Regular failover testing
 
 **Architecture:**
-```
-Your Network A ──10G CNI v2──> CF CCR Device 1
-                                     │
-Your Network B ──10G CNI v2──> CF CCR Device 2
-                                     │
-                            CF Global Network (AS13335)
+
+```mermaid
+graph LR
+    A[Your Network A] -- "10G CNI v2" --> D1[CF CCR Device 1]
+    B[Your Network B] -- "10G CNI v2" --> D2[CF CCR Device 2]
+    D1 --> G[CF Global Network — AS13335]
+    D2 --> G
 ```
 
 **Capacity Planning:**
@@ -32,8 +33,12 @@ Your Network B ──10G CNI v2──> CF CCR Device 2
 
 ```typescript
 // 1. Create interconnect
+// `account` and `slot_id` are part of the create body (see api.md Create Body);
+// verify both against your pinned provider/SDK version before relying on them.
 const ic = await client.networkInterconnects.interconnects.create({
   account_id: id,
+  account: id,
+  slot_id: 'slot_abc',
   type: 'direct',
   facility: 'EWR1',
   speed: '10G',
@@ -81,9 +86,12 @@ await configureStaticRoutes(id, {
 **Use Case:** 99.99%+ uptime.
 
 ```typescript
-// Primary (NY)
+// Primary (NY) — account and slot_id required by the create body (see api.md);
+// verify against your pinned provider/SDK version.
 const primary = await client.networkInterconnects.interconnects.create({
   account_id: id,
+  account: id,
+  slot_id: 'slot_abc',
   type: 'direct',
   facility: 'EWR1',
   speed: '10G',
@@ -93,6 +101,8 @@ const primary = await client.networkInterconnects.interconnects.create({
 // Secondary (NY, different hardware)
 const secondary = await client.networkInterconnects.interconnects.create({
   account_id: id,
+  account: id,
+  slot_id: 'slot_def',
   type: 'direct',
   facility: 'EWR2',
   speed: '10G',
@@ -102,6 +112,8 @@ const secondary = await client.networkInterconnects.interconnects.create({
 // Tertiary (LA, different geography)
 const tertiary = await client.networkInterconnects.interconnects.create({
   account_id: id,
+  account: id,
+  slot_id: 'slot_ghi',
   type: 'partner',
   facility: 'LAX1',
   speed: '10G',

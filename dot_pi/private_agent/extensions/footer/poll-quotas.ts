@@ -83,14 +83,14 @@ async function pollKimiQuotas(): Promise<KimiQuota | undefined> {
 		parseKimiWindow(response.usage) ??
 		parseKimiWindow(weeklyEntry?.detail ?? weeklyEntry)
 	if (fiveHour && weekly) return { fiveHour, weekly }
-	if (fiveHour) {
+	if (!fiveHour) {
 		// Show 5h alone rather than nothing / NaN when weekly shape drifts at 0
-		return {
+		return undefined
+	}
+	return {
 			fiveHour,
 			weekly: { used: 0, limit: 0, remaining: 0, reset: '' },
 		}
-	}
-	return undefined
 }
 
 const OPENROUTER_PROVIDER_KEY = 'openrouter'

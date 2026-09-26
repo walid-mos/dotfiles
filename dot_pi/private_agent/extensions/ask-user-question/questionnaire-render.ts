@@ -53,11 +53,9 @@ function progressLabel(state: QuestionnaireState): string | undefined {
 }
 
 function footerLabel(state: QuestionnaireState): string {
-	if (state.isOnSubmitTab() && state.allAnswered()) {
-		return (
-			uiTheme.fg('success', `${GLYPH.enter} submit`) +
-			uiTheme.fg('dim', '  ·  esc cancel')
-		)
+	if (!(state.isOnSubmitTab() && state.allAnswered())) {
+		return uiTheme.fg('dim', helpText(state))
 	}
-	return uiTheme.fg('dim', helpText(state))
+	return uiTheme.fg('success', `${GLYPH.enter} submit`) +
+			uiTheme.fg('dim', '  ·  esc cancel')
 }

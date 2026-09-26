@@ -63,9 +63,12 @@ Conversion Label: YYYYYYYYYY
 2. Map tools to purposes
 3. Set behavior: "Do not load until consent granted"
 
-**Programmatic consent:**
+**Programmatic consent:** call `setAll` only in response to a genuine recorded user choice (e.g. inside a consent-choice handler) — not during initialization, which would grant both purposes before any decision:
 ```javascript
-zaraz.consent.setAll({ analytics: true, marketing: true });
+// Runs only after the user records their choice in the consent UI
+function onConsentChoice(choice) {
+  zaraz.consent.setAll({ analytics: choice.analytics, marketing: choice.marketing });
+}
 ```
 
 ## Privacy Features

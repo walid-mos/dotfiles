@@ -63,14 +63,14 @@ Pipelines is a native Logpush destination — ingest Cloudflare logs, transform 
 ```sql
 INSERT INTO http_logs_sink
 SELECT
-  ClientIP,
   EdgeResponseStatus,
   to_timestamp_micros(EdgeStartTimestamp) AS event_time,
-  upper(ClientRequestMethod) AS method,
-  sha256(ClientIP) AS hashed_ip          -- redact PII at ingest
+  upper(ClientRequestMethod) AS method
 FROM http_logs_stream
 WHERE EdgeResponseStatus >= 400;
 ```
+
+When redaction is required, drop `ClientIP` entirely. Note that `sha256(ClientIP)` without a secret salt is **pseudonymization, not anonymization or redaction**: IPv4 space is enumerable, so unsalted hashes can be reversed to recover the address.
 
 Configure via Dashboard (**Logpush → Create a job → Pipelines** destination) or API.
 

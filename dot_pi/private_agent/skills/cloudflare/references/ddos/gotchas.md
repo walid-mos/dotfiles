@@ -7,7 +7,7 @@
 **Cause**: Sensitivity too high, wrong action, or missing exceptions  
 **Solution**:
 1. Lower sensitivity for specific rule/category
-2. Use `log` action first to validate (Enterprise Advanced)
+2. Use `log` action first to validate (only where available — Enterprise Advanced)
 3. Add exception with custom expression (e.g., allowlist IPs)
 4. Query flagged requests via GraphQL Analytics API to identify patterns
 
@@ -88,7 +88,7 @@ const config = {
 
 ## Tuning Strategy
 
-1. Start with `log` action + `medium` sensitivity
+1. **Enterprise Advanced only:** start with `log` action + `medium` sensitivity (the `log` action is not available on lower plans — for others, tune sensitivity and use `managed_challenge` instead of `log`)
 2. Monitor for 24-48 hours
 3. Identify false positives, add exceptions
 4. Gradually increase to `default` sensitivity

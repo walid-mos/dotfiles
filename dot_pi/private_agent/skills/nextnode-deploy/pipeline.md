@@ -1,5 +1,7 @@
 # Pipeline Architecture
 
+> Extends the CLI commands table in `SKILL.md` — read that section first; its core rules are not restated here.
+
 ## Workflows
 
 Five reusable workflows + standalone ops workflows.

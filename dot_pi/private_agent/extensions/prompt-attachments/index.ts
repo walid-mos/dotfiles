@@ -110,7 +110,7 @@ export default function promptAttachments(pi: ExtensionAPI): void {
 		return transformPrompt(event, images)
 	})
 
-	// Persist captures after the carrying message; raw-transcript/ mounts them inside its frame.
+	// Persist captures after the carrying message; renderers/ mounts them inside its frame.
 	// Not at `turn_start`: pi emits it before the prompt's own `message_end`, so
 	// the branch still ends on the previous message there. `context` fires for
 	// the provider call that follows the prompt's persistence - the message is

@@ -187,8 +187,8 @@ function renderTrack(
 	width: number,
 	paint: ActivityPaint,
 ): string {
-	if (telemetry.settledAtMs) return paint.track(TRACK_DASH.repeat(width))
-	return renderSweep(width, elapsed, paint)
+	if (!telemetry.settledAtMs) return renderSweep(width, elapsed, paint)
+	return paint.track(TRACK_DASH.repeat(width))
 }
 
 /** Dashes with the moving head on them: the block's only moving part. */
@@ -262,8 +262,8 @@ export function formatTokens(tokens: number): string {
 	// Round before picking the unit, so 999_999 reads as 1.0M, not 1000k.
 	if (Math.round(thousands) >= TOKENS_PER_THOUSAND)
 		return `${compact(safe / TOKENS_PER_MILLION)}M`
-	if (thousands >= 1) return `${compact(thousands)}k`
-	return String(safe)
+	if (!(thousands >= 1)) return String(safe)
+	return `${compact(thousands)}k`
 }
 
 /** Tokens per second of streamed time; a sub-second stream still divides by one. */

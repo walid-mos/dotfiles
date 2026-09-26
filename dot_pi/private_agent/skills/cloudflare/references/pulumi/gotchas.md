@@ -14,11 +14,15 @@ const worker = new cloudflare.WorkerScript("worker", {
     content: fs.readFileSync("./src/index.ts", "utf8"), // Raw TS file
 });
 
-// RIGHT: Build first, then deploy
+// RIGHT: Build first, then deploy — and make sure the build reruns when
+// source changes: a create-only Command does NOT rerun on later `pulumi up`.
+// Either give the command `triggers` on tracked source inputs, or run the
+// build outside Pulumi before each deploy.
 import * as command from "@pulumi/command";
 const build = new command.local.Command("build", {
     create: "npm run build",
     dir: "./worker",
+    // triggers: [...] — add a trigger per tracked source input
 });
 const worker = new cloudflare.WorkerScript("worker", {
     content: build.stdout.apply(() => fs.readFileSync("./worker/dist/index.js", "utf8")),
@@ -73,7 +77,12 @@ const db = new cloudflare.D1Database("db", {accountId, name: "mydb"});
 
 // Run migrations after DB created
 const migration = new command.local.Command("migrate", {
-    create: pulumi.interpolate`wrangler d1 execute ${db.name} --file ./schema.sql`,
+    // Run migrations against the REMOTE database, and make the command run on
+    // every deploy (see the Command resource's update/triggers) so later
+    // schema changes are applied, not just the first creation. Verify the
+    // exact `wrangler d1 migrations apply` syntax against your pinned
+    // wrangler version before relying on it.
+    create: pulumi.interpolate`wrangler d1 migrations apply ${db.name} --remote`,
 }, {dependsOn: [db]});
 
 // Worker depends on migrations

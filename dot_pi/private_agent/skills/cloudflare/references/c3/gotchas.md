@@ -42,9 +42,11 @@ npm run cf-typegen  # Regenerate types
 ## Package Manager
 
 **Multiple lockfiles causing issues:**
+
+First identify which package manager owns the project (check `packageManager` in `package.json`, CI config, or ask the user) — the lockfile may be project-owned data. If you did not create it, confirm before removing:
 ```bash
-rm pnpm-lock.yaml  # If using npm
-rm package-lock.json  # If using pnpm
+# Only after confirming the owning package manager, e.g. npm:
+rm package-lock.json
 ```
 
 ## CI/CD
@@ -73,7 +75,7 @@ env:
 ## Compatibility Date
 
 **"Feature X requires compatibility_date >= ..."**  
-**Fix:** Update `compatibility_date` in wrangler.jsonc to today's date
+**Fix:** In an *existing* project, meet the feature's required date only after reviewing the runtime changes between the current and target date (see `skills/wrangler/SKILL.md`) — do not blindly advance. For a *new* project, set today's date.
 
 ## Node.js Version
 

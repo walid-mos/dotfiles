@@ -69,21 +69,13 @@ export default {
 
 **Requires:** Bot Management plan
 
-## API Auth Header Injection
+## API authentication
 
-```javascript
-export default {
-  async fetch(request) {
-    if (new URL(request.url).pathname.startsWith("/api/")) {
-      const req = new Request(request);
-      req.headers.set("X-Internal-Auth", "secret_token");
-      req.headers.delete("Authorization");
-      return fetch(req);
-    }
-    return fetch(request);
-  }
-}
-```
+Do not use a Snippet that stamps `X-Internal-Auth` on every request as proof of
+caller identity. An origin that trusts that header would grant every visitor
+access. Verify the caller in the application's existing authentication layer
+before issuing an internal credential; preserve the caller's identity for the
+origin. A copied header-injection recipe cannot establish that contract.
 
 ## CORS Headers
 
@@ -110,10 +102,11 @@ export default {
 
 ## Maintenance Mode
 
+An administrative bypass belongs to an established authenticated route outside this Snippet. A public path or literal token is not an authorization check; this example applies maintenance mode to every request.
+
 ```javascript
 export default {
   async fetch(request) {
-    if (request.headers.get("X-Bypass-Token") === "admin") return fetch(request);
     return new Response("<h1>Maintenance</h1>", {
       status: 503,
       headers: { "Content-Type": "text/html", "Retry-After": "3600" }
@@ -130,6 +123,5 @@ export default {
 | Geo-Routing | Low | Regional content |
 | A/B Testing | Medium | Experiments |
 | Bot Detection | Medium | Requires Bot Management |
-| API Auth | Low | Backend protection |
 | CORS | Low | API endpoints |
 | Maintenance | Low | Deployments |

@@ -6,7 +6,9 @@ Guide for working with Cloudflare's REST API - authentication, SDK usage, common
 
 ```
 How are you calling the Cloudflare API?
-├─ From Workers runtime → Use bindings, not REST API (see ../bindings/)
+├─ From Workers runtime → Prefer bindings for operations they support (see
+│   ../bindings/); use authenticated REST from the Worker for account-
+│   management operations bindings do not cover
 ├─ Server-side (Node/Python/Go) → Official SDK (see api.md)
 ├─ CLI/scripts → Wrangler or curl (see configuration.md)
 ├─ Infrastructure-as-code → See ../pulumi/ or ../terraform/

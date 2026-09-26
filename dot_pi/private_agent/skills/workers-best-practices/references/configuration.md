@@ -1,6 +1,6 @@
 # Workers Configuration and Observability
 
-Use the project's Wrangler configuration and installed `node_modules/wrangler/config-schema.json` to check fields and binding declarations. Consult current product docs when a field or compatibility requirement needs verification. Doc paths below are relative to `https://developers.cloudflare.com`.
+Use the project's Wrangler configuration and generated `wrangler types` output to check bindings. Consult the public Wrangler configuration reference and the project's installed `wrangler --help` for fields and commands; do not read dependency internals. Doc paths below are relative to `https://developers.cloudflare.com`.
 
 - [Configuration](#configuration): compatibility dates, Node.js compatibility, generated types, secrets, and config format
 - [Binding consistency](#binding-code-consistency): configuration and code agree

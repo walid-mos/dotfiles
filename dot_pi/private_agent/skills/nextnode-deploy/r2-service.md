@@ -1,5 +1,7 @@
 # R2 Service Abstraction
 
+> Extends the Backing services section (R2) in `SKILL.md` — read that section first; its core rules are not restated here.
+
 Per-project Cloudflare R2 (object storage) buckets, modeled as a backing service. Declared in `[services.r2]`, provisioned during `provision`, credentials and bucket names threaded into the deployed app at `deploy` time.
 
 ## Why a separate "service" layer

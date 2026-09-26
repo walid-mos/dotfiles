@@ -89,15 +89,15 @@ export function activateRow(input: CommandInput): PickerCommand {
 			config: { ...view.config, [row.field]: !row.isOn },
 			state: commitAction(state),
 		}
-	if (row?.kind === 'candidate')
-		return {
+	if (!(row?.kind === 'candidate'))
+		return {}
+	return {
 			config: {
 				...view.config,
 				chain: appendEntry(view.config.chain, row.reference),
 			},
 			state: commitAction(state),
 		}
-	return {}
 }
 
 /**
@@ -217,8 +217,8 @@ export function reorderChainRow(
 export function reorderRow(
 	input: CommandInput & { delta: number },
 ): PickerCommand {
-	if (input.state.tab === 'scope') return reorderScopeRow(input)
-	return reorderChainRow(input)
+	if (!(input.state.tab === 'scope')) return reorderChainRow(input)
+	return reorderScopeRow(input)
 }
 
 /** Backspace removes the chain entry under the cursor. */

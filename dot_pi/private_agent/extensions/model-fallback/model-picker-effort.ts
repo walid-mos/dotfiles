@@ -46,11 +46,11 @@ function effortSquare(square: {
 	isReached: boolean
 	isPending: boolean
 }): string {
-	if (square.isReached)
+	if (!square.isReached)
 		// An unsaved choice lights the whole column in the accent, so the edit
 		// reads as live before the word beside it is read.
-		return uiTheme.fg(square.isPending ? 'accent' : 'muted', EFFORT_FILLED)
-	return uiTheme.fg('border', EFFORT_EMPTY)
+		return uiTheme.fg('border', EFFORT_EMPTY)
+	return uiTheme.fg(square.isPending ? 'accent' : 'muted', EFFORT_FILLED)
 }
 
 /** The level's name and ink: pending, chosen, inherited or pi's clamped off. */

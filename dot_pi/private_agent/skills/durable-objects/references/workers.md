@@ -69,32 +69,9 @@ ENVIRONMENT = "production"
 
 ## TypeScript Types
 
-### Environment Interface
+### Environment bindings
 
-```typescript
-// src/types.ts
-import { ChatRoom } from "./durable-objects/chat-room";
-import { UserSession } from "./durable-objects/user-session";
-
-export interface Env {
-  // Durable Objects
-  CHAT_ROOM: DurableObjectNamespace<ChatRoom>;
-  USER_SESSION: DurableObjectNamespace<UserSession>;
-
-  // KV
-  CONFIG: KVNamespace;
-
-  // R2
-  UPLOADS: R2Bucket;
-
-  // D1
-  DB: D1Database;
-
-  // Environment variables
-  ENVIRONMENT: string;
-  API_KEY: string; // From secrets
-}
-```
+Run the project's `wrangler types` command after configuring Durable Object, KV, R2, D1, variable, or secret bindings. Use its generated `Env` type in Worker handlers instead of copying a hand-written interface; see `~/.pi/agent/skills/workers-best-practices/references/configuration.md` for the binding-consistency rule.
 
 ### Export Durable Object Classes
 

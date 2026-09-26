@@ -151,19 +151,19 @@ function shapeReason(declaration: Declaration): string | null {
 
 function envReason(env: unknown): string | null {
 	if (!isRecord(env)) return 'env must be an object'
-	if (Object.values(env).some(text => typeof text !== 'string'))
-		return 'env values must be strings'
-	return null
+	if (!Object.values(env).some(text => typeof text !== 'string'))
+		return null
+	return 'env values must be strings'
 }
 
 function portsReason(ports: unknown): string | null {
 	if (
-		!Array.isArray(ports) ||
-		ports.some(port => typeof port !== 'string' || !PORT.test(port))
+		!(!Array.isArray(ports) ||
+		ports.some(port => typeof port !== 'string' || !PORT.test(port)))
 	) {
-		return 'ports must be strings like "5173:5173"'
+		return null
 	}
-	return null
+	return 'ports must be strings like "5173:5173"'
 }
 
 function hostServicesReason(hostServices: unknown): string | null {
@@ -179,12 +179,12 @@ function hostServicesReason(hostServices: unknown): string | null {
 	if (start && typeof start !== 'string') return 'hostServices.start must be a string'
 	const hosts = Reflect.get(hostServices, 'hosts')
 	if (
-		hosts &&
-		(!Array.isArray(hosts) || hosts.some(name => typeof name !== 'string'))
+		!(hosts &&
+		(!Array.isArray(hosts) || hosts.some(name => typeof name !== 'string')))
 	) {
-		return 'hostServices.hosts must be an array of strings'
+		return null
 	}
-	return null
+	return 'hostServices.hosts must be an array of strings'
 }
 
 function blockReason(key: string, block: unknown): string | null {
@@ -208,16 +208,16 @@ function blockReason(key: string, block: unknown): string | null {
 	}
 	const requests = Reflect.get(block, 'requests')
 	if (
-		requests &&
+		!(requests &&
 		(!Array.isArray(requests) ||
 			requests.some(step => {
 				const { url } = step
 				return !isRecord(step) || typeof url !== 'string'
-			}))
+			})))
 	) {
-		return `${key}.requests must be steps with a "url"`
+		return null
 	}
-	return null
+	return `${key}.requests must be steps with a "url"`
 }
 
 /** One short line for the notification: what the file now declares. */

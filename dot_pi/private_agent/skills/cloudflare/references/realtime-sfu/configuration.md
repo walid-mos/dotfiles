@@ -104,6 +104,9 @@ Minimal presence system:
 
 ```typescript
 export class Room {
+  // Deliberately ephemeral: presence is lost on Durable Object eviction or
+  // crash. If presence must survive eviction, persist sessions in Durable
+  // Object storage before caching in memory (see durable-objects guidance).
   private sessions = new Map<string, {userId: string, tracks: string[]}>();
 
   async fetch(req: Request) {

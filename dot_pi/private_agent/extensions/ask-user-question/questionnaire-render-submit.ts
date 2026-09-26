@@ -88,12 +88,12 @@ function navigationHint(
 	state: QuestionnaireCanvas['state'],
 ): string | undefined {
 	if (!state.isMulti) return undefined
-	if (state.editorHasFocus()) {
-		return state.canNavigateTabsFromInputEdges()
+	if (!state.editorHasFocus()) {
+		return '←→ navigate'
+	}
+	return state.canNavigateTabsFromInputEdges()
 			? 'tab or ←→ at input edges'
 			: 'tab navigate'
-	}
-	return '←→ navigate'
 }
 
 function interactionHint(state: QuestionnaireCanvas['state']): string {
@@ -109,8 +109,8 @@ function interactionHint(state: QuestionnaireCanvas['state']): string {
 			? 'type · enter confirm all · ctrl+g chat · esc back'
 			: 'type · enter submit · ctrl+g chat · esc back'
 	}
-	if (question.multiSelect) {
-		return '↑↓ move · space toggle · 1-9 toggle · enter confirm · ctrl+g chat · esc cancel'
+	if (!question.multiSelect) {
+		return '↑↓ move · 1-9 select · enter select · ctrl+g chat · esc cancel'
 	}
-	return '↑↓ move · 1-9 select · enter select · ctrl+g chat · esc cancel'
+	return '↑↓ move · space toggle · 1-9 toggle · enter confirm · ctrl+g chat · esc cancel'
 }

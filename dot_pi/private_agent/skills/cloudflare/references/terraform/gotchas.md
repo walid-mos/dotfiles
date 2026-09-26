@@ -4,7 +4,7 @@ Common issues, security considerations, and best practices.
 
 ## State Drift Issues
 
-Some resources have known state drift. Add lifecycle blocks to prevent perpetual diffs:
+Some resources have known state drift. Add lifecycle blocks **only for a confirmed provider-drift case** — `ignore_changes` also masks intentional changes (e.g. secret rotation, routing changes) made outside Terraform. If you use it, document how the ignored value is reviewed and updated (e.g. `terraform state pull` review + explicit `terraform taint`/re-apply procedure for rotation):
 
 | Resource | Drift Attributes | Workaround |
 |----------|------------------|------------|
@@ -19,7 +19,10 @@ resource "cloudflare_workers_script" "api" {
   account_id = var.account_id
   name = "api-worker"
   content = file("worker.js")
-  secret_text_binding { name = "API_KEY"; text = var.api_key }
+  secret_text_binding {
+    name = "API_KEY"
+    text = var.api_key
+  }
   
   lifecycle {
     ignore_changes = [secret_text_binding]
@@ -51,11 +54,7 @@ Provider v5 is current (auto-generated from OpenAPI). v4→v5 has breaking chang
 
 **State Migration:**
 
-```bash
-# Rename resources in state after v5 upgrade
-terraform state mv cloudflare_record.example cloudflare_dns_record.example
-terraform state mv cloudflare_worker_script.api cloudflare_workers_script.api
-```
+`terraform state mv` only moves addresses in state — it is NOT, by itself, a provider-schema migration. Use the Cloudflare provider's documented migration/import procedure for the versions involved and review the resulting plan before applying; version-specific migration behavior varies.
 
 ## Resource-Specific Gotchas
 

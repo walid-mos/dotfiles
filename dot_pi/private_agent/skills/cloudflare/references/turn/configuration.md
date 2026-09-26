@@ -75,14 +75,16 @@ export default {
 
 ### Basic Worker Example
 
+Supply `verifyAuthenticatedCaller` and `enforceTurnRateLimit` from the application's real authentication and rate-limit implementation before using this example. Header presence alone must never issue credentials.
+
 ```typescript
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.url.endsWith('/turn-credentials')) {
-      // Validate client auth
-      const authHeader = request.headers.get('Authorization');
-      if (!authHeader) {
-        return new Response('Unauthorized', { status: 401 });
+    if (new URL(request.url).pathname === '/turn-credentials') {
+      const caller = await verifyAuthenticatedCaller(request, env);
+      if (!caller) return new Response('Unauthorized', { status: 401 });
+      if (!(await enforceTurnRateLimit(caller.id, env))) {
+        return new Response('Too many requests', { status: 429 });
       }
 
       const response = await fetch(

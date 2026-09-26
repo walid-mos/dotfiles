@@ -33,8 +33,8 @@ async function getTURNConfig(): Promise<RTCIceServer[]> {
         'turns:turn.cloudflare.com:5349?transport=tcp',
         'turns:turn.cloudflare.com:443?transport=tcp'
       ],
-      username: data.username,
-      credential: data.credential,
+      username: data.iceServers.username,
+      credential: data.iceServers.credential,
       credentialType: 'password'
     }
   ];
@@ -115,15 +115,20 @@ pc.addEventListener('iceconnectionstatechange', async () => {
 
 ## Credentials Caching Pattern
 
+If credentials are per-user, do NOT cache one credential for all callers — partition the cache by the authenticated caller identity (e.g. KV/DO keyed by user ID), or remove the cache. A single shared `this.creds` hands one user's revocable credential to every other caller. Only keep a shared credential if per-user sharing is an explicit, safe policy.
+
 ```typescript
 class TURNCredentialsManager {
-  private creds: { username: string; credential: string; urls: string[]; expiresAt: number; } | null = null;
+  // Per-identity cache: key = authenticated caller identity. Never a single
+  // shared field handed to every caller.
+  private credsByUser = new Map<string, { username: string; credential: string; urls: string[]; expiresAt: number; }>();
 
-  async getCredentials(keyId: string, keySecret: string): Promise<RTCIceServer[]> {
+  async getCredentials(userId: string, keyId: string, keySecret: string): Promise<RTCIceServer[]> {
     const now = Date.now();
+    const creds = this.credsByUser.get(userId);
     
-    if (this.creds && this.creds.expiresAt > now) {
-      return this.buildIceServers(this.creds);
+    if (creds && creds.expiresAt > now) {
+      return this.buildIceServers(creds);
     }
 
     const ttl = 3600;
@@ -141,14 +146,15 @@ class TURNCredentialsManager {
     const data = await res.json();
     const filteredUrls = data.iceServers.urls.filter((url: string) => !url.includes(':53'));
 
-    this.creds = {
+    const newCreds = {
       username: data.iceServers.username,
       credential: data.iceServers.credential,
       urls: filteredUrls,
       expiresAt: now + (ttl * 1000) - 60000
     };
+    this.credsByUser.set(userId, newCreds);
 
-    return this.buildIceServers(this.creds);
+    return this.buildIceServers(newCreds);
   }
 
   private buildIceServers(c: { username: string; credential: string; urls: string[] }): RTCIceServer[] {

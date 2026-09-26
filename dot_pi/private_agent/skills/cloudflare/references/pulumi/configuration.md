@@ -11,7 +11,7 @@ const worker = new cloudflare.WorkerScript("my-worker", {
     name: "my-worker",
     content: fs.readFileSync("./dist/worker.js", "utf8"),
     module: true, // ES modules
-    compatibilityDate: "2025-01-01",
+    compatibilityDate: new Date().toISOString().slice(0, 10), // today — set when creating the project
     compatibilityFlags: ["nodejs_compat"],
     
     // v6.x: Observability
@@ -70,10 +70,13 @@ const bucket = new cloudflare.R2Bucket("my-bucket", {
 ```typescript
 const db = new cloudflare.D1Database("my-db", {accountId, name: "my-database"});
 
-// Migrations via wrangler
+// Migrations via wrangler: target the REMOTE database and apply migrations
+// (not just the initial schema) so later schema changes are picked up. Keep
+// the command versioned and re-run `wrangler d1 migrations apply <db> --remote`
+// as part of each deploy; verify exact syntax against your pinned wrangler.
 import * as command from "@pulumi/command";
 const migration = new command.local.Command("d1-migration", {
-    create: pulumi.interpolate`wrangler d1 execute ${db.name} --file ./schema.sql`,
+    create: pulumi.interpolate`wrangler d1 migrations apply ${db.name} --remote`,
 }, {dependsOn: [db]});
 ```
 
@@ -176,7 +179,7 @@ const version = new cloudflare.WorkerVersion("v1", {
     accountId: accountId,
     workerId: worker.id,
     content: fs.readFileSync("./dist/worker.js", "utf8"),
-    compatibilityDate: "2025-01-01",
+    compatibilityDate: new Date().toISOString().slice(0, 10), // today — set when creating the project
     compatibilityFlags: ["nodejs_compat"],
     // Note: Bindings configured at deployment level
 });

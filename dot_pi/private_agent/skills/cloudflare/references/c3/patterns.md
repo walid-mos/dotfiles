@@ -8,8 +8,9 @@ For framework apps, follow [Framework Setup](README.md#framework-setup).
 # TypeScript API Worker
 npm create cloudflare@latest my-api -- --type=hello-world --lang=ts --deploy
 
-# Astro static site  
-npm create cloudflare@latest my-blog -- --type=web-app --framework=astro --platform=pages --ts
+# Astro static site — targets Workers Static Assets for new projects
+# (do NOT pass --platform=pages for new projects; Pages only for existing ones)
+npm create cloudflare@latest my-blog -- --type=web-app --framework=astro --ts
 ```
 
 ## CI/CD (GitHub Actions)

@@ -6,17 +6,7 @@
 
 **Problem:** Queries return fewer points than written at >1M writes/min.
 
-**Solution:**
-```typescript
-// Pre-aggregate before writing
-let buffer = { count: 0, total: 0 };
-buffer.count++; buffer.total += value;
-
-// Write once per second instead of per request
-if (Date.now() % 1000 === 0) {
-  env.ANALYTICS.writeDataPoint({ doubles: [buffer.count, buffer.total] });
-}
-```
+**Solution:** Pre-aggregate before writing (e.g. accumulate counts in Durable Objects and flush periodic aggregates) so fewer, larger data points are written. Do not gate writes on wall-clock conditions such as `Date.now() % 1000 === 0`: in a request-scoped Worker that condition is usually never true, so the buffer is dropped, and a shared buffer is never reset, so repeated writes overcount. Sampling is expected at high volumes — treat query results as approximate, and keep exact totals in a durable ledger.
 
 **Detection:** `npx wrangler tail` → look for "sampling enabled"
 

@@ -1,5 +1,7 @@
 # Multi-service deploys
 
+> Extends the `[deploy.services.<name>]` rules in Instructions in `SKILL.md` — read that section first; its core rules are not restated here.
+
 `[deploy.services.<name>]` accepts **N entries** for `hetzner-vps`. Routing (DNS, Caddy, host ports), env isolation (`.env.<name>` per service + symmetric URL injection), and image refs (`Record<service, ImageRef>`) are all wired per service. A single bake call produces every `build` image, a single deploy step rotates every container. The compose renderer keys everything off `Object.entries(services)` — there is no `resolveSoleService` anymore (dropped in commit `688f187`); any literal `"app"` reaching for the service slot is a bug.
 
 ## Schema rules enforced at parse time

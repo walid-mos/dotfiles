@@ -12,15 +12,18 @@
 
 ## API Metering (Billing)
 
+Analytics Engine writes are automatically sampled at high volumes, so these totals are **approximate**. Do not use them as an exact billing ledger — derive billable totals from a durable, un-sampled ledger.
+
 ```typescript
 env.ANALYTICS.writeDataPoint({
   blobs: [pathname, method, status, tier],
   doubles: [1, computeUnits, bytes, latencyMs],
-  indexes: [apiKey]
+  // Non-secret caller identifier; never index raw API keys (credentials).
+  indexes: [accountId]
 });
 
-// Query: Monthly usage by customer
-// SELECT index1 AS api_key, SUM(double2) AS compute_units
+// Query: Approximate monthly usage by customer (sampled — indicative only)
+// SELECT index1 AS account_id, SUM(double2) AS compute_units
 // FROM usage WHERE timestamp >= DATE_TRUNC('month', NOW()) GROUP BY index1
 ```
 

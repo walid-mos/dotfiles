@@ -21,7 +21,7 @@ Set up routing rules in **Dashboard** > **Compute & AI** > **Email Service** > *
 
 ## ForwardableEmailMessage
 
-The `message` parameter is a `ForwardableEmailMessage`. Run `npx wrangler types` to get the full type definition. Key properties and methods:
+The `message` parameter is a `ForwardableEmailMessage`. Run the project's inspected, pinned `pnpm exec wrangler types` to get the full type definition. Key properties and methods:
 
 - `message.from` / `message.to` — envelope addresses (SMTP MAIL FROM / RCPT TO). `message.from` is trustworthy; header addresses can be spoofed.
 - `message.headers` — `Headers` object (use `.get("subject")`, `.get("message-id")`, etc.)

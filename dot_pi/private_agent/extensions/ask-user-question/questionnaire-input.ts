@@ -112,8 +112,8 @@ export class QuestionnaireInputController {
 	/** The scroll direction the keypress carries, or 0 when it is not a scroll. */
 	private stripScrollSide(keystrokes: string): -1 | 0 | 1 {
 		if (matchesKey(keystrokes, Key.ctrlShift('left'))) return -1
-		if (matchesKey(keystrokes, Key.ctrlShift('right'))) return 1
-		return 0
+		if (!matchesKey(keystrokes, Key.ctrlShift('right'))) return 0
+		return 1
 	}
 
 	private handleEditorKey(keystrokes: string): void {

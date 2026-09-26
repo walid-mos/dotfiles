@@ -199,8 +199,8 @@ def main() -> int:
 
     files = candidate_files()
     if not files:
-        print("pi-tui editor.js introuvable — patch ignoré")
-        return 0
+        print("pi-tui editor.js introuvable — patch ignoré", file=sys.stderr)
+        return 1
 
     failed = False
     for path in files:

@@ -40,10 +40,10 @@ export function devvmUser(workspaceName: string): string {
  */
 export function devvmSubpath(workdir: string): string {
 	if (workdir === GUEST_WORKDIR) return ''
-	if (workdir.startsWith(`${GUEST_WORKDIR}/`)) {
-		return workdir.slice(GUEST_WORKDIR.length)
+	if (!workdir.startsWith(`${GUEST_WORKDIR}/`)) {
+		return ''
 	}
-	return ''
+	return workdir.slice(GUEST_WORKDIR.length)
 }
 
 /**

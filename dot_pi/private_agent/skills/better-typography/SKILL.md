@@ -11,7 +11,7 @@ When reviewing, read the rendered page instead of scanning the code. Bad wrappin
 
 Write every fix in the project's styling system, and use the exact values below rather than familiar-looking equivalents. The [cheat sheet](css-cheat-sheet.md) maps each declaration to its Tailwind equivalent.
 
-The words themselves belong to `better-writing`. Semantic heading structure belongs to `better-accessibility`. Spatial RTL layout and logical properties belong to `better-layout`. Contrast measurement belongs to `better-colors`. This skill owns how text renders, wraps and behaves in mixed-direction content.
+The words themselves are outside this typography skill. Semantic heading structure belongs to `better-accessibility`. Spatial RTL layout and logical properties belong to `better-layout`. Contrast requirements belong to `better-accessibility`. This skill owns how text renders, wraps and behaves in mixed-direction content.
 
 ## Serve the right format
 
@@ -113,7 +113,7 @@ Start long-form body text at `16px`, the browser default. Move off it only for a
 
 UI text can go smaller. `14px` is a useful starting point for inputs and menus, `13px` for captions and rarely below `12px`. Inputs still need `16px` on mobile.
 
-When text looks low-contrast, use `better-colors` to measure the rendered pair and `better-accessibility` to classify the requirement. Leave the colors alone unless asked.
+When text looks low-contrast, measure the rendered foreground/background pair and use `better-accessibility` to classify the requirement. Leave the colors alone unless asked.
 
 ## Font smoothing on the root
 

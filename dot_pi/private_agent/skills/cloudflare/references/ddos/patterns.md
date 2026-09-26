@@ -74,12 +74,17 @@ async function setProtectionLevel(zoneId: string, level: ProtectionLevel, rulese
 
 ## Dynamic Response to Attacks
 
+Only an authenticated, trusted signal may change protection rules. Supply `verifyMonitoringWebhook` from the monitoring integration: it must authenticate the sender, verify the signature over the raw body and timestamp, reject stale/replayed messages, and fail closed. The example is incomplete until this verifier is implemented.
+
 ```typescript
-interface Env { CLOUDFLARE_API_TOKEN: string; ZONE_ID: string; KV: KVNamespace; }
+interface Env { CLOUDFLARE_API_TOKEN: string; ZONE_ID: string; KV: KVNamespace; ALERT_SIGNING_SECRET: string; }
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (request.url.includes("/attack-detected")) {
+    if (new URL(request.url).pathname === "/attack-detected") {
+      if (!(await verifyMonitoringWebhook(request.clone(), env))) {
+        return new Response("Unauthorized", { status: 401 });
+      }
       const attackData = await request.json();
       await env.KV.put(`attack:${Date.now()}`, JSON.stringify(attackData), { expirationTtl: 86400 });
       const recentAttacks = await getRecentAttacks(env.KV);
@@ -154,11 +159,14 @@ await client.zones.rulesets.phases.entrypoint.update("http_request_sbfm", {
 
 ## Cache Strategy for DDoS Mitigation
 
-Exclude query strings from cache key to counter randomized query parameter attacks.
+Exclude query strings from the cache key **only for known public, query-independent responses** (for example a fixed list of static read-only endpoints). Never apply this to an entire `/api/` prefix: user-specific or query-sensitive API responses would be served to the wrong caller.
 
 ```typescript
 const cacheRule = {
-  expression: "http.request.uri.path matches \"^/api/\"",
+  // Narrow to public endpoints whose responses are identical for every caller
+  // and unaffected by query strings. Keep query parameters in the cache key
+  // everywhere else.
+  expression: "http.request.uri.path in {\"/api/status\" \"/api/health\"}",
   action: "set_cache_settings",
   action_parameters: {
     cache: true,
@@ -169,6 +177,6 @@ const cacheRule = {
 await client.zones.rulesets.phases.entrypoint.update("http_request_cache_settings", { zone_id: zoneId, rules: [cacheRule] });
 ```
 
-**Rationale**: Attackers randomize query strings (`?random=123456`) to bypass cache. Excluding query params ensures cache hits absorb attack traffic.
+**Rationale**: Attackers randomize query strings (`?random=123456`) to bypass cache. On public, query-independent endpoints, excluding query params ensures cache hits absorb attack traffic without cross-user cache poisoning.
 
 See [configuration.md](./configuration.md) for rule structure details.

@@ -34,7 +34,9 @@ Explicit dependencies:
 
 ```typescript
 const migration = new command.local.Command("migration", {
-    create: pulumi.interpolate`wrangler d1 execute ${db.name} --file ./schema.sql`,
+    // Target the remote database; use a versioned migrations directory so
+    // subsequent schema changes apply on later deploys (see configuration.md).
+    create: pulumi.interpolate`wrangler d1 migrations apply ${db.name} --remote`,
 }, {dependsOn: [db]});
 
 const worker = new cloudflare.WorkerScript("worker", {
@@ -47,18 +49,7 @@ const worker = new cloudflare.WorkerScript("worker", {
 
 ## Using Outputs with API Calls
 
-```typescript
-const db = new cloudflare.D1Database("db", {accountId, name: "my-db"});
-
-db.id.apply(async (dbId) => {
-    const response = await fetch(
-        `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${dbId}/query`,
-        {method: "POST", headers: {"Authorization": `Bearer ${apiToken}`, "Content-Type": "application/json"},
-         body: JSON.stringify({sql: "CREATE TABLE users (id INT)"})}
-    );
-    return response.json();
-});
-```
+Read-only use of outputs (building an endpoint URL, logging) is fine. **Do not perform database mutations inside `apply()`**: the side effect is untracked by Pulumi and may run on preview or unrelated updates. For D1 schema changes, use the managed migration command pattern in [configuration.md](./configuration.md) and [gotchas.md](./gotchas.md).
 
 ## Custom Dynamic Providers
 

@@ -35,16 +35,19 @@ Never re-ignore something already ignored; never remove an ignore entry without 
 
 **4. Confirm.** Present a summary table (ADD / RE-ADD / IGNORE with full paths), then wait for explicit approval. Deny-list beats everything: a file matching `.chezmoiignore` is never committed, even if the user says "add everything".
 
-**5. Execute.**
+**5. Execute only the approved paths.**
 
 ```bash
-chezmoi add <dest-paths...>        # new files (enumerate targets, never a whole tree)
-chezmoi re-add <dest-paths...>     # modified managed files
-# update .chezmoiignore if proposed (grouped under a comment)
-chezmoi git -- add -A
-chezmoi git -- commit -m "<scope>: <summary>"
-chezmoi git -- push
+chezmoi add <approved-dest-paths...>       # enumerate new files, never a whole tree
+chezmoi re-add <approved-dest-paths...>    # modified managed files
+# update .chezmoiignore only if approved
+chezmoi git -- status --short
+chezmoi git -- add -- <approved-source-paths...> # include .chezmoiignore only if approved
+chezmoi git -- diff --cached --check
+chezmoi git -- diff --cached --stat
 ```
+
+Inspect the staged diff and remove any unapproved or secret path from staging before committing. For an authorized commit, create a dedicated branch first and use a Conventional Commit `type(scope): description`. Push only if the request explicitly asks for remote sync; never push incidental changes.
 
 **modify_ files.** `settings.json` is managed through a `modify_` merge script in
 the source repo (`dot_pi/agent/modify_settings.json`): `chezmoi re-add` silently
@@ -56,5 +59,4 @@ accept the drift.
 
 - Never `chezmoi add` a whole directory blindly - enumerate leaf targets (`node_modules` trap).
 - Secrets/tokens/credentials: never add, never echo content, never commit.
-- Commit message: imperative, one line, scope prefix (`pi:`, `ghostty:`, `config:`).
 - The deny-list lives in the repo (`.chezmoiignore`), not in this skill - keep it that way.

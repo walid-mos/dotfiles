@@ -75,9 +75,9 @@ function pinnedText(
 	// the package reports one: the header names it as such, never as a pin.
 	if (entry?.modelOrigin === 'agent' && entry.model)
 		return `${uiTheme.fg('dim', 'uses')} ${uiTheme.fg('text', entry.model)}`
-	if (entry?.modelOrigin === 'default' && entry.model)
-		return `${uiTheme.fg('dim', 'subagents default')} ${uiTheme.fg('text', entry.model)}`
-	return uiTheme.fg('dim', 'inherits the session model')
+	if (!(entry?.modelOrigin === 'default' && entry.model))
+		return uiTheme.fg('dim', 'inherits the session model')
+	return `${uiTheme.fg('dim', 'subagents default')} ${uiTheme.fg('text', entry.model)}`
 }
 
 /** What the agent runs now: the line the editor opens with. */
@@ -143,12 +143,12 @@ function rowTag(entry: AgentEntry | undefined, row: CatalogRow): string {
 	if (entry.pin?.model === row.reference)
 		return uiTheme.fg('success', '  pinned')
 	if (
-		!entry.pin?.model &&
+		!(!entry.pin?.model &&
 		entry.model === row.reference &&
-		(entry.modelOrigin === 'agent' || entry.modelOrigin === 'default')
+		(entry.modelOrigin === 'agent' || entry.modelOrigin === 'default'))
 	)
-		return uiTheme.fg('dim', '  current')
-	return ''
+		return ''
+	return uiTheme.fg('dim', '  current')
 }
 
 /** One editor row: the model, whether it is the pin, and its level block. */

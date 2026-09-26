@@ -41,12 +41,12 @@ export type PayloadParse =
 export function parseLensPayload(lens: Lens, payload: unknown): PayloadParse {
 	if (!Value.Check(FindingsPayloadSchema, payload))
 		return { ok: false, reason: firstValidationError(payload) }
-	if (payload.lens !== lens)
-		return {
+	if (!(payload.lens !== lens))
+		return { ok: true, payload }
+	return {
 			ok: false,
 			reason: `the ${lens} lens reported itself as the ${payload.lens} lens`,
 		}
-	return { ok: true, payload }
 }
 
 function firstValidationError(payload: unknown): string {

@@ -31,8 +31,8 @@ export function classifyStatus(status: number): HttpFailureClass {
 	if (status >= SERVER_ERROR_MIN && status <= SERVER_ERROR_MAX) {
 		return 'failover-fast'
 	}
-	if (SLOW_FAILURE_STATUSES.has(status)) return 'failover-slow'
-	return 'none'
+	if (!SLOW_FAILURE_STATUSES.has(status)) return 'none'
+	return 'failover-slow'
 }
 
 const RETRYABLE_PATTERNS = [
@@ -94,7 +94,7 @@ const OVERFLOW_PATTERNS = [
 export function classifyErrorText(text: string | undefined): FailureTextClass {
 	if (!text) return 'terminal'
 	if (OVERFLOW_PATTERNS.some(pattern => pattern.test(text))) return 'overflow'
-	if (RETRYABLE_PATTERNS.some(pattern => pattern.test(text)))
-		return 'retryable'
-	return 'terminal'
+	if (!RETRYABLE_PATTERNS.some(pattern => pattern.test(text)))
+		return 'terminal'
+	return 'retryable'
 }

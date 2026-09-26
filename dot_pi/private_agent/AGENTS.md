@@ -33,13 +33,9 @@ Always use the dedicated Pi tool for the job:
 | Make a targeted change   | `edit`                          |
 | Create or replace a file | `write`                         |
 
-**Issue independent tool calls in the same response**; wait for results before making dependent calls. Before choosing `bash` or `host`, check whether a dedicated file tool owns the operation.
+**Batch only bounded, independent lookups**: issue needed `read`, `grep`, `find`, or `ls` calls together when each path, pattern, or range is narrow enough to return a small result. Pi runs them concurrently. Never pack file lookups into a `bash` loop; wait when one result determines the next target.
 
-**Never use `bash`/`host` for that work** — reading a file, listing a directory, searching content and
-finding files by name belong to `read`/`ls`/`grep`/`find`. `tool-guard` refuses `ls`, `cat`, `head`, `tail`,
-`grep`/`rg`, `find` and `tree` wherever they sit: a pipe (`|`), a redirect (`2>/dev/null`), or a
-`head`/`tail` wrapper does not change what the call is. Bash stays right for what no tool owns: builds,
-tests, git, and pipelines that transform or store (`jq`, `sed`, counts, a redirect to a file).
+**Never use `bash`/`host` for that work** — reading, listing, searching and finding belong to the dedicated file tools, even through a pipe or redirect. Bash stays right for builds, tests, git and pipelines that transform or store (`jq`, `sed`, counts, redirects to a file).
 
 **Never bypass a tool refusal** by switching to `bash`/`host`, another interpreter, a wrapper, or a contrived pipeline — use the suggested tool or report the missing capability.
 
@@ -56,9 +52,9 @@ If nothing can finish on its own, do other work or end the turn and come back wh
 - detach it: `setsid nohup <cmd> > /tmp/<name>.log 2>&1 &`, then read the log in a later call
 - or give the foreground call the timeout it needs
 
-**Never re-read a file already in context** — locate with `grep`, then `read` with `offset`/`limit`.
+**Reuse lookup results**: never request the same file or search again while its source is unchanged; use the result already in context, narrow the query, or report the blocker. Locate new evidence with `grep`, then `read` with `offset`/`limit`.
 
-**Never pour bulk output into context** — `grep`/`tail` the log or redirect it to a file, and extract only what the decision needs.
+**Never pour bulk output into context** — scope `find`/`grep` to the smallest likely directory or file; avoid dependency, build, and session trees unless needed. Use `read` with `offset`/`limit`, and send long command output to a file before extracting only what the decision needs.
 
 ## Task completion
 
@@ -73,6 +69,7 @@ If nothing can finish on its own, do other work or end the turn and come back wh
 ## Development
 
 - **Treat all code as greenfield**: never add a back-compat shim, migration, fallback, deprecated API, legacy path, or support for a historical state — unless the user explicitly asks for it.
+- **Single source of truth**: every fact — a constant, type, schema, threshold, default, or rule — has exactly one definition; everywhere else imports, derives, or links to it. Never fix a problem by editing a copy (a duplicated value, a restated rule) — change the source. The only allowed repeat: a critical trigger (name + one-line summary beside its single home).
 
 ## Tests
 
@@ -99,7 +96,8 @@ If nothing can finish on its own, do other work or end the turn and come back wh
 
 - **Never install skills, plugins, or MCP servers through a marketplace/registry CLI** — `npx skills add` (skills.sh/Vercel), `claude plugin marketplace`, or any equivalent: they run third-party code and write files outside review. Vendor instead: copy the upstream files into `skills/<name>/` and record the upstream repo, revision and date in a `SOURCE.md` beside them.
 - **Never read or modify dependency internals or build output** (`node_modules/**`, `dist/**`, bundles, `*.map`, lockfiles), never grep across a dependency tree, and never patch a local installation or a compiled/generated artifact in place — change the versioned source or an officially supported config.
-- Only exception — a precise need: state it, then read the package's own `docs/*.md` first and its `.d.ts` declarations second — never its compiled `.js`.
+- For a precise dependency API need, state it, then read the package's own `docs/*.md` first and its `.d.ts` declarations second — never its compiled `.js`.
+- Exception for a user-requested Pi harness update: follow `skills/pi-updated/SKILL.md` to inspect installed Pi dist sources and reapply its audited dist patches (registry: `skills/pi-updated/scripts/SOURCE.md`). This does not authorize patching other dependencies.
 
 ## Harness maintenance
 

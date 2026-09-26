@@ -26,10 +26,11 @@ In the agent:
 export class MyAgent extends Agent<Env, State> {
   async onRequest(request: Request) {
     const signature = request.headers.get("X-Signature");
-    if (!verifySignature(signature, await request.text(), this.env.WEBHOOK_SECRET)) {
+    const body = await request.text();
+    if (!verifySignature(signature, body, this.env.WEBHOOK_SECRET)) {
       return new Response("Unauthorized", { status: 401 });
     }
-    const payload = JSON.parse(await request.text());
+    const payload = JSON.parse(body);
     this.queue("processWebhook", payload);
     return new Response("OK", { status: 202 });
   }

@@ -95,8 +95,8 @@ function xyDelta(line: string): GitRowDelta {
 /** Porcelain v2 row → counter delta (untracked rows, XY codes, branch.ab). */
 function rowDelta(line: string): GitRowDelta {
 	if (line.startsWith('# branch.ab')) return branchAbDelta(line)
-	if (line.startsWith('? ')) return { untracked: 1 }
-	return xyDelta(line)
+	if (!line.startsWith('? ')) return xyDelta(line)
+	return { untracked: 1 }
 }
 
 function applyDelta(counters: GitCounters, delta: GitRowDelta): GitCounters {

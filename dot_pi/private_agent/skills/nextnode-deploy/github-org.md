@@ -1,5 +1,7 @@
 # GitHub org — `NextNodeSolutions`
 
+> Extends the GitHub org section in `SKILL.md` — read that section first; its core rules are not restated here.
+
 How the org side of the infra works: secret layers, the `nextnode-ci`
 GitHub App, environments. **Never hardcode secret lists in docs, prompts,
 or code — query them live** with the commands below. Names change; the

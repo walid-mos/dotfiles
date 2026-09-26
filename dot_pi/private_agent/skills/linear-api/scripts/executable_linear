@@ -975,7 +975,7 @@ def main(argv=None):
             )
             return
         if args.action == "move":
-            state = resolve_state(client, issue, args.state)
+            state = resolve_state(client, issue["team"], args.state)
             emit(
                 client.run(
                     "mutation IssueUpdate($id: String!, $input: IssueUpdateInput!) { issueUpdate(id: $id, input: $input) { success issue { %s } } }"

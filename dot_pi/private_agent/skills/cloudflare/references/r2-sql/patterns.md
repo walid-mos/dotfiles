@@ -96,11 +96,11 @@ GROUP BY z.domain ORDER BY requests DESC LIMIT 25;
 
 ## Cursor-Based Pagination
 
-Paginate on a sortable (ideally partition) column rather than `OFFSET`:
+Paginate on a sortable (ideally partition) column rather than `OFFSET`. Note the resume predicate shown here (`< last_ts`) is **not complete**: rows that share the page-boundary timestamp with the last row of the previous page are skipped. Without a verified unique tie-breaker column in the dataset, present results as approximate rather than claiming complete pagination.
 
 ```sql
 SELECT * FROM logs.requests ORDER BY __ingest_ts DESC LIMIT 500;                       -- page 1
-SELECT * FROM logs.requests WHERE __ingest_ts < '<last_ts>' ORDER BY __ingest_ts DESC LIMIT 500;  -- page 2
+SELECT * FROM logs.requests WHERE __ingest_ts < '<last_ts>' ORDER BY __ingest_ts DESC LIMIT 500;  -- page 2 (may skip rows sharing <last_ts>)
 ```
 
 ## Performance (essentials)

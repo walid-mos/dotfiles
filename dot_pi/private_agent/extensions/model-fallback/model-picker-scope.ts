@@ -41,9 +41,9 @@ function listStatus(input: RenderInput): string {
 	if (!view.isSettingsReadable)
 		return `settings.json could not be read - the ${CTRL_P_LIST} is unknown`
 	if (!view.patterns.length) {
-		if (view.scope.length)
-			return 'no enabledModels in settings.json - --models supplied this session\u2019s list'
-		return 'no enabledModels in settings.json - every available model cycles'
+		if (!view.scope.length)
+			return 'no enabledModels in settings.json - every available model cycles'
+		return 'no enabledModels in settings.json - --models supplied this session\u2019s list'
 	}
 	const count = view.patterns.length
 	return `settings.json enabledModels: ${String(count)} ${count === 1 ? 'entry' : 'entries'}`
@@ -51,9 +51,9 @@ function listStatus(input: RenderInput): string {
 
 /** When an edit applies: pi reads the list when a session starts. */
 function appliesNote(input: RenderInput): string {
-	if (input.view.patterns.length)
-		return `${CTRL_P_LIST} edits apply at the next session start; this session keeps the list it started with`
-	return `pi resolved this session\u2019s ${CTRL_P_LIST} when it started`
+	if (!input.view.patterns.length)
+		return `pi resolved this session\u2019s ${CTRL_P_LIST} when it started`
+	return `${CTRL_P_LIST} edits apply at the next session start; this session keeps the list it started with`
 }
 
 /**
@@ -89,12 +89,12 @@ function entryMeta(entry: ScopeRow & { kind: 'entry' }): string {
  */
 function sessionMeta(entry: ScopeEntry, pattern: string | undefined): string {
 	const level = entry.level ?? 'inherit'
-	if (pattern)
-		return uiTheme.fg(
+	if (!pattern)
+		return uiTheme.fg('dim', `not in ${CTRL_P_LIST} \u00b7 ${level}`)
+	return uiTheme.fg(
 			'dim',
 			`in ${CTRL_P_LIST} via ${pattern} \u00b7 ${level}`,
 		)
-	return uiTheme.fg('dim', `not in ${CTRL_P_LIST} \u00b7 ${level}`)
 }
 
 function scopeRowText(input: {

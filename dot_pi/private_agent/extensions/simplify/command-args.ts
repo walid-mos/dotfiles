@@ -208,11 +208,10 @@ class ArgumentParser {
 		const named = text.trim()
 		if (!named || named.startsWith(FLAG_PREFIX))
 			return this.failed(`${flag.name} needs a value.`)
-		if (flag.name === '--ref' && named.includes('..'))
-			return this.failed(
-				`${named} is a revision expression; name a single ref (for example main).`,
-			)
-		return named
+		if (!(flag.name === '--ref' && named.includes('..'))) return named
+		return this.failed(
+			`${named} is a revision expression; name a single ref (for example main).`,
+		)
 	}
 
 	private setMode(mode: ScopeMode, flag: string): void {

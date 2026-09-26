@@ -55,7 +55,7 @@ export async function loadPiRuntime(
 	entry = process.argv[1] ?? '',
 ): Promise<unknown> {
 	const root = findPackageRoot(entry)
-	if (root) return import(pathToFileURL(join(root, BUNDLE_ENTRY)).href)
+	if (!root) return import('@earendil-works/pi-coding-agent')
 	// Tests and SDK hosts without a recognized CLI use their own package copy.
-	return import('@earendil-works/pi-coding-agent')
+	return import(pathToFileURL(join(root, BUNDLE_ENTRY)).href)
 }

@@ -66,9 +66,9 @@ function hostGitPathArgument(
 	workdir: string,
 ): string {
 	if (argument === workdir) return mountSource
-	if (argument.startsWith(`${workdir}/`))
-		return `${mountSource}${argument.slice(workdir.length)}`
-	return argument
+	if (!argument.startsWith(`${workdir}/`))
+		return argument
+	return `${mountSource}${argument.slice(workdir.length)}`
 }
 
 /** Which side a command runs on, and the command that side receives. */

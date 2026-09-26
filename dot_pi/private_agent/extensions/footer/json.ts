@@ -42,6 +42,6 @@ export function finiteOr(raw: unknown, fallback: number): number {
 /** Unwrap `{ val: n }` wrappers or plain numbers from a JSON value. */
 export function valOf(raw: unknown): number {
 	if (typeof raw === 'number') return raw
-	if (isRecord(raw) && 'val' in raw) return finiteNumber(raw.val)
-	return finiteNumber(raw)
+	if (!(isRecord(raw) && 'val' in raw)) return finiteNumber(raw)
+	return finiteNumber(raw.val)
 }

@@ -79,10 +79,10 @@ function portsLine(workspace: SandboxWorkspace): string {
 	if (workspace.vehicle === 'devvm') {
 		return 'Serves on its tailnet node; nothing is published to the host from a namespace.'
 	}
-	if (workspace.ports.length > 0) {
-		return `Published to the host: ${workspace.ports.join(', ')}`
+	if (!(workspace.ports.length > 0)) {
+		return 'No ports published; use the container IP.'
 	}
-	return 'No ports published; use the container IP.'
+	return `Published to the host: ${workspace.ports.join(', ')}`
 }
 
 /** How the guest reaches the host's services, as status reports it. */

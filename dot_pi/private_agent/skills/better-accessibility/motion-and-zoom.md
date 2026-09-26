@@ -23,20 +23,11 @@ Make motion opt-in. Wrap animations in `@media (prefers-reduced-motion: no-prefe
 <div className="motion-safe:transition-transform motion-safe:hover:-translate-y-1" />
 ```
 
-For an existing codebase where opt-in isn't feasible, the global kill switch is the fallback:
-
-```css
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-```
-
-`0.01ms` rather than `none`, so `animationend` and `transitionend` still fire and JS waiting on them doesn't hang.
+For an existing codebase where opt-in is not yet feasible, override the
+vestibular-triggering animations individually while preserving visible state
+feedback. Avoid a blanket `0.01ms !important` rule: it also suppresses useful
+feedback and can obscure a state change. If JavaScript waits for an animation
+completion event, keep a short nonzero duration on that animation.
 
 ### What to disable vs reduce
 

@@ -214,9 +214,8 @@ export class ModelPickerComponent implements Component, Focusable {
 		}
 		if (step === 'back-editor')
 			return this.update(closeAgentEditor(this.state))
-		if (step === 'back-action')
-			return this.update({ ...this.state, shouldEscapeBack: false })
-		return this.finish({ kind: 'cancel' })
+		if (!(step === 'back-action')) return this.finish({ kind: 'cancel' })
+		return this.update({ ...this.state, shouldEscapeBack: false })
 	}
 
 	/** Left/right change the level of the row under the cursor. */
@@ -254,8 +253,8 @@ export class ModelPickerComponent implements Component, Focusable {
 			const row = agentRows(this.deps.view())[this.state.cursor]
 			if (row?.kind === 'open')
 				return this.finish({ kind: 'open-agents' })
-			if (row?.kind === 'agent') return this.openEditor(row.entry)
-			return
+			if (!(row?.kind === 'agent')) return
+			return this.openEditor(row.entry)
 		}
 		this.run(activateRow(this.rowCountInput()))
 	}
