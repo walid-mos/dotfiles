@@ -8,8 +8,8 @@
  * decision; this module only places it.
  */
 
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { highlightRow } from '../ui/frame.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { highlightRow } from '#lib/ui/frame.ts'
 
 import { agentEntries, editorAnchor } from './model-picker-agents.ts'
 import { editorRows } from './model-picker-editor-rows.ts'
@@ -143,9 +143,11 @@ function rowTag(entry: AgentEntry | undefined, row: CatalogRow): string {
 	if (entry.pin?.model === row.reference)
 		return uiTheme.fg('success', '  pinned')
 	if (
-		!(!entry.pin?.model &&
-		entry.model === row.reference &&
-		(entry.modelOrigin === 'agent' || entry.modelOrigin === 'default'))
+		!(
+			!entry.pin?.model &&
+			entry.model === row.reference &&
+			(entry.modelOrigin === 'agent' || entry.modelOrigin === 'default')
+		)
 	)
 		return ''
 	return uiTheme.fg('dim', '  current')

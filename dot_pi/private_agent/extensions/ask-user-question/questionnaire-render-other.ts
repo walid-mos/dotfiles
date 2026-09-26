@@ -1,8 +1,8 @@
 import { visibleWidth } from '@earendil-works/pi-tui'
 
-import { INSET } from '../ui/align.ts'
-import { uiTheme as theme } from '../ui/design-system/theme.ts'
-import { highlightRow } from '../ui/frame.ts'
+import { INSET } from '#lib/ui/align.ts'
+import { uiTheme as theme } from '#lib/ui/design-system/theme.ts'
+import { highlightRow } from '#lib/ui/frame.ts'
 
 import { ANSWER_PREVIEW_MAX_LENGTH, UI_TEXT } from './questionnaire-model.ts'
 

@@ -11,25 +11,28 @@
 import {
 	attachAliasBackspace,
 	attachAliasStyling,
-} from '../attachments/attachment-editor.ts'
-import { AttachmentStore, aliasesIn } from '../attachments/attachment-store.ts'
+} from '#lib/attachments/attachment-editor.ts'
+import {
+	AttachmentStore,
+	aliasesIn,
+} from '#lib/attachments/attachment-store.ts'
 import {
 	renderAttachmentStrip,
 	TILE_PREVIEW_BOX,
-} from '../attachments/attachment-strip.ts'
-import { PreviewService } from '../attachments/preview-service.ts'
+} from '#lib/attachments/attachment-strip.ts'
+import { PreviewService } from '#lib/attachments/preview-service.ts'
 import {
 	toPromptCapture,
 	transcriptCapture,
-} from '../attachments/transcript-entry.ts'
-import { uiTheme } from '../ui/design-system/theme.ts'
+} from '#lib/attachments/transcript-entry.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
 
 import { clipboardInsertion } from './questionnaire-clipboard.ts'
 
 import type { ImageContent } from '@earendil-works/pi-ai'
 import type { KeybindingsManager, Theme } from '@earendil-works/pi-coding-agent'
 import type { EditorComponent } from '@earendil-works/pi-tui'
-import type { TranscriptCapture } from '../attachments/transcript-entry.ts'
+import type { TranscriptCapture } from '#lib/attachments/transcript-entry.ts'
 import type { Answer } from './questionnaire-model.ts'
 
 /** The user-written texts submitted answers carry: labels plus custom texts. */

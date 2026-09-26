@@ -8,8 +8,8 @@
  * never change what the picker will do.
  */
 
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { highlightRow } from '../ui/frame.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { highlightRow } from '#lib/ui/frame.ts'
 
 import { effectiveLevel } from './model-catalog.ts'
 import { effortBlock } from './model-picker-effort.ts'
@@ -79,12 +79,8 @@ function scopeTag(row: CatalogRow): string {
 /** The list membership of one row: an exact entry, or a saved pattern. */
 function savedTag(membership: ScopeMembership | undefined): string {
 	if (membership?.exact) return uiTheme.fg('dim', `  in ${CTRL_P_LIST}`)
-	if (!(membership?.pattern))
-		return ''
-	return uiTheme.fg(
-			'dim',
-			`  in ${CTRL_P_LIST} via ${membership.pattern}`,
-		)
+	if (!membership?.pattern) return ''
+	return uiTheme.fg('dim', `  in ${CTRL_P_LIST} via ${membership.pattern}`)
 }
 
 /** One list row: the model, its scope tags and its reasoning block. */

@@ -4,14 +4,14 @@
  * no keys - the component in select-ui.ts owns those and calls these.
  */
 
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { highlightRow } from '../ui/frame.ts'
-import { selectionMarker } from '../ui/selection-marker.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { highlightRow } from '#lib/ui/frame.ts'
+import { selectionMarker } from '#lib/ui/selection-marker.ts'
 import {
 	pushWrapped,
 	terminalLineWidth,
 	truncateTerminalLine,
-} from '../ui/terminal-text.ts'
+} from '#lib/ui/terminal-text.ts'
 
 import type { MergedFinding, Risk } from './types.ts'
 

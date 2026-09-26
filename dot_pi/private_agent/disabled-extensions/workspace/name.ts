@@ -7,7 +7,7 @@
 
 import { uuidv7 } from '@earendil-works/pi-ai'
 
-import { askChoice, isJevConfigured } from '../jev/client.ts'
+import { askChoice, isJevConfigured } from '#lib/jev/client.ts'
 
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 

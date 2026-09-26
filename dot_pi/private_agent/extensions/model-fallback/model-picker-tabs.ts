@@ -9,8 +9,8 @@
  * thinking. The scope tab lives in `model-picker-scope.ts`.
  */
 
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { highlightRow } from '../ui/frame.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { highlightRow } from '#lib/ui/frame.ts'
 
 import {
 	agentGroups,
@@ -68,17 +68,17 @@ function fallbackRowLine(
 	}
 	if (!(row.kind === 'chain'))
 		return {
-		text: `${INDENT}${marker} ${uiTheme.fg('dim', '+')} ${uiTheme.fg('muted', row.reference)}`,
-		pick: index,
-	}
-	return {
-			text: twoColumn(
-				`${INDENT}${marker} ${uiTheme.fg('muted', String(row.index + 1))} ${uiTheme.fg('text', index === input.state.cursor ? uiTheme.bold(row.reference) : row.reference)}`,
-				cooldownText(input, row.reference),
-				input.size.width,
-			),
+			text: `${INDENT}${marker} ${uiTheme.fg('dim', '+')} ${uiTheme.fg('muted', row.reference)}`,
 			pick: index,
 		}
+	return {
+		text: twoColumn(
+			`${INDENT}${marker} ${uiTheme.fg('muted', String(row.index + 1))} ${uiTheme.fg('text', index === input.state.cursor ? uiTheme.bold(row.reference) : row.reference)}`,
+			cooldownText(input, row.reference),
+			input.size.width,
+		),
+		pick: index,
+	}
 }
 
 export function renderFallbacks(input: RenderInput): PickerLine[] {

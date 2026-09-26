@@ -56,15 +56,19 @@ If nothing can finish on its own, do other work or end the turn and come back wh
 
 **Never pour bulk output into context** — scope `find`/`grep` to the smallest likely directory or file; avoid dependency, build, and session trees unless needed. Use `read` with `offset`/`limit`, and send long command output to a file before extracting only what the decision needs.
 
+## Artifact placement
+
+Never use `~/.pi/agent` as a scratch or deliverable directory (including `tmp/`); put disposable helpers in the OS temp directory and standalone deliverables in the requested location or `~/Desktop/pi`. Only Pi configuration and explicitly requested Pi artifacts belong under `~/.pi/agent`.
+
 ## Task completion
 
 - **A turn is not a task**: work through every item you were given, then report — never end a turn asking whether to continue.
+- **Instructions are executed, not acknowledged**: when the user states a decision or an imperative request, end the turn with the change applied through the right tool call — never with agreement text alone; if nothing should change, say why in one line.
 - Yielding the turn while detached work runs is not a finished task — resume when it reports.
 - Only a skill that explicitly requires a human decision may stop you earlier.
 - **Decide reversible details yourself**: ask only when the choice is consequential and context provides no defensible default.
-- Every concrete user task in the owning session gets a `goal` checklist before work starts; questions alone do not. Declare all deliverables and revise the same checklist when discovery expands scope; close each item only with evidence. A request-level item stays open until the entire request is verified.
-- Child assignments do not start their own goal: subagents report evidence to the parent, which owns the single checklist. Delegate independent substantial work when it saves time, not bounded or tightly coupled work.
-- **Blocked is a question, not a stop**: when only a human decision unblocks the work, raise it with `ask_user_question` (the concrete options you see, 2-3, best marked recommended) and record it with the `goal` tool before stopping — a run that ends on prose alone settles exactly like a finished one.
+- Child assignments do not own the task: subagents report evidence to the parent, which owns the single plan. Delegate independent substantial work when it saves time, not bounded or tightly coupled work.
+- **Blocked is a question, not a stop**: when only a human decision unblocks the work, raise it with `ask_user_question` (the concrete options you see, 2-3, best marked recommended) before stopping — a run that ends on prose alone settles exactly like a finished one.
 
 ## Development
 

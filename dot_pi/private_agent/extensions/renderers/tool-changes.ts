@@ -1,6 +1,6 @@
 /** Applied edit/write previews; one cached code component for collapsed and expanded views. */
-import { ChangeBlock } from '../ui/change-block.ts'
-import { reflectMember } from '../ui/pi-members.ts'
+import { ChangeBlock } from '#lib/ui/change-block.ts'
+import { reflectMember } from '#lib/ui/pi-members.ts'
 
 import {
 	nativeChangeDocument,
@@ -10,7 +10,7 @@ import { payloadText, toolOutput } from './tool-payload.ts'
 import { recalledWriteDocument } from './write-snapshots.ts'
 
 import type { Component } from '@earendil-works/pi-tui'
-import type { ChangeDocument } from '../ui/change-block.ts'
+import type { ChangeDocument } from '#lib/ui/change-block.ts'
 import type { RenderContext } from './tool-details.ts'
 
 export class ToolChanges implements Component {

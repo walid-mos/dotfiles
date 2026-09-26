@@ -10,7 +10,7 @@ Single source of truth for restyling pi's TUI. Read this before migrating ANY re
 ## Status legend
 
 - `- [ ]` not migrated (still on pi default styling)
-- `- [x]` migrated (renders through `ui/design-system` or an owned component)
+- `- [x]` migrated (renders through `lib/ui/design-system` or an owned component)
 - `- [~]` intentionally skipped (pi default is accepted)
 
 ## Current state
@@ -24,7 +24,7 @@ The first dedicated presentations are **read, grep, glob (Pi's `find`), bash**, 
 identity. Other tools share the fallback header and preserve their native expanded detail renderer.
 No tool schema, execution function, result payload, or activation list is changed.
 
-Already owned elsewhere: footer, questionnaire dialog/content, prompt top border and telemetry,
+Already owned elsewhere: hud-footer, questionnaire dialog/content, prompt top border and telemetry,
 attachment strips, and framed literal user prompts. Assistant responses now belong to `renderers/` and use
 the response hierarchy below. Notifications, manual `!` shell
 blocks, compaction/retry loaders, dialogs and general editor chrome are not tool-execution rows;
@@ -34,13 +34,13 @@ those remain separate migrations below. Do not claim the entire TUI is migrated.
 
 ## 1. Overlay infrastructure
 
-- [x] Design system: `ui/design-system/theme.ts` owns semantic roles; `palette.ts` reads `themes/catppuccin-latte.json` vars; `terminal-color.ts` owns parsing/blending.
-- [x] Text policy: `ui/terminal-text.ts` owns clipping/wrapping/hanging indent (pi TUI stays the only tokenizer).
-- [x] Frames/surfaces: `ui/align.ts`, `ui/frame.ts`, `ui/selection-marker.ts`, `ui/surface.ts` + `ui/ordered-widget-stack.ts`.
-- [x] Editor decorator composition: `ui/editor-decorator.ts` chains on pi's `getEditorComponent` exactly once per session.
-- [x] Base editor: `ui/editor-decorator.ts` also exports `createDefaultEditor` (pi's `CustomEditor` with `embedWorkingStatus: true`), the base every decorator chains onto.
-- [x] Renderer adapter: `renderers/install-renderers.ts` binds the running CLI's classes; version drift is warned by a widget (`ui/renderer-drift.ts`), never a refused load. No duplicate `registerTool` ownership and no execution passthroughs.
-- [x] Shared activity layout: `ui/activity-line.ts` / `ui/activity-details.ts`; semantic colors come from `ui/design-system`.
+- [x] Design system: `lib/ui/design-system/theme.ts` owns semantic roles; `palette.ts` reads `themes/catppuccin-latte.json` vars; `terminal-color.ts` owns parsing/blending.
+- [x] Text policy: `lib/ui/terminal-text.ts` owns clipping/wrapping/hanging indent (pi TUI stays the only tokenizer).
+- [x] Frames/surfaces: `lib/ui/align.ts`, `lib/ui/frame.ts`, `lib/ui/selection-marker.ts`, `lib/ui/surface.ts` + `lib/ui/ordered-widget-stack.ts`.
+- [x] Editor decorator composition: `lib/ui/editor-decorator.ts` chains on pi's `getEditorComponent` exactly once per session.
+- [x] Base editor: `lib/ui/editor-decorator.ts` also exports `createDefaultEditor` (pi's `CustomEditor` with `embedWorkingStatus: true`), the base every decorator chains onto.
+- [x] Renderer adapter: `renderers/install-renderers.ts` binds the running CLI's classes; version drift is warned by a widget (`lib/ui/renderer-drift.ts`), never a refused load. No duplicate `registerTool` ownership and no execution passthroughs.
+- [x] Shared activity layout: `lib/ui/activity-line.ts` / `lib/ui/activity-details.ts`; semantic colors come from `lib/ui/design-system`.
 
 ## 2. Activity design contract
 
@@ -79,7 +79,7 @@ those remain separate migrations below. Do not claim the entire TUI is migrated.
   no invented duration. Remounting an already-completed component never records a fake zero-time run.
   Elapsed duration and configured timeout are both visible (`2.4s · 120s max`), clearly distinguished.
   Execution arguments remain untouched. Compact layouts shed timeout information before elapsed
-  time, and preserve failure labels last. Timing vocabulary and budgets live in `ui/activity-timing.ts`.
+  time, and preserve failure labels last. Timing vocabulary and budgets live in `lib/ui/activity-timing.ts`.
 - Click the header in fullscreen mode; keyboard expansion uses Pi's `app.tools.expand` state
   (Ctrl+O by default). No extra keybinding registration. Expanded native controls retain mouse
   routing; selection/scrolling are not hijacked.
@@ -202,7 +202,7 @@ its execution details remain authoritative.
   completion; the intermediate footer retires without moving the answer text.
   Response messages have matching outer top and bottom gaps to separate them from adjacent tool calls;
   empty/tool-only messages and thinking controls receive no extra response padding.
-- Assistant error/interruption notices use `ui/activity-notice.ts`: the marker aligns with tool status,
+- Assistant error/interruption notices use `lib/ui/activity-notice.ts`: the marker aligns with tool status,
   text aligns with tool names, and long details wrap at that same inset. Both marker and message use
   bold semantic ink: red for errors, orange for interruptions. This distinguishes notices from normal
   tool-body text without adding a box, rail, disclosure, or changing the diagnostic wording.
@@ -220,9 +220,9 @@ its execution details remain authoritative.
 
 ## 5. Chrome (editor + footer + status)
 
-- [x] Footer (own implementation; vector quota gauges, `ui/ordered-widget-stack` mounting).
+- [x] hud-footer (own implementation; vector quota gauges, `lib/ui/ordered-widget-stack` mounting).
 - [x] Working indicator (word rotation/shuffle-bag), embedded in the prompt's top border — never a standalone row above it.
-- [x] Editor top border: `prompt-telemetry/activity-border.ts` right-aligns its activity block after the
+- [x] Editor top border: `hud-telemetry/activity-border.ts` right-aligns its activity block after the
   loader reserve (`EMBEDDED_LOADER_FIELD_WIDTH`), never over the loader or pi's `↑ N more` scroll label.
   Readings wear the loading color (pi gives the embedded spinner and its message the editor's own
   `borderColor`, so numbers, tally icons and the clock mark take that same hue) while their words stay muted
@@ -233,14 +233,14 @@ its execution details remain authoritative.
   block stays frozen (`✓ mm:ss`) until the next prompt: no retire timer exists. Layout depends on pi's
   `── <status> ──…` border; re-diff on upgrade (§10).
 - [ ] Editor: border color = `getThinkingBorderColor(level)` (`thinkingOff`→`thinkingMax`), `bashMode` in `!` mode; border glyphs `── label ──`. Editor is replaceable via `setEditorComponent`/editor-decorator — decide scope (border tint vs full owner-drawn editor).
-- [ ] Widgets: todo/progress widgets above/below editor via `setWidget` (`ui/surface.ts` already owns registrations) — add house-styled content when a widget feature lands (no current surface → open).
+- [ ] Widgets: todo/progress widgets above/below editor via `setWidget` (`lib/ui/surface.ts` already owns registrations) — add house-styled content when a widget feature lands (no current surface → open).
 - [ ] Autocomplete menu: in-editor `SelectList` (`accent` selection, `muted` descriptions) + `borderMuted` border. Only reachable via theme tokens unless the editor is fully owned. Mark `- [~]` initially.
 
 ## 6. Dialogs & overlays
 
 - [x] Questionnaire (select/multi/confirm-like flows inside the house questionnaire).
 - [x] Model picker (`/models`): owns its chrome in `ctx.ui.custom` - header (one labelled line each for the session model, the startup default and the ctrl+p count, then the agent pins; `model-picker-words.ts` owns those three names), tab strip for session/ctrl+p/fallbacks/agents, search, one shared reasoning column (`model-picker-effort.ts`: squares plus the level's own name, right-aligned, inherited/off/unavailable spelled out - a width-safe `!` marker stands in for `unsupported` below 72 columns - never an invented `auto`), price gauge with its formula disclosed, click-to-select and wheel over the list. Chain and toggle edits persist as they are made; a session model or reasoning choice is pending until enter, so escape changes nothing. The Ctrl+P list tab (labelled `ctrl+p`) lists the `enabledModels` entries once each, every row saying `Ctrl+P list`, `in Ctrl+P list via <pattern>` or `not in Ctrl+P list`: enter (or space) toggles membership - an exact entry leaves the list, a session-only model joins it as its own exact entry, a model a saved pattern already covers is added as one - backspace removes an entry whole (a wildcard included, which the footer labels it for), and alt+up/down saves their manual order as one list. The session catalogue's space toggles the highlighted model's membership in that same list (so the key that edits the list is the same one on both lists), one legend line above the catalogue says what the list and the startup default are, its ctrl+s saves the highlighted row as the startup default new sessions begin with (pi's own `defaultProvider`/`defaultModel`, and a save of the default already in place writes nothing), and enter still switches the session model; the session search field gives up the space character, which no model id contains. A wildcard moves whole, is never expanded, and a membership toggle never rewrites one. Since pi resolves the scope at session start (and `ctx.scopedModels` is read-only) the tab states that an edit applies from the next session start while the picker's own session list and agents tab follow it immediately: the catalogue re-reads the list on every keystroke, so a model the list names exactly leaves the `available` rest for the `in Ctrl+P list next session` group (between `in Ctrl+P list now` and `available`, tagged `not cycling now  in Ctrl+P list`) the moment it is added and drops back when it is removed - no relaunch needed to see it in the right list. It still names pi's own `/scoped-models` selector for the same list - a built-in command no extension can dispatch, so the tab states it rather than faking an action. A row the running session does not cycle is tagged `not cycling now`, never `out of Ctrl+P list`, so a model a saved pattern covers reads as two separate facts rather than a contradiction. The agents tab lists every agent the `subagents` package reports (its roster read over pi's event bus, `agent-roster.ts`) with the model it would run - named as a pin, the agent's own definition, `subagents.defaultModel` or an inherited session model - plus the same reasoning column, where left/right writes only that agent's thinking (clamped to the model's own levels) and enter or a click opens the inline model editor; a pin whose agent no longer exists stays listed, marked `no such agent`, so it can be repointed; the editor opens on the pinned model or on an explicit no-model-change row when the agent has no model row (a stored level alone, or a model the catalogue cannot resolve, which the header names as not in the catalogue), shows a stored level the pinned model does not accept, marked `unsupported`, and an untouched save writes nothing; per-agent models otherwise stay with the `subagents` command, which the agents tab opens (after releasing its own modal) once it is registered.
-- [ ] `ctx.ui.select/confirm/input/editor` built-in dialogs — colors only (`text/accent/dim/muted`, keyHint `muted/dim`). Decide `- [~]` or replace with `ctx.ui.custom` house dialogs reusing `ui/frame.ts`.
+- [ ] `ctx.ui.select/confirm/input/editor` built-in dialogs — colors only (`text/accent/dim/muted`, keyHint `muted/dim`). Decide `- [~]` or replace with `ctx.ui.custom` house dialogs reusing `lib/ui/frame.ts`.
 - [ ] Transient overlays: BorderedLoader (spinner + `border` frame), countdown dialogs — colors only. `- [~]` unless UX says otherwise.
 - [ ] Fullscreen `ctx.ui.custom` for anything that needs owned chrome (pattern stays in extensions docs; do not duplicate here).
 
@@ -251,7 +251,7 @@ Confirmed glyphs/dims in pi 0.85.1 — record decisions here instead of re-disco
 - [ ] `Spacer(1)` spacings + `Box(1,1)` paddings (user msg, tool rows, custom cards) → only via `renderShell: "self"` / owned components.
 - [x] Working status: pi prints the loader as a standalone row above the widget container — whose `Spacer(1)` then reads as a blank gap above the prompt — unless the editor opts into the border with `embedWorkingStatus: true`.
 - [ ] Markdown glyphs: quote border `│ ` (+ italic quote), fences ` ```lang `, hr `"─".repeat(min(w,80))`, bullets `- ` / `1. ` / preserved markers / task `[x] ``[ ] `, tables bordered with `─`, h1 = bold+underline, h2+ = bold, links `mdLink` underline + ` (url)` in `mdLinkUrl` when href ≠ text, `addition/deletion` reusing `toolDiffAdded/Removed`, LaTeX via `renderLatex`, mermaid → ASCII art.
-- [ ] Editor glyphs `── `, ` ──`; settings cursor `accent "→ "`; footer glyphs `↑ ↓ R W CH •` (irrelevant — footer is owned).
+- [ ] Editor glyphs `── `, ` ──`; settings cursor `accent "→ "`; hud-footer glyphs `↑ ↓ R W CH •` (irrelevant — hud-footer is owned).
 - [ ] Spinner frames `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` @80ms (pi-tui Loader default) — replaced by `setWorkingIndicator` (done). Re-checked in 0.86.1: `pi-tui` loader frames unchanged; pi's dist no longer inlines them.
 - [ ] Phrase set `... (N more lines, to expand)`, `[Truncated: ...]`, `[invalid arg]`, `[invalid content arg - expected string]` — restyle = our own phrasing in tool renderer overrides.
 - [ ] `PS>`/`$` prompts — inside tool renderers, overridable. (`[skill]` cards are house-styled by `renderers/`, not this layer.)
@@ -297,9 +297,9 @@ House rule per `ARCHITECTURE.md`: `palette.ts` reads `themes/catppuccin-latte.js
 
 ## 10. Version-drift workflow
 
-There is no hard pin. `ui/pi-runtime.ts` exports `AUDITED_PI_VERSION` (the release the adapters
+There is no hard pin. `lib/ui/pi-runtime.ts` exports `AUDITED_PI_VERSION` (the release the adapters
 were last audited against) and `detectPiDrift`; the renderers extension mounts a warning widget
-(`ui/renderer-drift.ts`) on drift and installs anyway — a broken adapter still surfaces its own
+(`lib/ui/renderer-drift.ts`) on drift and installs anyway — a broken adapter still surfaces its own
 "missing; re-audit" error at install or render time. After upgrading pi, run the
 `pi-updated` skill: its changelog-diff script prints the installed CHANGELOG.md sections between the
 audited and installed versions (read every Breaking Changes entry against the surfaces the

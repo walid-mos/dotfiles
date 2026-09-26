@@ -1,4 +1,7 @@
 {
+  "settings": {
+    "mcpFooterStatus": "off"
+  },
   "mcpServers": {
     "cloudflare-docs": {
       "url": "https://docs.mcp.cloudflare.com/mcp"

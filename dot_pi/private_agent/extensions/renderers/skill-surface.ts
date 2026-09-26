@@ -1,10 +1,11 @@
 /** Adapt Pi's skill invocation card to the house callout: the native toggle
  * contract (global Ctrl+O, plus a click that native never handled) as before,
  * but the band is painted by skill-block.ts instead of a flat Pi background. */
-import { patchPiComponent } from '../ui/pi-component-patch.ts'
-import { invokePiMethod, reflectMember } from '../ui/pi-members.ts'
+import { patchPiComponent } from '#lib/ui/pi-component-patch.ts'
+import { invokePiMethod, reflectMember } from '#lib/ui/pi-members.ts'
 
 import { SkillBlock } from './skill-block.ts'
+import { payloadText } from './tool-payload.ts'
 
 import type { MarkdownTheme } from '@earendil-works/pi-tui'
 import type { SkillSource } from './skill-block.ts'
@@ -18,11 +19,6 @@ export function skillToggleKey(keyText: unknown): string {
 	return typeof key === 'string' && key ? key : FALLBACK_TOGGLE
 }
 
-function memberText(source: unknown, member: string): string {
-	const resolved = reflectMember(source, member)
-	return typeof resolved === 'string' ? resolved : ''
-}
-
 function isMarkdownTheme(source: unknown): source is MarkdownTheme {
 	return typeof source === 'object' && source !== null
 }
@@ -30,9 +26,9 @@ function isMarkdownTheme(source: unknown): source is MarkdownTheme {
 function skillSource(host: object): SkillSource {
 	const block = reflectMember(host, 'skillBlock')
 	return {
-		name: memberText(block, 'name'),
-		location: memberText(block, 'location'),
-		content: memberText(block, 'content'),
+		name: payloadText(block, 'name'),
+		location: payloadText(block, 'location'),
+		content: payloadText(block, 'content'),
 	}
 }
 

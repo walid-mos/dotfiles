@@ -1,7 +1,7 @@
 /** Translate Pi's numbered diff into owned code rows; Pi remains the diff engine. */
 import { generateDiffString } from '@earendil-works/pi-coding-agent'
 
-import type { ChangeDocument, ChangeLine } from '../ui/change-block.ts'
+import type { ChangeDocument, ChangeLine } from '#lib/ui/change-block.ts'
 
 export const MAX_CHANGE_BYTES = 262_144
 const DIFF_CONTEXT_LINES = 3

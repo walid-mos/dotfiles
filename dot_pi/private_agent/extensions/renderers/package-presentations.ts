@@ -1,7 +1,7 @@
 /** Vocabulary for tools registered by packages: Galley, the browser tools and the subagent runtime. */
 import { basename } from 'node:path'
 
-import { reflectMember } from '../ui/pi-members.ts'
+import { reflectMember } from '#lib/ui/pi-members.ts'
 
 import {
 	countLines,

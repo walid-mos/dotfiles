@@ -9,7 +9,7 @@
  * picker holds its layout from a narrow split pane to a wide terminal.
  */
 
-import { uiTheme } from '../ui/design-system/theme.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
 
 import { editorHint, renderAgentEditor } from './model-picker-editor-render.ts'
 import { INDENT, line, separateLine, twoColumn } from './model-picker-line.ts'
@@ -128,8 +128,7 @@ function agentsNote(view: PickerView): string {
 		const orphanNote = orphans ? ` · ${orphans} without a definition` : ''
 		return `${known} ${known === 1 ? 'agent' : 'agents'} from the subagents package${pinNote}${orphanNote}`
 	}
-	if (!pinned)
-		return 'inherit the session model and thinking (none pinned)'
+	if (!pinned) return 'inherit the session model and thinking (none pinned)'
 	return `inherit the session model and thinking unless pinned (${pinned} pinned)`
 }
 
@@ -189,16 +188,15 @@ const TAB_BODIES = {
 function tabBody(input: RenderInput): PickerLine[] {
 	const { view, state, size } = input
 	if (state.editor) return renderAgentEditor(input)
-	if (!(state.tab === 'session'))
-		return TAB_BODIES[state.tab](input)
+	if (!(state.tab === 'session')) return TAB_BODIES[state.tab](input)
 	return renderSessionBody({
-			view,
-			state,
-			rows: sessionRows(view, input.query),
-			window: sessionWindow(size.height),
-			width: size.width,
-			searchLine: input.searchLine,
-		})
+		view,
+		state,
+		rows: sessionRows(view, input.query),
+		window: sessionWindow(size.height),
+		width: size.width,
+		searchLine: input.searchLine,
+	})
 }
 
 export function renderPicker(input: RenderInput): PickerLine[] {

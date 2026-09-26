@@ -8,7 +8,7 @@ description: Re-establish that house display adapters and extensions work on a n
 This user-requested Pi harness maintenance is the narrow exception in `~/.pi/agent/AGENTS.md` § Third-party code: inspect installed Pi dist sources and reapply only audited dist patches. It does not permit patching other dependencies or incidental Pi internals.
 
 Goal: make the running pi release the audited one (`AUDITED_PI_VERSION` in
-`~/.pi/agent/extensions/ui/pi-runtime.ts`) and prove nothing else broke. There is no hard pin — the
+`~/.pi/agent/extensions/lib/ui/pi-runtime.ts`) and prove nothing else broke. There is no hard pin — the
 adapters always load; this skill re-establishes that they and the other extensions actually work.
 Three audits, in order of information value:
 

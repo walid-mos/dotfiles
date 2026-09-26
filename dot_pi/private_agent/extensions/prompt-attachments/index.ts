@@ -1,16 +1,16 @@
-import { attachPromptImageEditor } from '../attachments/attachment-editor.ts'
-import { AttachmentStore } from '../attachments/attachment-store.ts'
+import { attachPromptImageEditor } from '#lib/attachments/attachment-editor.ts'
+import { AttachmentStore } from '#lib/attachments/attachment-store.ts'
 import {
 	renderAttachmentStrip,
 	TILE_PREVIEW_BOX,
-} from '../attachments/attachment-strip.ts'
-import { PreviewService } from '../attachments/preview-service.ts'
+} from '#lib/attachments/attachment-strip.ts'
+import { PreviewService } from '#lib/attachments/preview-service.ts'
 import {
 	renderTranscriptAttachments,
 	SubmittedCaptures,
 	TRANSCRIPT_ENTRY_TYPE,
 	transcriptCapture,
-} from '../attachments/transcript-entry.ts'
+} from '#lib/attachments/transcript-entry.ts'
 /**
  * prompt-attachments - image file paths in the prompt become [img:N] aliases.
  *
@@ -33,11 +33,11 @@ import {
 import {
 	createDefaultEditor,
 	registerEditorDecorator,
-} from '../ui/editor-decorator.ts'
+} from '#lib/ui/editor-decorator.ts'
 import {
 	ABOVE_EDITOR_PRIORITY,
 	setOrderedAboveEditorWidget,
-} from '../ui/ordered-widget-stack.ts'
+} from '#lib/ui/ordered-widget-stack.ts'
 
 import type { ImageContent } from '@earendil-works/pi-ai'
 import type {
@@ -47,8 +47,8 @@ import type {
 	InputEvent,
 	InputEventResult,
 } from '@earendil-works/pi-coding-agent'
-import type { AliasStylist } from '../attachments/attachment-editor.ts'
-import type { TranscriptAttachments } from '../attachments/transcript-entry.ts'
+import type { AliasStylist } from '#lib/attachments/attachment-editor.ts'
+import type { TranscriptAttachments } from '#lib/attachments/transcript-entry.ts'
 
 const WIDGET_ID = 'prompt-attachments'
 /** Shared no-op so reset code never allocates a new closure. */

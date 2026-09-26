@@ -4,7 +4,7 @@
  * account for the rows a window hides.
  */
 
-import { uiTheme } from '../ui/design-system/theme.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
 
 import { INDENT, PICKER_TAB_CHROME_ROWS, line } from './model-picker-line.ts'
 

@@ -1,5 +1,5 @@
 import type { Editor } from '@earendil-works/pi-tui'
-import type { LineSink } from '../ui/terminal-text.ts'
+import type { LineSink } from '#lib/ui/terminal-text.ts'
 import type { QuestionnaireState } from './questionnaire-state.ts'
 
 /** Dependencies of one live render pass; state owns the question list. */

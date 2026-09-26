@@ -2,6 +2,9 @@
 	"name": "pi-agent",
 	"private": true,
 	"type": "module",
+	"imports": {
+		"#lib/*": "./extensions/lib/*"
+	},
 	"description": "Tooling manifest for the Pi agent extensions: oxlint + oxfmt driven by @nextnode-solutions/standards",
 	"scripts": {
 		"lint": "oxlint",

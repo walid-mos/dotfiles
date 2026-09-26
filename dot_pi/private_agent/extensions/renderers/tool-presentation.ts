@@ -4,7 +4,7 @@ Package tools register their vocabulary in `package-presentations.ts`. */
 import { homedir } from 'node:os'
 import { basename, dirname, sep } from 'node:path'
 
-import { reflectMember } from '../ui/pi-members.ts'
+import { reflectMember } from '#lib/ui/pi-members.ts'
 
 import { bashPreview } from './bash-preview.ts'
 import { PACKAGE_PRESENTATIONS } from './package-presentations.ts'
