@@ -154,20 +154,20 @@ export function readSettingsSnapshot(path = settingsPath()): SettingsSnapshot {
 	if (!patterns) return UNREADABLE_SNAPSHOT
 	const agentPins = readAgentPins(settings)
 	const startupDefault = readStartupDefault(settings)
-	if (!agentPins)
+	if (agentPins)
 		return {
 			isReadable: true,
 			startupDefault,
 			patterns,
-			agentPins: [],
-			areAgentPinsKnown: false,
+			agentPins,
+			areAgentPinsKnown: true,
 		}
 	return {
 		isReadable: true,
 		startupDefault,
 		patterns,
-		agentPins,
-		areAgentPinsKnown: true,
+		agentPins: [],
+		areAgentPinsKnown: false,
 	}
 }
 

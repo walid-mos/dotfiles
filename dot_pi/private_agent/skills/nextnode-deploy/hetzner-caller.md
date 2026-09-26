@@ -1,5 +1,7 @@
 # Hetzner Caller Convention
 
+> Extends the Hetzner VPS target deep-dive in the DeployTarget section (caller side) in `SKILL.md` — read that section first; its core rules are not restated here.
+
 What a project repo (the caller) must provide to deploy via `deploy.yml` to a Hetzner VPS. Covers only the Hetzner-caller specifics - the `nextnode.toml` schema lives in [config.md](config.md), the pipeline shape in [pipeline.md](pipeline.md).
 
 ## Files in the caller repo
@@ -333,10 +335,10 @@ docker rm -f <pkg>-smoke
 
 What this catches that a green `pnpm build` does NOT:
 
-- **Missing `dist/` in the deployed bundle.** `pnpm deploy` follows npm's packlist: with no `"files"` field in the package's `package.json`, gitignored entries (typically `dist/`) are excluded. Container starts, fails with `Cannot find module '.../dist/server/entry.mjs'`, crash-loops. Declare `"files": ["dist"]` (or specific subpaths) in the package's `package.json`, like the workspace libraries already do.
+- **Missing `dist/` in the image.** The canonical Dockerfile ([turborepo-docker.md](turborepo-docker.md)) copies the built artefact explicitly (`COPY --from=build /repo/packages/app/dist ./packages/app/dist`). If the `turbo build --filter=<pkg>` stage did not emit `dist` (wrong filter name, build script missing) or the `COPY` points at the wrong path, the container starts and fails with `Cannot find module '.../dist/server/entry.mjs'`, crash-loops. Check the build stage output and the `COPY` source path first.
 - **`HOST` binding for SSR servers.** `@astrojs/node` standalone (and most Node SSR runtimes) default to `localhost`/`127.0.0.1`, which Docker port-mapping cannot reach. Set `host: true` in the Astro config or export `HOST=0.0.0.0` in the runtime env.
 - **Workspace dep `dist/` not built.** Caught by Rule 6 already (topological filter), but the smoke test confirms every consumer resolves at runtime, not just at build time.
-- **Wrong working directory or entry path.** The Dockerfile's `WORKDIR` and `CMD` must match what `pnpm deploy` actually outputs. The smoke test surfaces this immediately.
+- **Wrong working directory or entry path.** The runtime stage `WORKDIR /app/packages/app` must match where the `dist` was `COPY`ed and what `CMD` (e.g. `node dist/server/entry.mjs`) resolves against — pnpm links each package's deps at `<pkgdir>/node_modules`, so a `dist` moved to `/app` root cannot resolve its runtime imports. The smoke test surfaces this immediately.
 - **Missing runtime data assets read via `fs`.** A `dist`-only runtime stage omits any directory the app reads at request time (doctrine/prompt files, email templates, seed JSON). `GET /` still 200s while the feature endpoint that reads them throws `ENOENT` — so the smoke test MUST hit at least one asset-dependent endpoint, not just the homepage. See [Runtime data assets](#runtime-data-assets-files-read-from-disk).
 
 A green smoke test is mandatory before pushing - treat it like `pnpm test` for deploys. A `curl /` alone is NOT sufficient when the app reads files from disk: exercise the route that consumes the asset.

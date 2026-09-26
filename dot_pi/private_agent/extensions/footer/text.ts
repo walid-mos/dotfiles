@@ -69,8 +69,8 @@ const HOME_MARK = '~'
 export function shortPath(cwd: string): string {
 	const home = homedir()
 	if (cwd === home) return HOME_MARK
-	if (cwd.startsWith(`${home}/`)) {
-		return `${HOME_MARK}/${cwd.slice(home.length + 1)}`
+	if (!cwd.startsWith(`${home}/`)) {
+		return cwd
 	}
-	return cwd
+	return `${HOME_MARK}/${cwd.slice(home.length + 1)}`
 }

@@ -45,8 +45,10 @@ Examples:
 2. Read `nextnode.toml` and resolve the hostname:
    - `[deploy].vps = "xxx"` set → use verbatim (pins a dedicated VPS, e.g.
      `fleurs-prod`).
-   - Otherwise derive from the pipeline environment via `resolveVpsName`:
-     `development` → `nn-dev`; `production` → `nn-prod`.
+   - Otherwise use the explicit pipeline environment via `resolveVpsName`:
+     `development` → `nn-dev`; `production` → `nn-prod`. Outside a pipeline,
+     ask the user to choose development or production before connecting or
+     running any remote command; never infer production from a missing value.
    - `[environment].development` in `nextnode.toml` does NOT pick the VPS — it
      only feeds the plan quality matrix. The dev pipeline deploys to `nn-dev`,
      the prod pipeline to `nn-prod`.

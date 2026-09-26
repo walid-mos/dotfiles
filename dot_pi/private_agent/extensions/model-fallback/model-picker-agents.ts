@@ -59,8 +59,8 @@ export type AgentRow =
 
 /** Where an agent's configured model comes from, as one word. */
 function configuredOrigin(agent: RosterAgent): AgentModelOrigin {
-	if (agent.modelOrigin === 'default') return 'default'
-	return 'agent'
+	if (!(agent.modelOrigin === 'default')) return 'agent'
+	return 'default'
 }
 
 /** One roster agent, with the picker's own pin merged over it. */
@@ -156,9 +156,9 @@ export function agentEntry(
  */
 export function editorAnchor(entry: AgentEntry): string | undefined {
 	if (entry.pin?.model) return entry.pin.model
-	if (entry.modelOrigin === 'agent' || entry.modelOrigin === 'default')
-		return entry.model
-	return undefined
+	if (!(entry.modelOrigin === 'agent' || entry.modelOrigin === 'default'))
+		return undefined
+	return entry.model
 }
 
 /**

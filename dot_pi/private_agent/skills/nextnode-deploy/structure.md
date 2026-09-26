@@ -1,5 +1,7 @@
 # `@nextnode-solutions/infrastructure` — code layout
 
+> Extends the Folder structure section in `SKILL.md` — read that section first; its core rules are not restated here.
+
 Four-layer architecture (cli → domain + adapters + config, all sitting on top of a layer-agnostic kernel). Layer rules are STRICT and enforced in `packages/infrastructure/CLAUDE.md`.
 
 ## Layers

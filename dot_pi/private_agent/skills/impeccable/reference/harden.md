@@ -300,7 +300,7 @@ const throttledScroll = throttle(handleScroll, 100);
 - Test keyboard-only navigation
 - Test on old browsers
 
-**Automated testing**:
+**Automated testing**: Run relevant existing checks. Author or modify the following tests only when the current user request explicitly authorizes test work (`~/.pi/agent/AGENTS.md` § Tests):
 - Unit tests for edge cases
 - Integration tests for error scenarios
 - E2E tests for critical paths

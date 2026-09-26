@@ -2,7 +2,7 @@
 
 Extends the checklist in `SKILL.md`; only the Astro 7 + `@astrojs/cloudflare` v14
 mechanics live here. Verified on nextnode-landing (astro 7.3.4, adapter 14.3.3,
-@astrojs/sentry 10.75.2, wrangler 4.136.3).
+@sentry/astro 10.75.2, wrangler 4.136.3).
 
 ## Install and register
 
@@ -65,7 +65,7 @@ registered in `astro.config.ts` after Tailwind:
   **absolute path** (`fileURLToPath(new URL('./sentry.worker.options.ts', import.meta.url))`) —
   a virtual module has no parent directory, so a relative import fails to resolve.
 
-`sentry.worker.options.ts` exports `buildSentryOptions(env: CloudflareEnv)`, returning
+`sentry.worker.options.ts` exports `buildSentryOptions(env: Env)`, returning
 dsn/environment/release/tracesSampleRate/sendDefaultPii. `withSentry` calls it per
 request, which is the only worker-side init path on this stack — never read
 `process.env` for the DSN (worker env bindings are not merged into `process.env` at
@@ -83,10 +83,15 @@ import { env } from 'cloudflare:workers'
 const { RESEND_API_KEY } = env
 ```
 
-Type it once in `src/env.d.ts` with a global `interface CloudflareEnv` (worker secrets
-declared in `nextnode.toml [deploy].secrets`) plus `declare module 'cloudflare:workers' { export const env: CloudflareEnv }`.
-The same global interface types `buildSentryOptions`. Existing tests that stubbed
-`locals.runtime.env` must `vi.mock('cloudflare:workers', () => ({ env }))` instead.
+Do not hand-write an `env.d.ts` shim: the deploy pipeline's `generate-worker-types`
+(or the standalone `@nextnode-solutions/worker-types` package) writes a committed
+`worker-configuration.d.ts` into the app package root that already types
+`import { env } from 'cloudflare:workers'` from the SAME wrangler config the deploy
+uses (secret NAMES from `nextnode.toml [deploy].secrets` included). Regenerate it on
+config change (`worker-types gen --config <app>/nextnode.toml`) and use its
+`Env` interface to type `buildSentryOptions`. Changing or authoring tests to match
+(e.g. re-stubbing `locals.runtime.env` as `vi.mock('cloudflare:workers', ...)`) only
+under an explicit test authorization in the current request.
 
 ## Adapter v14 config changes
 
@@ -107,9 +112,12 @@ The same global interface types `buildSentryOptions`. Existing tests that stubbe
 The shared `@nextnode-solutions/standards/vitest/astro` preset loads the full Astro
 config, so `@astrojs/cloudflare`'s Vite plugin validates the `ssr.resolve.external`
 list `@sentry/astro` injects and aborts startup ("environment options are
-incompatible with the Cloudflare Vite plugin"). Keep the preset and filter the
-Cloudflare plugins out for tests: export a config function, await the preset, and drop
-every plugin whose name starts with `vite-plugin-cloudflare` or `@astrojs/cloudflare`.
+incompatible with the Cloudflare Vite plugin"). If you hit it: keep the preset and
+filter the Cloudflare plugins out for tests (export a config function, await the
+preset, drop every plugin whose name starts with `vite-plugin-cloudflare` or
+`@astrojs/cloudflare`). Authoring that `vitest.config.ts` change, or any test edits
+this skill implies, requires an explicit test authorization in the current request —
+test files are never created or modified by this skill uninvited.
 
 ## Local runtime verification
 

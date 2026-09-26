@@ -99,6 +99,8 @@ Critical for BOLA Detection, Sequence Mitigation, and analytics. Configure heade
 
 **Examples:** JWT sub claim, session token, API key, custom user ID header
 
+The chosen identifier must be set or verified by a trusted component (your auth layer, JWT verification, or a session store) — never trust a client-supplied header such as `X-User-ID` on its own: any caller could send someone else's ID and poison BOLA detection. A request header alone is not proof of identity (same principle as the D1 tenant-boundary guidance in [../d1/patterns.md](../d1/patterns.md)).
+
 **Configure:**
 ```
 Security > API Shield > Settings > Session Identifiers

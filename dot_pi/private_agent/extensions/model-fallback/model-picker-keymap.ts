@@ -37,8 +37,8 @@ function cursorIntent(
 	if (matchesKey(keyData, Key.up)) return { kind: 'move', delta: -1 }
 	if (matchesKey(keyData, Key.down)) return { kind: 'move', delta: 1 }
 	if (matchesKey(keyData, Key.left)) return { kind: 'effort', delta: -1 }
-	if (matchesKey(keyData, Key.right)) return { kind: 'effort', delta: 1 }
-	return undefined
+	if (!matchesKey(keyData, Key.right)) return undefined
+	return { kind: 'effort', delta: 1 }
 }
 
 /**
@@ -75,9 +75,9 @@ function rowIntent(
 	// Backspace removes the highlighted row on the two list tabs that own a
 	// removable list; elsewhere it is text.
 	const removesRow = state.tab === 'fallbacks' || state.tab === 'scope'
-	if (matchesKey(keyData, Key.backspace) && !state.editor && removesRow)
-		return { kind: 'remove' }
-	return undefined
+	if (!(matchesKey(keyData, Key.backspace) && !state.editor && removesRow))
+		return undefined
+	return { kind: 'remove' }
 }
 
 /** The action a key asks for, or nothing when the key means nothing here. */
@@ -87,6 +87,6 @@ export function keyIntent(
 ): PickerKeyIntent | undefined {
 	const routed = cursorIntent(keyData, state) ?? rowIntent(keyData, state)
 	if (routed) return routed
-	if (state.editor || state.tab === 'session') return { kind: 'type' }
-	return undefined
+	if (!(state.editor || state.tab === 'session')) return undefined
+	return { kind: 'type' }
 }

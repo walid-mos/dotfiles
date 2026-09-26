@@ -10,10 +10,12 @@ Action: Managed Challenge
 
 ## API Protection
 
+Do not require a JavaScript-detection result on API endpoints: first requests have no JS result and native apps cannot run the detection at all (see [configuration.md](./configuration.md) Limitations). Score-based handling is the appropriate signal for API traffic; if you use JS detection, scope it to browser flows and use Managed Challenge, never Block.
+
 ```txt
-# Protect API with JS detection + score
-(http.request.uri.path matches "^/api/" and (cf.bot_management.score lt 30 or not cf.bot_management.js_detection.passed) and not cf.bot_management.verified_bot)
-Action: Block
+# Protect API with score only (no js_detection requirement)
+(http.request.uri.path matches "^/api/" and cf.bot_management.score lt 30 and not cf.bot_management.verified_bot)
+Action: Managed Challenge
 ```
 
 ## SEO-Friendly Bot Handling
@@ -144,13 +146,15 @@ export default {
     
     if (botMgmt?.staticResource) return fetch(request); // Skip static
     
-    // API endpoints: require JS detection + good score
+    // API endpoints: score-based handling only. Do not require a JS-detection
+    // result here — first requests have none and native apps cannot pass it.
+    // If you need to challenge browser flows, use a Managed Challenge rule
+    // scoped to HTML/page paths (see configuration.md).
     if (url.pathname.startsWith('/api/')) {
-      const jsDetectionPassed = botMgmt?.jsDetection?.passed ?? false;
       const score = botMgmt?.score ?? 100;
       
-      if (!jsDetectionPassed || score < 30) {
-        return new Response('Unauthorized', { status: 401 });
+      if (score < 30) {
+        return new Response('Unauthorized', { status: 403 });
       }
     }
     

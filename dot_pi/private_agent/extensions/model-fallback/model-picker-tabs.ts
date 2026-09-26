@@ -66,8 +66,12 @@ function fallbackRowLine(
 			pick: index,
 		}
 	}
-	if (row.kind === 'chain')
+	if (!(row.kind === 'chain'))
 		return {
+		text: `${INDENT}${marker} ${uiTheme.fg('dim', '+')} ${uiTheme.fg('muted', row.reference)}`,
+		pick: index,
+	}
+	return {
 			text: twoColumn(
 				`${INDENT}${marker} ${uiTheme.fg('muted', String(row.index + 1))} ${uiTheme.fg('text', index === input.state.cursor ? uiTheme.bold(row.reference) : row.reference)}`,
 				cooldownText(input, row.reference),
@@ -75,10 +79,6 @@ function fallbackRowLine(
 			),
 			pick: index,
 		}
-	return {
-		text: `${INDENT}${marker} ${uiTheme.fg('dim', '+')} ${uiTheme.fg('muted', row.reference)}`,
-		pick: index,
-	}
 }
 
 export function renderFallbacks(input: RenderInput): PickerLine[] {
@@ -127,9 +127,9 @@ function agentTag(
 		return `${uiTheme.fg('dim', '  pinned')} ${label}`
 	if (entry.modelOrigin === 'agent')
 		return `${uiTheme.fg('dim', '  uses')} ${label}`
-	if (entry.modelOrigin === 'default')
-		return `${uiTheme.fg('dim', '  subagents default')} ${label}${uiTheme.fg('dim', entry.modelScope === 'project' ? ' (project)' : ' (user)')}`
-	return uiTheme.fg('dim', `  inherits ${model}`)
+	if (!(entry.modelOrigin === 'default'))
+		return uiTheme.fg('dim', `  inherits ${model}`)
+	return `${uiTheme.fg('dim', '  subagents default')} ${label}${uiTheme.fg('dim', entry.modelScope === 'project' ? ' (project)' : ' (user)')}`
 }
 
 /** The agent's name, with the marker a pin that lost its agent earns. */

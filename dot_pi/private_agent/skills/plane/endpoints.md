@@ -51,9 +51,9 @@ guessing variants.
   `estimate` (uuid, if estimates enabled).
 - Comment text must be HTML: plain text works inside `<p>…</p>`.
 - Reactions accept a single emoji glyph in `reaction`.
-- Bulk create: `POST projects/$P/issues/` with
-  `{"issues":[{…},{…}]}` to `projects/$P/issues/bulk/` — verify against the
-  response, which returns per-item success/failure maps.
+- For multiple issues, use the documented single-issue create route one issue
+  at a time. Do not guess a bulk-write endpoint; confirm it against current
+  API documentation before using one.
 
 ## Reading discipline
 

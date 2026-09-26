@@ -44,7 +44,9 @@ already-covered nouns — duplicates drift.
 
 ## Mutations (including `raw`)
 
-1. Discover the target with a read command (`team list`, `state list --team ENG`, `whoami`).
+1. Discover the target with a read: use the available Linear MCP tools first (e.g.
+   `mcp_list_teams`, `mcp_list_issue_statuses`); fall back to the script's read commands
+   (`team list`, `state list --team ENG`, `whoami`) only when the MCP lacks that read.
 2. State the exact intended change and the rollback path to the user.
 3. Run the same command with `--dry-run --json` (no network, no credentials).
 4. After confirmation, rerun with `--confirm --json`; report the returned id/outcome.
@@ -62,9 +64,9 @@ Keep `raw` queries narrow; confirm field names in Linear's GraphQL documentation
 
 | Need | Command |
 |---|---|
-| Confirm identity / admin status | `scripts/linear whoami --json` |
-| List teams | `scripts/linear team list --limit 20 --json` |
-| List a team's workflow states | `scripts/linear state list --team ENG --json` |
+| Confirm identity / admin status | Linear MCP if available, else `scripts/linear whoami --json` |
+| List teams | `mcp_list_teams` first; else `scripts/linear team list --limit 20 --json` |
+| List a team's workflow states | `mcp_list_issue_statuses` first; else `scripts/linear state list --team ENG --json` |
 | Any MCP-gap operation (team, state, webhook, membership, …) | `scripts/linear raw 'mutation { … }' --confirm --json` |
 
 Reads default to `--limit 10` (max 100); the CLI never auto-paginates.

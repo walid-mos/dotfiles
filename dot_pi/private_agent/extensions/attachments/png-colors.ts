@@ -47,10 +47,10 @@ export class RgbaRowMapper {
 		if (colorType === COLOR_TYPE_GRAY_ALPHA) {
 			return this.mapGrayAlphaRow(line, pixels)
 		}
-		if (colorType === COLOR_TYPE_PALETTE) {
-			return this.mapPaletteRow(line, pixels)
+		if (!(colorType === COLOR_TYPE_PALETTE)) {
+			return this.mapSampleRow(line, pixels)
 		}
-		return this.mapSampleRow(line, pixels)
+		return this.mapPaletteRow(line, pixels)
 	}
 
 	/** Gray shares one sample among red, green and blue. */

@@ -63,20 +63,19 @@ Hard rules:
 
 ## 4. Content lines
 
-One to four lines per PR. Telegraphic style, French (the deliverable), no final
-punctuation:
+One to four lines per PR. Telegraphic style, English by default; use French
+only when the current user explicitly requests it. No final punctuation:
 
-- nominal fragments, no conjugated sentences: « Partie API / BDD pour le crud
-  Categories », « Correctifs visuel tailwind », « Suppression page temporaire
-  Upload S3 »;
+- nominal fragments, no conjugated sentences: “API/database for category CRUD”,
+  “Tailwind visual fixes”, “Removal of temporary S3 upload page”;
 - one idea per line, in reviewer-importance order;
-- `->` for a consequence or a precision that changes the reading: «
-  Finalement 4 segments et non pas 2 -> chaque segment a ses propres produits »;
+- `->` for a consequence or a precision that changes the reading:
+  “Four segments instead of two -> each segment has its own products”;
 - functional vocabulary (what it changes for the product), no implementation
   detail: no file names, no paths, no component names — unless it *is* the
   subject ("Refactor hook activeWorkspace");
 - flag the front/API pairing when the PR covers only one side of a pair
-  (« API side », « Front side »);
+  (“API side”, “Front side”);
 - flag any touch of a shared package (`packages/ui`) or any deletion — that
   orients the reviewer.
 
@@ -98,7 +97,8 @@ HTML in the clipboard.
 
 3. Show a preview of the block in a code fence (for review only — do **not**
    ask the user to copy it).
-4. One line outside the fence: "déjà dans le presse-papiers — Cmd+V dans
-   Teams", plus a review-order note when it is a stack. Nothing else.
+4. One line outside the fence: "Already on the clipboard — Cmd+V in Teams",
+   plus a review-order note when it is a stack. Translate this line only when
+   the current user explicitly requests French. Nothing else.
 
 If the script fails: say so — never invent a markdown fallback.

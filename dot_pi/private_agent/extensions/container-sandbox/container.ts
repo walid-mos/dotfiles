@@ -82,16 +82,16 @@ export function containerExecFailure(
 	if (lower.includes('econnrefused') || lower.includes('connection refused'))
 		return NOT_RUNNING_HINT
 	if (
-		lower.includes('not running') ||
+		!(lower.includes('not running') ||
 		lower.includes('no such container') ||
 		lower.includes('not found') ||
-		(target.kind === 'devvm' && lower.includes('netns'))
+		(target.kind === 'devvm' && lower.includes('netns')))
 	) {
-		return target.kind === 'devvm'
+		return message
+	}
+	return target.kind === 'devvm'
 			? `Workspace ${containerName} is not reachable on the dev VM (${DEVVM_NAME}); run /container sync (or wt sync) and retry.`
 			: `Container ${containerName} is not running; run /container sync (or wt sync) and retry.`
-	}
-	return message
 }
 
 /** Stop one container; bounded because the relay waits on a guest a starved VM never answers. */

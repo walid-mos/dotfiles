@@ -8,8 +8,8 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 
-import { loadConfig } from '../tool-scope/index.ts'
-import { resolvePlan } from '../tool-scope/policy.ts'
+import { loadConfig } from '../lazy-tools/index.ts'
+import { resolvePlan } from '../lazy-tools/policy.ts'
 
 import { childrenByKey, SUBAGENT_TOOL } from './capture.ts'
 import { mergeFindings, parseLensPayload } from './findings.ts'
@@ -43,7 +43,7 @@ export async function runPipeline(
 
 /** Bring the deferred `subagent` schema back before the dispatch turn, so the
  * dispatch message never has to ask the model to call `load_tools` first.
- * Additive on the live set; refuses when the tool-scope plan does not merely
+ * Additive on the live set; refuses when the lazy-tools plan does not merely
  * defer the tool (explicit `off`, or not registered at all). Returns the
  * refusal reason, or undefined when the tool is callable. */
 function ensureSubagentActive(
@@ -63,7 +63,7 @@ function ensureSubagentActive(
 		return undefined
 	}
 	return plan.disabled.includes(SUBAGENT_TOOL)
-		? 'the tool-scope config disables the `subagent` tool in this project.'
+		? 'the lazy-tools config disables the `subagent` tool in this project.'
 		: 'the `subagent` tool is not registered in this session.'
 }
 
@@ -86,12 +86,12 @@ async function analyse(
 			deps.pi.sendUserMessage(buildDispatchMessage(scriptPath)),
 		)
 		await deps.ctx.waitForIdle()
-		if (settled === 'timeout')
-			return {
-				ok: false,
-				notice: 'simplify: the analysis run never settled, so it was abandoned. Nothing was changed.',
-			}
-		return readOutcome(deps.capture.read(), manifest)
+		if (!(settled === 'timeout'))
+			return readOutcome(deps.capture.read(), manifest)
+		return {
+			ok: false,
+			notice: 'simplify: the analysis run never settled, so it was abandoned. Nothing was changed.',
+		}
 	} finally {
 		await rm(directory, { recursive: true, force: true })
 	}
@@ -141,14 +141,14 @@ function readOutcome(
 		}
 		lensResults.push({ lens, payload: parsed.payload })
 	}
-	if (!lensResults.length)
+	if (lensResults.length)
 		return {
-			ok: false,
-			notice: `simplify: every lens failed (${describeFailures(failures)}). Nothing was changed.`,
+			ok: true,
+			outcome: mergeFindings({ manifest, lensResults, failures }),
 		}
 	return {
-		ok: true,
-		outcome: mergeFindings({ manifest, lensResults, failures }),
+		ok: false,
+		notice: `simplify: every lens failed (${describeFailures(failures)}). Nothing was changed.`,
 	}
 }
 
@@ -157,9 +157,8 @@ function childProblem(child: CapturedChild): string {
 	if (child.error) return child.error
 	if (child.structuredOutputFailed)
 		return 'the child finished without a valid structured_output payload'
-	if (!child.isStructuredOutputPresent)
-		return 'the child finished without a structured_output payload'
-	return ''
+	if (child.isStructuredOutputPresent) return ''
+	return 'the child finished without a structured_output payload'
 }
 
 function describeFailures(failures: readonly LensFailure[]): string {

@@ -1,5 +1,7 @@
 # Postgres Service Abstraction
 
+> Extends the Backing services section (Postgres) and the `migrate-remote` command in `SKILL.md` — read that section first; its core rules are not restated here.
+
 Per-project PostgreSQL, modeled as a backing service. Declared in `[services.postgres]`, provisioned during `provision`, env contributions threaded into the deployed app at `deploy` time, migrations applied by a dedicated `migrate-remote` CI job between `provision` and `deploy`.
 
 Two modes are supported:
@@ -117,7 +119,7 @@ A dedicated CI job runs between `provision` and `deploy`. Skipped (early-exit) w
 
 ### Why migrations don't run from the app entrypoint
 
-Two replicas rotating during a redeploy would both try to acquire the schema; if one beats the other, the slower one starts against a half-migrated schema. The advisory-lock approach (`pg_advisory_lock`) only serializes; it does NOT roll back. The `migrate-remote` job runs once, gated, with a snapshot.
+Two replicas rotating during a redeploy would both try to acquire the schema; if one beats the other, the slower one starts against a half-migrated schema. The advisory-lock approach (`pg_advisory_lock`) only serializes; it does NOT roll back. The `migrate-remote` job runs once, gated.
 
 ### Quality-matrix integration
 

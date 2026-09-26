@@ -1,5 +1,7 @@
 ## Common Use Cases
 
+> **Origin reachability prerequisite:** Spectrum connects to origins from Cloudflare's edge, so the origin addresses/names used in these examples are only valid if they are reachable from Cloudflare IPs (see [gotchas.md](gotchas.md)). Private addresses (RFC 1918) and internal-only hostnames require an explicitly supported private-connectivity path (e.g. Cloudflare Tunnel / Network Interconnect / Magic Transit WAN) in your deployment; if the origin is only privately reachable and you have not configured such a path, substitute a publicly reachable origin. Verify current connectivity options in official documentation.
+
 ### 1. SSH Server Protection
 
 **Terraform:**

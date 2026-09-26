@@ -170,9 +170,9 @@ its execution details remain authoritative.
 ## 4. Transcript message surfaces
 
 - [x] Questionnaire transcript cards (own renderer via `registerMessageRenderer` path).
-- [x] User message: literal source inside the shared rounded house frame through `raw-transcript/`, with a rail-colored **❯** marker, accented **Prompt** label, softly tinted blue border, solid closing rule, preserved paragraph breaks and matching outer gaps. One blank row inside each edge gives the text breathing room; compact viewports omit the marker before sacrificing the label. Frame edges span the same viewport as tool rows; wrapping reserves both rails and inner padding. Extremely narrow viewports drop the frame rather than hide the prompt. Native OSC prompt zones remain intact; reinstall replaces styling closures without stacking frames.
+- [x] User message: literal source inside the shared rounded house frame through `renderers/`, with a rail-colored **❯** marker, accented **Prompt** label, softly tinted blue border, solid closing rule, preserved paragraph breaks and matching outer gaps. One blank row inside each edge gives the text breathing room; compact viewports omit the marker before sacrificing the label. Frame edges span the same viewport as tool rows; wrapping reserves both rails and inner padding. Extremely narrow viewports drop the frame rather than hide the prompt. Native OSC prompt zones remain intact; reinstall replaces styling closures without stacking frames.
 - [x] Submitted attachments: thumbnails and aliases sit inside the owning prompt frame, above its literal text, with one separating blank row. The native custom entry is relocated, not duplicated; its persisted position and payload are unchanged. Replay and native user rebuilds preserve the placement; unmatched/orphan entries retain their standalone fallback. Draft-editor strip placement is unchanged.
-- [x] Assistant: `renderers/assistant-surface.ts` with centered response landmarks and house Markdown; no raw-source override remains in `raw-transcript/`.
+- [x] Assistant: `renderers/assistant-surface.ts` with centered response landmarks and house Markdown; no raw-source override remains in `renderers/`.
 - [x] Thinking: separate muted content, existing visibility setting and per-run mouse expansion retained; never styled as a final answer.
 - [ ] Custom message cards: `Box` + bold `[customType]` (`customMessageLabel`) + `customMessageText` (`registerMessageRenderer`).
 - [ ] Custom entry cards: `customMessageBg` (`registerEntryRenderer`, TUI-only, not in LLM context).
@@ -184,7 +184,7 @@ its execution details remain authoritative.
 - [ ] `!` bash row (`bash-execution.js`): `bashMode` bold header pad-1; output `muted`; status muted / `(cancelled)` warning / `(exit N)` error; truncated → full-output path notice. Not overridable — restyle = theme tokens (`bashMode`, `muted`) or rebuild via `registerEntryRenderer`? (verify feasibility before scheduling; may be `- [~]`).
 - [ ] notify lines: NOT toasts — transcript lines: `dim` (consecutive dedupes into one line), `warning`, `Error: msg` in `error`; each after `Spacer(1)`.
 - [x] Compaction summary: common activity shell through `renderers/compaction-surface.ts`, with click and keyboard expansion.
-- [x] Skill invocation card: `raw-transcript/skill-block.ts` renders the parsed skill block as a rose-wash callout band
+- [x] Skill invocation card: `renderers/skill-block.ts` renders the parsed skill block as a rose-wash callout band
   (pink `✦ skill ·` identity, bold skill name, `click / Ctrl+O` hint resolved from Pi's keybindings, source location and house
   Markdown body when expanded) and `skill-surface.ts` mounts it on Pi's native component, keeping the global toggle; a
   stationary left click anywhere on the band folds or expands the card, like the mutation panels.
@@ -254,7 +254,7 @@ Confirmed glyphs/dims in pi 0.85.1 — record decisions here instead of re-disco
 - [ ] Editor glyphs `── `, ` ──`; settings cursor `accent "→ "`; footer glyphs `↑ ↓ R W CH •` (irrelevant — footer is owned).
 - [ ] Spinner frames `⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏` @80ms (pi-tui Loader default) — replaced by `setWorkingIndicator` (done). Re-checked in 0.86.1: `pi-tui` loader frames unchanged; pi's dist no longer inlines them.
 - [ ] Phrase set `... (N more lines, to expand)`, `[Truncated: ...]`, `[invalid arg]`, `[invalid content arg - expected string]` — restyle = our own phrasing in tool renderer overrides.
-- [ ] `PS>`/`$` prompts — inside tool renderers, overridable. (`[skill]` cards are house-styled by `raw-transcript/`, not this layer.)
+- [ ] `PS>`/`$` prompts — inside tool renderers, overridable. (`[skill]` cards are house-styled by `renderers/`, not this layer.)
 - [ ] Easter eggs (`/arminsayshi`, daxnuts, earendil announcement), mermaid ASCII colors — `- [~]`.
 
 ## 8. Token coverage checklist (theme layer, for hot-reload tuning)

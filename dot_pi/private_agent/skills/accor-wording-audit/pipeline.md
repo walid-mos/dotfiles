@@ -4,7 +4,7 @@ Extends `SKILL.md`; this file holds the inventory, row format, gate commands and
 
 ## Source and scope
 
-Pin the prototype revision (clone `git@github.com:VianneyBertrand/drinks-menu-compliance`
+Pin the prototype revision (clone `git@github.com:Alexdu13/drinks-menu-compliance`
 into a task-owned temporary directory), record both commit SHAs, and delete only
 that clone when finished. In a sandbox, verify which tools can access the host
 clone before assigning readers; `bash` may run in a VM while `read`/`grep`/

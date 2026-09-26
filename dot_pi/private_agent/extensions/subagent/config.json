@@ -1,4 +1,13 @@
 {
+  "artifactDir": "temp",
+  "singleRunOutputBaseDir": "~/.pi/generated/subagents/outputs",
+  "missions": {
+    "directory": "~/.pi/generated/subagents/missions/projects",
+    "globalIndexDir": "~/.pi/generated/subagents/missions/index"
+  },
+  "scheduledRuns": {
+    "storeRoot": "~/.pi/generated/subagents/schedules"
+  },
   "modelResponseAliases": {
     "deepseek/deepseek-v4-flash": ["deepseek-flash"],
     "deepseek/deepseek-v4-flash-vision-exp": ["deepseek-flash"]

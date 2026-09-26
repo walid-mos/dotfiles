@@ -1,5 +1,7 @@
 # Golden Image Builder
 
+> Extends the `build-golden-image` row in the CLI commands table in `SKILL.md` — read that section first; its core rules are not restated here.
+
 TypeScript-based Hetzner snapshot builder. Replaces the previous Packer-based pipeline. Spins up a temporary VPS, installs Docker + the standard tools + the baked-in monitoring exporters, snapshots the disk, and labels the snapshot with a deterministic fingerprint so the next provision either reuses it or rebuilds.
 
 ## Baked-in monitoring exporters

@@ -11,8 +11,10 @@ npm create cloudflare@latest my-app
 # Worker (API/WebSocket/Cron)
 npm create cloudflare@latest my-api -- --type=hello-world --ts
 
-# Pages (static/SSG)
-npm create cloudflare@latest my-site -- --type=web-app --framework=astro --platform=pages
+# Static site: new static sites should target Workers (Workers Static Assets)
+# per skills/cloudflare/SKILL.md — do NOT pass --platform=pages for new
+# projects. Use Pages only when updating an explicitly existing Pages project.
+npm create cloudflare@latest my-site -- --type=web-app --framework=astro
 ```
 
 ## Platform Decision Tree
@@ -25,8 +27,9 @@ What are you building?
 │       npm create cloudflare@latest my-api -- --type=hello-world
 
 ├─ Static site / SSG / Documentation
-│   └─ Pages - requires --platform=pages
-│       npm create cloudflare@latest my-site -- --type=web-app --framework=astro --platform=pages
+│   └─ Workers (Workers Static Assets) — recommended for new static sites
+│       npm create cloudflare@latest my-site -- --type=web-app --framework=astro
+│       (Use Pages only for an explicitly existing Pages project)
 
 ├─ Full-stack app (Next.js/Remix/SvelteKit)
 │   └─ Follow the current framework guide below
@@ -104,9 +107,9 @@ npm run deploy
 
 ## See Also
 
-- **workers/README.md** - Workers runtime, bindings, APIs
-- **workers-ai/README.md** - AI/ML models
-- **pages/README.md** - Pages-specific features
-- **wrangler/README.md** - Wrangler CLI beyond initial setup
-- **d1/README.md** - SQLite database
-- **r2/README.md** - Object storage
+- `skills/wrangler/SKILL.md` — Wrangler CLI beyond initial setup
+- `skills/workers-best-practices/SKILL.md` — Workers runtime, bindings, APIs
+- **workers-ai/README.md** — AI/ML models
+- **pages/README.md** — Pages-specific features (existing Pages projects)
+- **d1/README.md** — SQLite database
+- **r2/README.md** — Object storage

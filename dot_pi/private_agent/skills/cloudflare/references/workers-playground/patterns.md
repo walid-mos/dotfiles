@@ -33,13 +33,22 @@ export default {
 
 ## Proxy Pattern
 
+Do not forward all caller headers to another host: that leaks the caller's `Authorization` and cookies to the upstream. Forward an allowlist of only the headers the upstream needs.
+
 ```javascript
 export default {
   async fetch(request) {
     const url = new URL(request.url);
     url.hostname = 'api.example.com';
+    const headers = new Headers();
+    // Allowlist only what the upstream needs — never Authorization or Cookie
+    // unless the upstream is the caller's own authenticated service.
+    for (const name of ['content-type', 'accept', 'user-agent']) {
+      const value = request.headers.get(name);
+      if (value) headers.set(name, value);
+    }
     return fetch(url.toString(), {
-      method: request.method, headers: request.headers, body: request.body
+      method: request.method, headers, body: request.body
     });
   }
 };
@@ -97,15 +106,18 @@ export default app;
 
 ## Authentication
 
+**Mock only.** Playground code is shareable by URL and deployable — do not use it as real authentication. The comparison below is a trivially bypassable demo; deployable auth belongs in a Worker that validates tokens against a secret (`wrangler secret put`) or your auth provider.
+
 ```javascript
 export default {
   async fetch(request) {
+    // MOCK ONLY — trivially bypassable; never deploy as-is.
     const auth = request.headers.get('Authorization');
     if (!auth?.startsWith('Bearer ')) {
       return Response.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const token = auth.substring(7);
-    if (token !== 'secret-token') {
+    if (token !== 'mock-token') {
       return Response.json({ error: 'Invalid token' }, { status: 403 });
     }
     return Response.json({ message: 'Authenticated' });

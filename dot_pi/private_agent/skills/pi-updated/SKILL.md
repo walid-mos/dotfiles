@@ -1,9 +1,11 @@
 ---
 name: pi-updated
-description: Re-establish that house display adapters and extensions work on a new pi release - changelog breakage review between the audited and installed version, extension-API audit, display-ABI audit, glyph/format re-diff, and re-application of the per-repo prompt-history editor patch. Use when the drift widget appears ("run /skill:pi-updated"), after upgrading pi, or when an adapter or extension fails with a "missing; re-audit" error.
+description: Re-establish that house display adapters and extensions work on a new pi release - changelog breakage review between the audited and installed version, extension-API audit, display-ABI audit, glyph/format re-diff, and re-application of audited dist patches. Use when the drift widget appears ("run /skill:pi-updated"), after upgrading pi, or when an adapter or extension fails with a "missing; re-audit" error.
 ---
 
 # Pi update re-audit
+
+This user-requested Pi harness maintenance is the narrow exception in `~/.pi/agent/AGENTS.md` § Third-party code: inspect installed Pi dist sources and reapply only audited dist patches. It does not permit patching other dependencies or incidental Pi internals.
 
 Goal: make the running pi release the audited one (`AUDITED_PI_VERSION` in
 `~/.pi/agent/extensions/ui/pi-runtime.ts`) and prove nothing else broke. There is no hard pin — the
@@ -18,6 +20,8 @@ Three audits, in order of information value:
    adapters use (existing `abi-audit.ts`).
 
 ## Procedure
+
+The decision to change pi or herdr source at all is governed by `~/.pi/agent/skills/harness-tuning/SKILL.md` § Modifying pi or herdr; this skill owns the mechanics: the `scripts/SOURCE.md` patch registry and the `pi-patch-*.py` reapply scripts.
 
 1. **Scope.** Read the installed pi version (`node -e "import('<pi bundle>/dist/bundle/index.js').then(m => console.log(m.VERSION))"`)
    and `AUDITED_PI_VERSION`. Equal → nothing to do, report it.
@@ -63,13 +67,13 @@ Three audits, in order of information value:
 5. **Fix the failures.** Fix the failing `*-surface.ts` adapter against the new
    dist sources — never the callers. The display contract lives in
    `~/.pi/agent/extensions/DESIGN.md` §2–§4; do not redesign it as a side effect.
-6. **Re-apply dist patches.** A release replaces `@earendil-works/pi-tui/dist/components/editor.js`, wiping the per-repo prompt-history patch (↑/↓ history persisted per working directory, not per session — see `scripts/SOURCE.md`). From `~/.pi/agent` run:
+6. **Re-apply dist patches.** A release replaces `@earendil-works/pi-tui/dist/components/editor.js`, wiping the per-repo prompt-history patch (↑/↓ history persisted per working directory, not per session — `scripts/SOURCE.md` is the registry of all audited patches; reapply every one of them here, not just prompt-history). From `~/.pi/agent` run:
 
    ```bash
    python3 skills/pi-updated/scripts/pi-patch-prompt-history.py
    ```
 
-   Every line must end `patched (…)` or `already patched`; `introuvable` means the glob patterns in the script no longer match the installed layout — update them. Do this after any pi upgrade, even outside this skill.
+   Every line must end `patched (…)` or `already patched`; `introuvable` means the glob patterns in the script no longer match the installed layout — update them. During a user-requested Pi harness update, do this after the upgrade even when the rest of this skill was not invoked.
 7. **Glyph/format re-diff.** Per DESIGN.md §10, `rg` the new dist sources for
    drift: `dist/core/tools/renderers/*.js`, `dist/modes/interactive/components/*.js`,
    `@earendil-works/pi-tui/dist/components/markdown.js`. Record decisions in DESIGN.md.

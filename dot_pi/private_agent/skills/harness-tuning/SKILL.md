@@ -37,11 +37,19 @@ An agent-facing reference doc (ARCHITECTURE.md, PRODUCT.md, …) that nothing po
 
 Never install a skill through a package manager, marketplace, or registry CLI — `npx skills add` (skills.sh/Vercel), `claude plugin marketplace`, or any equivalent: they run third-party code and write files outside review. Vendor by copying the upstream files (`SKILL.md` plus its license) into `skills/<name>/` byte-identical, and record the upstream repo, revision and date in a `SOURCE.md` beside them so an update is a re-copy diff.
 
+## Modifying pi or herdr
+
+Before any change to pi or herdr source, dist, or binary, apply this ladder in order:
+
+1. **Exhaust alternatives first** — everything that avoids a source change: pi extension/plugin APIs, keybindings, config; herdr `~/.config/herdr/config.toml`, plugins, socket API (`herdr api`), companion tools. Report which alternative was chosen.
+2. **Validate with the user** — only if no alternative covers the need: present the change (file, behavior, what an update does to it) and start on explicit approval.
+3. **Ship a maintained dist patch, never a repo commit** — patch script + `SOURCE.md` entry per the mechanics in `skills/pi-updated/SKILL.md`; reapply on every pi update. herdr ships as a third-party binary: never patch it, needs go upstream as feature requests.
+
 ## Anti-duplication (the most important principle)
 
-1. **Single source of truth per detail** — numbers, thresholds, lists: one place only. Duplicating = drift (versions diverge → the model follows one at random).
+1. **Single source of truth per detail** — the rule lives in `AGENTS.md` (Development); applied here: each detail has one home among skill, `AGENTS.md`, and tool description.
 2. **Redundancy only for critical triggers** — the rule whose omission costs the most (e.g., "ALWAYS use tool X") may live in AGENTS.md AND the tool description. Defense-in-depth, assumed.
-3. **No tool mechanics in AGENTS.md** — "max 5", "2-3 options", parameter names: those go in the tool/skill description.
+3. **No tool-specific parameter mechanics in AGENTS.md** — parameter names and limits belong in tool/skill descriptions. Global rules about which dedicated tool to use and when to ask a human may stay in AGENTS.md.
 
 ## Rules for writing rules
 

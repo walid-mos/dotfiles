@@ -130,5 +130,9 @@ Music
 Pictures
 Public
 
-# pi: regenerated MCP tool cache
+# pi: regenerated MCP tool cache and runtime state (caches, deps, git, packages)
 .pi/agent/mcp-cache.json
+.pi/generated
+
+# macOS metadata files at any depth
+**/.DS_Store

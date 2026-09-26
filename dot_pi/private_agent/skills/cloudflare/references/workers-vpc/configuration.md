@@ -12,7 +12,7 @@ TCP Sockets are available by default in Workers runtime. No special configuratio
 {
   "name": "private-network-worker",
   "main": "src/index.ts",
-  "compatibility_date": "2025-01-01"
+  "compatibility_date": "<today>"
 }
 ```
 
@@ -52,38 +52,9 @@ Deploy: `wrangler deploy --env staging` or `wrangler deploy --env production`
 
 ## Integration with Cloudflare Tunnel
 
-To connect Workers to private networks, combine TCP Sockets with Cloudflare Tunnel:
+> **Unverified path.** The recipe previously shown here (Worker TCP socket → Tunnel hostname → `tcp://` private service) has not been verified against official Cloudflare documentation and should not be assumed to work: a public Tunnel hostname does not by itself make a private TCP endpoint reachable from a Worker. For private HTTP services use **Workers VPC Services**; for TCP protocols use the connectivity options documented for your deployment and verify them in official documentation before relying on them.
 
-```
-Worker (TCP Socket) → Tunnel hostname → cloudflared → Private Network
-```
-
-### Quick Setup
-
-1. **Install cloudflared** on a server inside your private network
-2. **Create tunnel**: `cloudflared tunnel create my-private-network`
-3. **Configure routing** in `config.yml`:
-
-```yaml
-tunnel: <TUNNEL_ID>
-credentials-file: /path/to/<TUNNEL_ID>.json
-ingress:
-  - hostname: db.internal.example.com
-    service: tcp://10.0.1.50:5432
-  - service: http_status:404  # Required catch-all
-```
-
-4. **Run tunnel**: `cloudflared tunnel run my-private-network`
-5. **Connect from Worker**:
-
-```typescript
-const socket = connect(
-  { hostname: "db.internal.example.com", port: 5432 },  // Tunnel hostname
-  { secureTransport: "on" }
-);
-```
-
-For detailed Tunnel setup, see [Tunnel configuration reference](../tunnel/configuration.md).
+For Tunnel configuration in general (e.g. exposing on-premises services to the internet), see the [Tunnel configuration reference](../tunnel/configuration.md).
 
 ## Smart Placement Integration
 
@@ -138,7 +109,7 @@ See [Hyperdrive reference](../hyperdrive/) for complete setup.
 
 ## Compatibility
 
-TCP Sockets available in all modern Workers. Use current date: `"compatibility_date": "2025-01-01"`. No special flags required.
+TCP Sockets available in all modern Workers. Use current date: `"compatibility_date": "<today>"`. No special flags required.
 
 ## Related Configuration
 

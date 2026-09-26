@@ -13,18 +13,19 @@ Query analytics data across all Cloudflare products via a single GraphQL endpoin
 
 ## Quick Decision Tree
 
-```
-Need analytics data from Cloudflare?
-├─ HTTP traffic (requests, bandwidth, cache) → httpRequestsAdaptiveGroups (zone or account)
-├─ Workers performance (CPU, wall time, errors) → workersInvocationsAdaptive (account)
-├─ Firewall/WAF events → firewallEventsAdaptive / firewallEventsAdaptiveGroups (zone or account)
-├─ DNS query analytics → dnsAnalyticsAdaptive / dnsAnalyticsAdaptiveGroups (zone or account)
-├─ Network layer (DDoS, Magic Transit) → *NetworkAnalyticsAdaptiveGroups (account)
-├─ Storage (R2, KV, D1, DO) → r2OperationsAdaptiveGroups / kvOperationsAdaptiveGroups / etc. (account)
-├─ AI (Workers AI, AI Gateway) → aiInferenceAdaptive / aiGatewayRequestsAdaptiveGroups (account)
-├─ Load Balancing → loadBalancingRequestsAdaptiveGroups (zone)
-├─ Custom high-cardinality metrics → Workers Analytics Engine (see ../analytics-engine/)
-└─ Need raw logs, not aggregates → Logpush (see Cloudflare docs)
+```mermaid
+graph TD
+    Q[Need analytics data from Cloudflare?]
+    Q -->|HTTP traffic: requests, bandwidth, cache| A[httpRequestsAdaptiveGroups — zone or account]
+    Q -->|Workers performance: CPU, wall time, errors| B[workersInvocationsAdaptive — account]
+    Q -->|Firewall/WAF events| C[firewallEventsAdaptive / firewallEventsAdaptiveGroups — zone or account]
+    Q -->|DNS query analytics| D[dnsAnalyticsAdaptive / dnsAnalyticsAdaptiveGroups — zone or account]
+    Q -->|Network layer: DDoS, Magic Transit| E[*NetworkAnalyticsAdaptiveGroups — account]
+    Q -->|Storage: R2, KV, D1, DO| F[r2OperationsAdaptiveGroups / kvOperationsAdaptiveGroups etc. — account]
+    Q -->|AI: Workers AI, AI Gateway| G[aiInferenceAdaptive / aiGatewayRequestsAdaptiveGroups — account]
+    Q -->|Load Balancing| H[loadBalancingRequestsAdaptiveGroups — zone]
+    Q -->|Custom high-cardinality metrics| I[Workers Analytics Engine — see ../analytics-engine/]
+    Q -->|Raw logs, not aggregates| J[Logpush — see Cloudflare docs]
 ```
 
 ## Core Concepts
@@ -44,7 +45,7 @@ Need analytics data from Cloudflare?
 
 ## Query Structure
 
-Every query follows this pattern:
+Queries follow this pattern (example shown with a `*Groups` node, which exposes `count`; raw `*Adaptive` nodes do not — use `sum { ... }` there, see [api.md](api.md)):
 
 ```graphql
 {

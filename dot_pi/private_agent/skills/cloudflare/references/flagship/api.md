@@ -140,23 +140,24 @@ Source of truth: [Cloudflare Flagship API reference](https://developers.cloudfla
 
 ### FIRST: Check Prerequisites
 
-Before making any REST API calls (create, read, update, delete, toggle flags), verify these environment variables are set:
+`FLAGSHIP_APP_ID` is only required for **app-specific calls** (`/apps/{app_id}/...`). Discovery calls (`GET /apps`, `POST /apps`) need only the account ID and token.
+
+Before making REST API calls, verify these environment variables are set:
 
 | Variable | Purpose | How to get |
 |----------|---------|------------|
 | `CLOUDFLARE_ACCOUNT_ID` | Account identifier | Dashboard URL or `wrangler whoami` |
 | `CLOUDFLARE_API_TOKEN` | Bearer token for API auth | [Create API token](https://dash.cloudflare.com/profile/api-tokens) with Flagship permissions |
-| `FLAGSHIP_APP_ID` | Target app UUID | Dashboard under **Compute > Flagship**, or `GET /apps` endpoint |
+| `FLAGSHIP_APP_ID` | Target app UUID (app-specific calls only) | Dashboard under **Compute > Flagship**, or `GET /apps` endpoint |
 
-Check with:
+Check presence **without printing values** — never echo a token's contents:
 
 ```bash
-echo "CLOUDFLARE_ACCOUNT_ID=${CLOUDFLARE_ACCOUNT_ID:-(not set)}"
-echo "CLOUDFLARE_API_TOKEN=${CLOUDFLARE_API_TOKEN:-(not set)}"
-echo "FLAGSHIP_APP_ID=${FLAGSHIP_APP_ID:-(not set)}"
+: "${CLOUDFLARE_ACCOUNT_ID:?not set}"
+: "${CLOUDFLARE_API_TOKEN:?not set}"
 ```
 
-**If any are missing, ask the user to provide them before proceeding.**
+**If a variable is missing, ask the user to set it themselves before proceeding. Never ask them to paste the token value into chat or terminal output.**
 
 ### Base URL and Auth
 

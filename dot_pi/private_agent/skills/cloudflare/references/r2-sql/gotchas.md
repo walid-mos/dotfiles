@@ -29,7 +29,7 @@ No implicit conversions. Timestamps must be RFC3339 with timezone; dates ISO 860
 ## Debug Checklist
 
 1. `wrangler r2 bucket catalog enable <bucket>` — catalog on?
-2. `echo $WRANGLER_R2_SQL_AUTH_TOKEN` — token set?
+2. `$WRANGLER_R2_SQL_AUTH_TOKEN` set? check presence only (`[ -n "$WRANGLER_R2_SQL_AUTH_TOKEN" ] && echo set || echo unset`) — never print the value
 3. `SHOW DATABASES` → `SHOW TABLES IN ns` → `DESCRIBE ns.table`
 4. `SELECT COUNT(*) FROM ns.table` — data present?
 5. Add filters incrementally; read `metrics` to tune.

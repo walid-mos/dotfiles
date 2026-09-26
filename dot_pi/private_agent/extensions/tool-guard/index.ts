@@ -1,61 +1,91 @@
 /**
- * tool-guard - keep tool calls honest.
+ * Guard rails on tool calls.
  *
- * Two rules, both paid for by the session logs:
- *  1. No host-level `sleep` as a wait (195 calls had already burned 192
- *     minutes), so a stalled-looking call becomes an explicit detach plus a
- *     real signal instead.
- *  2. No bash stage whose work a dedicated tool owns (`read`, `grep`, `find`,
- *     `ls`), wherever it sits: a pipe, a redirect or a `head`/`tail` wrapper
- *     does not change what the call is, so file content reaches the context
- *     through the tool that caps, renders and tracks it.
+ * Shell lookups: refuse obvious standalone shell file lookups when their Pi
+ * tool is active. Compound shell commands and commands that transform data
+ * remain shell work.
  *
- * `tool_call` is the right hook: it blocks before execution and covers the
- * `bash` and `host` tools alike, without touching either registration. The
- * rules live in blind-wait.ts and shadowed-tools.ts behind policy.ts, the
- * parsing in shell-text.ts, the suggested call in suggested-call.ts. The
- * dedicated tools are activated at session start wherever pi exposes them,
- * because pi's own prompt sends the model to bash for file operations while
- * they are missing (measured: the `Use bash for file operations like ls, rg,
- * find` guideline disappears as soon as `ls` is active), and refusing a call
- * that names a tool the session does not have is a dead end. Refusals check
- * the live active set, so a restricted child session keeps its grant.
+ * Read dedup: block an identical successful `read` of the same file and range
+ * while the file is unchanged. The ledger clears on new user input,
+ * compaction, navigation, and any tool that might mutate local files.
  */
-import { guardCommand } from './policy.ts'
+import { isToolCallEventType } from '@earendil-works/pi-coding-agent'
+
+import { ReadLedger } from './read-ledger.ts'
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
-/** Tools whose command string is judged. */
-const GUARDED_TOOLS = new Set(['bash', 'host'])
+const OWNERS = new Map([
+	['cat', 'read'],
+	['grep', 'grep'],
+	['rg', 'grep'],
+	['find', 'find'],
+	['ls', 'ls'],
+])
+const READ_ONLY_TOOLS = new Set(['read', 'grep', 'find', 'ls'])
+const SHELL_SYNTAX = /[|;&<>$`\n]/
+const SUMMARY_FLAG =
+	/(?:^|\s)(?:-c|-l|--count|--count-matches|--files-with-matches)(?:\s|$)/
+const SHELL_ONLY = new Map([
+	['cat', /^cat -$/],
+	['ls', /\s-/],
+	['grep', SUMMARY_FLAG],
+	['rg', SUMMARY_FLAG],
+	['find', /\s-(?:exec|execdir|delete|ok|okdir)\b/],
+])
 
-/** The dedicated tools the rule can only be kept with. */
-const DEDICATED_TOOLS = ['grep', 'find', 'ls']
-
-/** The command of a tool call, when it has one. */
-function commandOf(input: unknown): string | undefined {
-	if (!input || typeof input !== 'object') return undefined
+function commandOf(input: unknown): string {
+	if (!input || typeof input !== 'object') return ''
 	const command = Reflect.get(input, 'command')
-	if (typeof command !== 'string') return undefined
-	return command
+	return typeof command === 'string' ? command.trim() : ''
+}
+
+function ownerOf(
+	command: string,
+	activeTools: readonly string[],
+): string | undefined {
+	if (SHELL_SYNTAX.test(command)) return undefined
+	const name = /^(\w+)(?:\s|$)/.exec(command)?.[1]
+	if (!name) return undefined
+	const owner = OWNERS.get(name)
+	if (!owner || !activeTools.includes(owner)) return undefined
+	if (SHELL_ONLY.get(name)?.test(command)) return undefined
+	return owner
 }
 
 export default function toolGuard(pi: ExtensionAPI): void {
-	pi.on('session_start', () => {
-		const active = new Set(pi.getActiveTools())
-		const exposed = new Set(pi.getAllTools().map(tool => tool.name))
-		const missing = DEDICATED_TOOLS.filter(
-			name => exposed.has(name) && !active.has(name),
-		)
-		if (!missing.length) return
-		pi.setActiveTools([...active, ...missing])
+	const ledger = new ReadLedger()
+
+	pi.on('session_start', () => ledger.clear())
+	pi.on('input', () => ledger.clear())
+	pi.on('session_before_compact', () => ledger.clear())
+	pi.on('session_tree', () => ledger.clear())
+
+	pi.on('tool_call', (event, ctx) => {
+		if (['bash', 'host'].includes(event.toolName)) {
+			const command = commandOf(event.input)
+			const owner = ownerOf(command, pi.getActiveTools())
+			if (!owner) return undefined
+			return {
+				block: true,
+				reason: `Use the active ${owner} tool for this file lookup. Use bash for commands that transform or store results.`,
+			}
+		}
+		if (!READ_ONLY_TOOLS.has(event.toolName)) {
+			ledger.clear()
+			return undefined
+		}
+		if (!isToolCallEventType('read', event)) return undefined
+		if (!ledger.begin(event.toolCallId, ctx.cwd, event.input))
+			return undefined
+		return {
+			block: true,
+			reason: `Already read ${event.input.path} with the same range while unchanged. Use its previous result or request a different range.`,
+		}
 	})
 
-	pi.on('tool_call', event => {
-		if (!GUARDED_TOOLS.has(event.toolName)) return undefined
-		const command = commandOf(event.input)
-		if (!command) return undefined
-		const reason = guardCommand(command, pi.getActiveTools())
-		if (!reason) return undefined
-		return { block: true, reason }
+	pi.on('tool_result', event => {
+		if (event.toolName !== 'read') return
+		ledger.complete(event.toolCallId, event.isError)
 	})
 }

@@ -24,9 +24,9 @@ function exportedObject(ts, source, symbol) {
 }
 
 function unwrap(ts, node) {
-	if (ts.isAsExpression(node) || ts.isParenthesizedExpression(node))
-		return unwrap(ts, node.expression)
-	return node
+	if (!(ts.isAsExpression(node) || ts.isParenthesizedExpression(node)))
+		return node
+	return unwrap(ts, node.expression)
 }
 
 function staticValue(ts, node, source, roles) {

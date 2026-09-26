@@ -118,6 +118,6 @@ With logical properties, the same hierarchy mirrors correctly in RTL locales.
 
 The first screenful is a table of contents, not the whole book. If everything is prominent, nothing is:
 
-- One primary action per view. `better-colors` owns how color enforces it.
+- One primary action per view. Use color to reinforce its priority without relying on color alone.
 - Group secondary actions behind a menu once they exceed two or three.
 - Prefer a short view that links deeper over a long view that shows everything at level one.

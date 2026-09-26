@@ -132,20 +132,17 @@ interface Usage {
 	uiMethods: Map<string, string[]>
 }
 
+function record(map: Map<string, string[]>, name: string, file: string): void {
+	const sites = map.get(name) ?? []
+	sites.push(file)
+	map.set(name, sites)
+}
+
 function collectUsage(): Usage {
 	const usage: Usage = {
 		eventNames: new Map(),
 		apiMethods: new Map(),
 		uiMethods: new Map(),
-	}
-	const record = (
-		map: Map<string, string[]>,
-		name: string,
-		file: string,
-	): void => {
-		const sites = map.get(name) ?? []
-		sites.push(file)
-		map.set(name, sites)
 	}
 	const scan = (source: string, file: string): void => {
 		for (const match of source.matchAll(/\bpi\.on\(\s*['"]([a-z_]+)['"]/g))

@@ -1,6 +1,8 @@
 # Cron service (`[[deploy.cron]]`)
 
-Scheduled HTTP jobs, declared **entirely in `nextnode.toml`** under the `[[deploy.cron]]` table-array. Each job fires a request at one of the project's own services over the compose network, on a cron schedule. Hetzner-vps only — a Cloudflare Pages static site has no always-on runtime to schedule against, so `[[deploy.cron]]` on `cloudflare-pages` is rejected at parse.
+> Extends the Scheduled jobs (cron) section in `SKILL.md` — read that section first; its core rules are not restated here.
+
+Scheduled HTTP jobs, declared **entirely in `nextnode.toml`** under the `[[deploy.cron]]` table-array. Each job is scheduled against one of the project's own services on a cron schedule. Realized per target: this file covers the `hetzner-vps` realization — a BusyBox `cron` sidecar firing an HTTP request over the compose network; on `cloudflare-workers` the same block maps to native cron triggers instead (only `schedule`/`service` are used there; `path`/`method` stay required at parse but are unused — see [cloudflare-workers.md](cloudflare-workers.md)). `[[deploy.cron]]` is rejected at parse on `cloudflare-pages` — a static site has no always-on runtime to schedule against.
 
 ```toml
 [[deploy.cron]]
@@ -59,7 +61,7 @@ Standard **5-field** cron (`minute hour day-of-month month day-of-week`). Valida
 |---------|----------|
 | Schema types (`CronJobConfig`, `CRON_METHODS`, `DEFAULT_CRON_METHOD`) | `config/types.ts` |
 | Parse + cross-validate (`validateCronJobs`) | `config/validation/cron.ts` |
-| Wire into the hetzner section / reject on cloudflare | `config/validation/providers/{hetzner,cloudflare-pages}.ts` |
+| Wire into the hetzner section / reject on cloudflare-pages | `config/validation/providers/{hetzner,cloudflare-pages}.ts` |
 | Render the sidecar (`buildCronScheduler`) | `domain/services/cron.ts` |
 | Spread into the compose file | `domain/hetzner/compose-file.ts` |
 | Thread config → compose (`cron`) | `cli/deploy/create-hetzner-target.ts` → `adapters/hetzner/{target,rollout,deploy-container}.ts` |

@@ -5,7 +5,7 @@
  * persisted surface keeps its own snapshot: the prompt stores it as a custom
  * session entry carrying the alias, the source file and the tile-sized
  * preview; the questionnaire embeds it in its tool details. The prompt's
- * branded strip can be mounted inside the owning prompt by raw-transcript/,
+ * branded strip can be mounted inside the owning prompt by renderers/,
  * with standalone rendering as a fallback. Being a CustomEntry it never
  * enters the model context, and it is re-rendered from the session file on
  * resume.

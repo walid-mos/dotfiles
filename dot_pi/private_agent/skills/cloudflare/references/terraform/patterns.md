@@ -21,18 +21,25 @@ terraform/
     └── main.tf
 ```
 
-**Note:** Cloudflare recommends avoiding modules for provider resources due to v5 auto-generation complexity. Prefer environment directories + shared state instead.
+**Note:** For small resource-specific pieces (e.g. a single generated v5 resource wrapped by local logic), a module may add complexity without reuse; prefer environment directories + shared state there. Otherwise, do create reusable modules for zones, Workers, and Pages as described in [README.md](./README.md) — the general guidance is to use modules, with this narrow exception.
 
 ## Multi-Environment Setup
 
 ```hcl
 # Directory: environments/{production,staging}/main.tf + modules/{zone,worker,pages}
 module "zone" {
-  source = "../../modules/zone"; account_id = var.account_id; zone_name = "example.com"; environment = "production"
+  source = "../../modules/zone"
+  account_id = var.account_id
+  zone_name = "example.com"
+  environment = "production"
 }
 module "api_worker" {
-  source = "../../modules/worker"; account_id = var.account_id; zone_id = module.zone.zone_id
-  name = "api-worker-prod"; script = file("../../workers/api.js"); environment = "production"
+  source = "../../modules/worker"
+  account_id = var.account_id
+  zone_id = module.zone.zone_id
+  name = "api-worker-prod"
+  script = file("../../workers/api.js")
+  environment = "production"
 }
 ```
 
@@ -56,19 +63,48 @@ terraform {
 
 ## Worker with All Bindings
 
+> `cloudflare_worker_script` is the v4 resource name; under the pinned v5 provider it is `cloudflare_workers_script`. Verify the resource name and schema against your pinned provider version — do not mix v4 and v5 Worker resources in one configuration.
+
 ```hcl
 locals { worker_name = "full-stack-worker" }
-resource "cloudflare_workers_kv_namespace" "app" { account_id = var.account_id; title = "${local.worker_name}-kv" }
-resource "cloudflare_r2_bucket" "app" { account_id = var.account_id; name = "${local.worker_name}-bucket" }
-resource "cloudflare_d1_database" "app" { account_id = var.account_id; name = "${local.worker_name}-db" }
 
-resource "cloudflare_worker_script" "app" {
-  account_id = var.account_id; name = local.worker_name; content = file("worker.js"); module = true
+resource "cloudflare_workers_kv_namespace" "app" {
+  account_id = var.account_id
+  title      = "${local.worker_name}-kv"
+}
+
+resource "cloudflare_r2_bucket" "app" {
+  account_id = var.account_id
+  name       = "${local.worker_name}-bucket"
+}
+
+resource "cloudflare_d1_database" "app" {
+  account_id = var.account_id
+  name       = "${local.worker_name}-db"
+}
+
+resource "cloudflare_workers_script" "app" {
+  account_id         = var.account_id
+  name               = local.worker_name
+  content            = file("worker.js")
+  module             = true
   compatibility_date = "2025-01-01"
-  kv_namespace_binding { name = "KV"; namespace_id = cloudflare_workers_kv_namespace.app.id }
-  r2_bucket_binding { name = "BUCKET"; bucket_name = cloudflare_r2_bucket.app.name }
-  d1_database_binding { name = "DB"; database_id = cloudflare_d1_database.app.id }
-  secret_text_binding { name = "API_KEY"; text = var.api_key }
+  kv_namespace_binding {
+    name = "KV"
+    namespace_id = cloudflare_workers_kv_namespace.app.id
+  }
+  r2_bucket_binding {
+    name = "BUCKET"
+    bucket_name = cloudflare_r2_bucket.app.name
+  }
+  d1_database_binding {
+    name = "DB"
+    database_id = cloudflare_d1_database.app.id
+  }
+  secret_text_binding {
+    name = "API_KEY"
+    text = var.api_key
+  }
 }
 ```
 
@@ -83,8 +119,14 @@ resource "cloudflare_worker_script" "app" {
 
 ```hcl
 # Terraform creates infrastructure
-resource "cloudflare_workers_kv_namespace" "app" { account_id = var.account_id; title = "app-kv" }
-resource "cloudflare_d1_database" "app" { account_id = var.account_id; name = "app-db" }
+resource "cloudflare_workers_kv_namespace" "app" {
+  account_id = var.account_id
+  title = "app-kv"
+}
+resource "cloudflare_d1_database" "app" {
+  account_id = var.account_id
+  name = "app-db"
+}
 output "kv_namespace_id" { value = cloudflare_workers_kv_namespace.app.id }
 output "d1_database_id" { value = cloudflare_d1_database.app.id }
 ```
@@ -104,18 +146,37 @@ output "d1_database_id" { value = cloudflare_d1_database.app.id }
 
 ```hcl
 resource "cloudflare_pages_project" "frontend" {
-  account_id = var.account_id; name = "frontend"; production_branch = "main"
-  build_config { build_command = "npm run build"; destination_dir = "dist" }
+  account_id        = var.account_id
+  name              = "frontend"
+  production_branch = "main"
+  build_config {
+    build_command   = "npm run build"
+    destination_dir = "dist"
+  }
 }
-resource "cloudflare_worker_script" "api" {
-  account_id = var.account_id; name = "api"; content = file("api-worker.js")
-  d1_database_binding { name = "DB"; database_id = cloudflare_d1_database.api_db.id }
+
+resource "cloudflare_workers_script" "api" {
+  account_id = var.account_id
+  name       = "api"
+  content    = file("api-worker.js")
+  d1_database_binding {
+    name = "DB"
+    database_id = cloudflare_d1_database.api_db.id
+  }
 }
+
 resource "cloudflare_dns_record" "frontend" {
-  zone_id = cloudflare_zone.main.id; name = "app"; content = cloudflare_pages_project.frontend.subdomain; type = "CNAME"; proxied = true
+  zone_id = cloudflare_zone.main.id
+  name    = "app"
+  content = cloudflare_pages_project.frontend.subdomain
+  type    = "CNAME"
+  proxied = true
 }
+
 resource "cloudflare_worker_route" "api" {
-  zone_id = cloudflare_zone.main.id; pattern = "api.example.com/*"; script_name = cloudflare_worker_script.api.name
+  zone_id     = cloudflare_zone.main.id
+  pattern     = "api.example.com/*"
+  script_name = cloudflare_workers_script.api.name
 }
 ```
 
@@ -123,32 +184,63 @@ resource "cloudflare_worker_route" "api" {
 
 ```hcl
 resource "cloudflare_load_balancer_pool" "us" {
-  account_id = var.account_id; name = "us-pool"; monitor = cloudflare_load_balancer_monitor.http.id
-  origins { name = "us-east"; address = var.us_east_ip }
+  account_id = var.account_id
+  name = "us-pool"
+  monitor = cloudflare_load_balancer_monitor.http.id
+  origins {
+    name = "us-east"
+    address = var.us_east_ip
+  }
 }
 resource "cloudflare_load_balancer_pool" "eu" {
-  account_id = var.account_id; name = "eu-pool"; monitor = cloudflare_load_balancer_monitor.http.id
-  origins { name = "eu-west"; address = var.eu_west_ip }
+  account_id = var.account_id
+  name = "eu-pool"
+  monitor = cloudflare_load_balancer_monitor.http.id
+  origins {
+    name = "eu-west"
+    address = var.eu_west_ip
+  }
 }
 resource "cloudflare_load_balancer" "global" {
-  zone_id = cloudflare_zone.main.id; name = "api.example.com"; steering_policy = "geo"
+  zone_id = cloudflare_zone.main.id
+  name = "api.example.com"
+  steering_policy = "geo"
   default_pool_ids = [cloudflare_load_balancer_pool.us.id]
-  region_pools { region = "WNAM"; pool_ids = [cloudflare_load_balancer_pool.us.id] }
-  region_pools { region = "WEU"; pool_ids = [cloudflare_load_balancer_pool.eu.id] }
+  region_pools {
+    region = "WNAM"
+    pool_ids = [cloudflare_load_balancer_pool.us.id]
+  }
+  region_pools {
+    region = "WEU"
+    pool_ids = [cloudflare_load_balancer_pool.eu.id]
+  }
 }
 ```
 
 ### Secure Admin with Access
 
 ```hcl
-resource "cloudflare_pages_project" "admin" { account_id = var.account_id; name = "admin"; production_branch = "main" }
+resource "cloudflare_pages_project" "admin" {
+  account_id = var.account_id
+  name = "admin"
+  production_branch = "main"
+}
 resource "cloudflare_access_application" "admin" {
-  account_id = var.account_id; name = "Admin"; domain = "admin.example.com"; type = "self_hosted"; session_duration = "24h"
+  account_id = var.account_id
+  name = "Admin"
+  domain = "admin.example.com"
+  type = "self_hosted"
+  session_duration = "24h"
   allowed_idps = [cloudflare_access_identity_provider.google.id]
 }
 resource "cloudflare_access_policy" "allow" {
-  account_id = var.account_id; application_id = cloudflare_access_application.admin.id
-  name = "Allow admins"; decision = "allow"; precedence = 1; include { email = var.admin_emails }
+  account_id = var.account_id
+  application_id = cloudflare_access_application.admin.id
+  name = "Allow admins"
+  decision = "allow"
+  precedence = 1
+  include { email = var.admin_emails
+}
 }
 ```
 
@@ -156,10 +248,18 @@ resource "cloudflare_access_policy" "allow" {
 
 ```hcl
 # modules/cloudflare-zone/main.tf
-variable "account_id" { type = string }; variable "domain" { type = string }; variable "ssl_mode" { default = "strict" }
-resource "cloudflare_zone" "main" { account = { id = var.account_id }; name = var.domain }
+variable "account_id" { type = string }
+variable "domain" { type = string }
+variable "ssl_mode" { default = "strict" }
+resource "cloudflare_zone" "main" { account = { id = var.account_id }
+  name = var.domain
+}
 resource "cloudflare_zone_settings_override" "main" {
-  zone_id = cloudflare_zone.main.id; settings { ssl = var.ssl_mode; always_use_https = "on" }
+  zone_id = cloudflare_zone.main.id
+  settings {
+    ssl = var.ssl_mode
+    always_use_https = "on"
+  }
 }
 output "zone_id" { value = cloudflare_zone.main.id }
 

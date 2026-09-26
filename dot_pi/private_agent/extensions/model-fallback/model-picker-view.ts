@@ -180,6 +180,6 @@ export function activeRowCount(input: RowCountInput): number {
 	if (input.state.tab === 'session')
 		return sessionRows(input.view, input.query).length
 	if (input.state.tab === 'fallbacks') return fallbackRows(input.view).length
-	if (input.state.tab === 'agents') return agentRows(input.view).length
-	return scopeRows(input.view).length
+	if (!(input.state.tab === 'agents')) return scopeRows(input.view).length
+	return agentRows(input.view).length
 }

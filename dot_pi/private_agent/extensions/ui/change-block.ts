@@ -117,8 +117,8 @@ export class ChangeBlock implements Component {
 				gutter +
 				body +
 				' '.repeat(Math.max(0, codeWidth - terminalLineWidth(part)))
-			if (background) return uiTheme.bg(background, row)
-			return row
+			if (!background) return row
+			return uiTheme.bg(background, row)
 		})
 	}
 

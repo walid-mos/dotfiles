@@ -26,7 +26,7 @@ Find the row closest to the user's task. Products can appear in multiple rows, a
 | Choose infrastructure for a customer-facing platform | Cloudflare for Platforms | Compare running customer code with serving an app on customer domains | [Platform overview](https://developers.cloudflare.com/cloudflare-for-platforms/) |
 | Choose an approach to live audio and video | Realtime | Compare application SDKs, media infrastructure, and connectivity relays | [Realtime overview](https://developers.cloudflare.com/realtime/) |
 | Start a Worker or framework project | C3 | Scaffold a project using the appropriate framework template | [C3](references/c3/README.md); `wrangler` skill |
-| Build or deploy a Next.js app on Cloudflare | vinext + Workers | Use vinext rather than OpenNext for new projects | [nextjs-on-cloudflare skill](../nextjs-on-cloudflare/SKILL.md); [Next.js docs](https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/) |
+| Build or deploy a Next.js app on Cloudflare | vinext + Workers | Use vinext rather than OpenNext for new projects | [Next.js on Workers guide](https://developers.cloudflare.com/workers/framework-guides/web-apps/nextjs/) and [vinext docs](https://github.com/cloudflare/vinext#quick-start) |
 | Host a new static site, SPA, or full-stack app | Workers + Workers Static Assets | Serve site files and add server-side logic where needed | [Static Assets](references/static-assets/README.md); `workers-best-practices` skill |
 | Build an API or handle webhooks | Workers | Run request handlers with access to Cloudflare services | `workers-best-practices` skill; [Workers docs](https://developers.cloudflare.com/workers/) |
 | Maintain an existing Pages deployment | Pages + Pages Functions | Update an existing site or its server endpoints; use Workers for new projects | [Pages](references/pages/README.md); [Pages Functions](references/pages-functions/README.md) |
@@ -76,7 +76,7 @@ Find the row closest to the user's task. Products can appear in multiple rows, a
 | Reduce Worker-to-backend latency | Smart Placement | Place Worker execution closer to the backends it calls | [Smart Placement](references/smart-placement/README.md) |
 | Redirect URLs, rewrite paths or headers, or change origin routing | Rules | Use Redirect, Transform, or Origin Rules when configuration can express the required behavior | [Rules docs](https://developers.cloudflare.com/rules/) |
 | Make small HTTP request or response changes | Snippets | Lightweight edge logic meets the need | [Snippets](references/snippets/README.md) |
-| Protect forms from automated abuse | Turnstile | Add bot challenges and server-side token validation | `turnstile-spin` skill; [Turnstile docs](https://developers.cloudflare.com/turnstile/) |
+| Protect forms from automated abuse | Turnstile | Add bot challenges and server-side token validation | [Turnstile docs](https://developers.cloudflare.com/turnstile/), including [server-side validation](https://developers.cloudflare.com/turnstile/get-started/server-side-validation/) |
 | Filter malicious web requests | WAF | Apply application-layer rules and managed protections | [WAF](references/waf/README.md) |
 | Protect services from denial-of-service attacks | DDoS Protection | Mitigate attacks at the relevant network or application layer | [DDoS protection](references/ddos/README.md) |
 | Detect and control automated traffic | Bot Management | Make request decisions based on bot detection | [Bot Management](references/bot-management/README.md) |
@@ -128,7 +128,7 @@ Prefer [Workers Cache](https://developers.cloudflare.com/workers/cache/) for cac
 ## Working principles
 
 - Inspect the existing project and its pinned package versions before choosing an API or configuration shape.
-- Retrieve current Cloudflare documentation when details may have changed. Use installed types and `node_modules/wrangler/config-schema.json` when they represent the project's pinned version.
+- Retrieve current Cloudflare documentation when details may have changed. Prefer existing help/public documentation; installed types and, where the project's pinned version requires it, the Wrangler configuration schema may be consulted only via the permitted precise-need package-docs/`.d.ts` route (see `~/.pi/agent/AGENTS.md` package-docs policy) — do not add a standing rule to read `node_modules` schemas.
 - Preserve the project's architecture and make the smallest change that satisfies the request.
 - Check current Cloudflare docs before relying on limits, prices, compatibility flags, or security requirements; these can change.
 - Validate in proportion to the change: use the project's checks, then exercise the affected behavior when practical.

@@ -146,7 +146,7 @@
     const knownPages = [];
     for (const entry of Array.isArray(pageFiles) ? pageFiles : []) {
       if (typeof entry !== 'string' || !entry) continue;
-      if (entry === pagePath || entry.endsWith('/' + pagePath)) knownPages.push(entry);
+      if (entry === pagePath || entry.endsWith(`/${  pagePath}`)) knownPages.push(entry);
     }
     if (knownPages.length === 1) {
       addSuffixes(knownPages[0]);
@@ -165,7 +165,7 @@
       common = common.slice(0, i);
     }
 
-    if (common.length > 0) addSuffixes(common.join('/') + '/' + pagePath);
+    if (common.length > 0) addSuffixes(`${common.join('/')  }/${  pagePath}`);
     return [...candidates];
   }
 
@@ -239,4 +239,4 @@
     version: 1,
     resolveDetectIgnores,
   };
-})(typeof window !== 'undefined' ? window : globalThis);
+})(typeof window === 'undefined' ? globalThis : window);

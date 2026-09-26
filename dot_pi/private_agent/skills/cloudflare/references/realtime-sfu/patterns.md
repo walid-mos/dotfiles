@@ -129,7 +129,10 @@ function updateStage(topSpeakers: string[]) {
   const toRemove = [...activeSubscriptions].filter(id => !topSpeakers.includes(id));
   
   toRemove.forEach(id => {
-    pc.getSenders().find(s => s.track?.id === id)?.track?.stop();
+    // getSenders() holds LOCAL tracks — stopping one cannot remove a remote
+    // subscription. Unsubscribe via the application's remote-unsubscribe
+    // operation (e.g. the SFU backend's unsubscribe endpoint) instead.
+    void unsubscribeRemoteTrack(id);
     activeSubscriptions.delete(id);
   });
   

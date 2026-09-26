@@ -8,6 +8,7 @@ const API_URL = 'https://api.typesafe.ai/v1/systemone'
 const CHUNK_SIZE = 60
 const MAX_ATTEMPTS = 5
 const RETRY_BACKOFF_MS = 2000
+const REQUEST_TIMEOUT_MS = 30000
 const CONFIDENCE_GATE = 0.95
 const CHOICES = new Set([
 	'abstraction_only',
@@ -107,6 +108,7 @@ async function callJev(chunk) {
 	)
 	const response = await fetch(API_URL, {
 		method: 'POST',
+		signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
 		headers: {
 			Authorization: `Bearer ${process.env.TYPESAFE_API_KEY}`,
 			'Content-Type': 'application/json',

@@ -1,5 +1,7 @@
 # Turborepo + Docker
 
+> Extends the Hetzner VPS target deep-dive in the DeployTarget section (Docker image build) in `SKILL.md` — read that section first; its core rules are not restated here.
+
 The canonical pattern for shipping a single workspace package as a Docker image from a Turborepo monorepo. Provider-agnostic - the resulting image runs on any Docker host (Hetzner VPS, Render, AWS ECS, Scaleway, Fly.io, GHCR, etc.). Source: [Turborepo official Docker guide](https://turborepo.dev/docs/guides/tools/docker).
 
 ## The two-step idea

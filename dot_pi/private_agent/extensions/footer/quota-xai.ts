@@ -61,14 +61,11 @@ function xaiPoolPercent(creditsConfig: Record<string, unknown>): number {
 	}
 	const cap = valOf(creditsConfig.onDemandCap)
 	const used = valOf(creditsConfig.onDemandUsed)
-	if (cap > 0 && Number.isFinite(used)) {
-		return Math.min(
-			PERCENT_SCALE,
-			Math.max(0, (used / cap) * PERCENT_SCALE),
-		)
+	if (!(cap > 0 && Number.isFinite(used))) {
+		return 0
 	}
 	// A parseable period with neither value means zero usage (CodexBar)
-	return 0
+	return Math.min(PERCENT_SCALE, Math.max(0, (used / cap) * PERCENT_SCALE))
 }
 
 function xaiPoolFrom(

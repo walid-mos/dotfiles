@@ -1,5 +1,7 @@
 # Deploy Environment Variables
 
+> Extends the DeployTarget interface section in `SKILL.md` — read that section first; its core rules are not restated here.
+
 Config reaches a service through **two distinct doors**, and they never cross:
 
 - **BUILD door** — values inlined into the image at build time (Astro `site`, `NEXT_PUBLIC_*`, `VITE_*`). A `.env` does NOT traverse the Docker build (the root `.dockerignore` excludes it); only docker-bake build args do. Carries `build_args` (dev-declared extra Variable NAMES) + the auto-injected `SITE_URL`. **Secrets are banned here** — a build arg bakes into image layers. See "Build args" below.

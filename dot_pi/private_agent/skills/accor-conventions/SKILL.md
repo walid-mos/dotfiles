@@ -8,7 +8,9 @@ description: >-
     auth, Jira/Confluence REST via the authFetch "accor" profile, quality
     baseline. Load when any file of product-data-apps or a product-data-apps*
     worktree is touched (branch, commit, PR, code) or before creating a
-    branch/PR there — not for everything under an "accor" root.
+    branch/PR there. Also load for fastpocing-worker or astore-ui-sidebar when
+    applying the shared Terraform, Jira, commit, or Confluence rules; do not
+    load solely because a path contains "accor".
 ---
 
 # Accor conventions — mandatory, non-negotiable
@@ -113,13 +115,13 @@ here. Delivery order: `dev → per-link self-review → global self-review → s
 - **Dev DB per branch**: one infra stack per machine (fixed host ports 5432/8080/9000 — never
   start a second stack). Branch isolation lives in the database name: `astore_<slug>` per worktree
   (slug = the Jira id when the worktree name carries one, else the directory name kebab→snake);
-  the main checkout keeps `astore`. `astore-db new <worktree>`
-  (`~/.pi/agent/skills/accor-conventions/scripts/astore-db`) creates it and prints the
-  `DATABASE_URL` line for that worktree's gitignored `apps/api/.env`; `pnpm dev` then migrates
-  that branch's DB. `astore-db name <worktree>` prints the name alone.
-- **Closing a branch**: `astore-db drop <worktree>` **before** `git worktree remove` — otherwise
-  the database outlives the worktree forever. Worktree already gone: `astore-db orphans` lists the
-  leftovers, `astore-db orphans --drop` sweeps them.
+  the main checkout keeps `astore`. Create the branch database through the repo's PostgreSQL
+  administration flow, then set its `DATABASE_URL` in that worktree's gitignored `apps/api/.env`
+  before migrating. If the repo has no documented database-creation command, verify the
+  configured connection and ask before creating a database; do not use a nonexistent helper.
+- **Closing a branch**: identify the database associated with that worktree before removing it.
+  Drop it only with explicit approval after verifying it belongs to that branch; never sweep
+  databases by name alone.
 - **i18n**: one catalog `shared/i18n/locales/*.json`, one lookup `t()`. Every key
   added in `fr.json` **and** `en.json`.
 - **Zero narrative comments.** One line max, only a constraint/invariant the code

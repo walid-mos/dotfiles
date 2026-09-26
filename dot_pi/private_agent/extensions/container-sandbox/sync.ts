@@ -29,9 +29,9 @@ export interface SyncOutcome {
 export async function ensureContainerRunning(
 	workspace: SandboxWorkspace,
 ): Promise<SyncOutcome> {
-	if (workspace.containerState === 'running')
-		return { failure: null, adoptedKeys: [], recreated: false }
-	return syncWorkspace(workspace.path)
+	if (!(workspace.containerState === 'running'))
+		return syncWorkspace(workspace.path)
+	return { failure: null, adoptedKeys: [], recreated: false }
 }
 
 /**

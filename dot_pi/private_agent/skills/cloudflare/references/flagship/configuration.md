@@ -95,20 +95,7 @@ npm i @cloudflare/flagship @openfeature/web-sdk
 
 Recommended approach inside Workers. No HTTP overhead, auth handled automatically.
 
-```typescript
-import { OpenFeature } from "@openfeature/server-sdk";
-import { FlagshipServerProvider } from "@cloudflare/flagship";
-
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    await OpenFeature.setProviderAndWait(
-      new FlagshipServerProvider({ binding: env.FLAGS }),
-    );
-    const client = OpenFeature.getClient();
-    // ... evaluate flags
-  },
-};
-```
+For the full binding-based provider setup, see the SDK example in [api.md](./api.md). Additional configuration considerations:
 
 ### Server Provider — With App ID (Node.js)
 

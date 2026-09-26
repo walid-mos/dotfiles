@@ -1,5 +1,7 @@
 # Observability Service (`[services.observability]`)
 
+> Extends the Backing services section (Observability) in `SKILL.md` — read that section first; its core rules are not restated here.
+
 Self-hosted metrics + logs + alerting, injected as a compose sidecar stack on the VPS alongside the app. It is the monitoring **control plane** — one VPS runs it (the Astro dashboard that also serves `/api/sd/*` to vmagent); every other VPS is a scrape target. Registered in `SERVICE_NAMES` like R2/Postgres, but it provisions nothing external — all state lives in local compose volumes, so `provision` is a no-op (`SERVICE_REQUIRES_INFRA_STORAGE = false`).
 
 ## Config

@@ -88,16 +88,16 @@ function startOutcome(
 ): ServerOutcome {
 	const { report, logTail } = parseGuestReport(output)
 	const base = guestBase(paths, command)
-	if (!report) {
-		return {
+	if (report) {
+		return verdictOutcome(report, base, logTail)
+	}
+	return {
 			...base,
 			status: 'crashed',
 			elapsedMs,
 			logTail,
 			exit: 'the guest produced no verdict (see log)',
 		}
-	}
-	return verdictOutcome(report, base, logTail)
 }
 
 /** The outcome for a verdict that did arrive, in the host backend's vocabulary. */

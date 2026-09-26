@@ -65,11 +65,11 @@ Tuning knobs (`--compression`, `--roll-interval`, `--roll-size`, etc.) and their
 Base: `https://api.cloudflare.com/client/v4/accounts/$ACCOUNT_ID/pipelines/v1`
 
 ```bash
-# Stream
+# Stream: authenticate by default. A public stream needs explicit abuse limits.
 curl -X POST "$BASE_URL/streams" -H "Authorization: Bearer $API_TOKEN" \
   -H "Content-Type: application/json" -d '{
     "name": "my_stream",
-    "http": {"enabled": true, "authentication": false},
+    "http": {"enabled": true, "authentication": true},
     "schema": {"fields": [{"name": "event_id", "type": "string", "required": true}]}
   }'
 
@@ -117,7 +117,12 @@ resource "cloudflare_pipeline_stream" "my_stream" {
   name           = "my_stream"
   format         = { type = "json" }
   schema         = { fields = [{ name = "value", type = "json", required = true }] }
-  http           = { enabled = true, authentication = false, cors = {} }
+  # authentication = true is the safe default: an unauthenticated HTTP stream
+  # accepts writes from anyone who obtains the stream ID. Set authentication =
+  # false only for deliberately public streams (e.g. anonymous telemetry), and
+  # pair that with abuse limits (WAF rate-limiting rule on the ingest
+  # endpoint); add CORS only when a browser client must write directly.
+  http           = { enabled = true, authentication = true, cors = {} }
   worker_binding = { enabled = false }
 }
 

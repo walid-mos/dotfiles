@@ -63,17 +63,16 @@ const HOST_PROMPT_GUIDELINES = [
  * find, etc.)" plus the guideline "Use bash for file operations like ls, rg,
  * find". Read at the moment of the call it beats any rule stated further up,
  * so an override that keeps it tells the model to do what AGENTS.md refuses,
- * every turn. These replace both lines; the enforcement they name is
- * `extensions/tool-guard`, the rule itself is AGENTS.md # Tool calls.
+ * every turn. These replace both lines; AGENTS.md # Tool calls owns the rule.
  */
 const BASH_PROMPT_SNIPPET =
 	'Run commands in the sandbox: builds, tests, git, installs, pipelines'
 const BASH_PROMPT_GUIDELINES = [
-	'Never use bash to list, search or read files - `ls`, `find`, `cat`, `head`, `tail`, `grep`/`rg`, piped or redirected included: call the `ls`, `find`, `grep` or `read` tool instead, which caps, renders and caches its result.',
+	'Use the dedicated `read`, `grep`, `find`, or `ls` tool for narrow file lookups. Batch only independent, bounded calls; never use a bash loop to combine file lookups.',
 	'Use bash for work no tool owns: builds, tests, git, installs, and pipelines that transform or store (`jq`, `sed`, counts, redirects to a file).',
 ]
 const TOOL_CHOICE_GUIDANCE =
-	' Never use it to list, search or read files: `ls`, `grep`, `find` and `read` own that work and `tool-guard` refuses the bash form, piped or redirected included.'
+	' Do not use bash for file lookups: use the active `read`, `grep`, `find`, or `ls` tool with a narrow path and bounded result. Batch only independent, bounded lookups as separate tool calls.'
 
 /** pi's bash timeout is optional: without one a stuck command holds the whole turn until a human stops it. */
 export const DEFAULT_COMMAND_TIMEOUT_SECONDS = 60

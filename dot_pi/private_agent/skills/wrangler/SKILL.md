@@ -20,7 +20,7 @@ Use the Cloudflare MCP `docs` tool if available, or fetch the relevant linked pa
 | Task | Source |
 | --- | --- |
 | Discover commands and flags, including resource management, deployments, rollback, and diagnostics | Project-local `wrangler --help` and `wrangler <command> --help`; [command reference](https://developers.cloudflare.com/workers/wrangler/commands/) |
-| Edit config or add a binding | Installed `wrangler/config-schema.json` (usually under `node_modules`); [configuration reference](https://developers.cloudflare.com/workers/wrangler/configuration/) |
+| Edit config or add a binding | [Configuration reference](https://developers.cloudflare.com/workers/wrangler/configuration/), then project-local `wrangler types` and `wrangler --help` to check the pinned version |
 | Deploy a framework application | [Framework guides](https://developers.cloudflare.com/workers/framework-guides/); follow the guide for the project's existing framework and adapter |
 | Migrate an application to Workers when requested | [Pages to Workers](https://developers.cloudflare.com/workers/static-assets/migration-guides/migrate-from-pages/); [Vercel to Workers](https://developers.cloudflare.com/workers/static-assets/migration-guides/vercel-to-workers/) |
 | Configure staging or production | [Environments](https://developers.cloudflare.com/workers/wrangler/environments/) |
@@ -30,7 +30,7 @@ Use the Cloudflare MCP `docs` tool if available, or fetch the relevant linked pa
 | Diagnose authentication or select an account | [General commands](https://developers.cloudflare.com/workers/wrangler/commands/general/), including `whoami`; [authentication profiles](https://developers.cloudflare.com/workers/wrangler/profiles/) |
 | Deploy an unauthenticated prototype | [Claim deployments](https://developers.cloudflare.com/workers/platform/claim-deployments/) for eligibility, expiry, and claim URL handling; use a permanent account for production or CI |
 
-Use installed help and schema to check whether documented features exist in the project's version. If a required feature needs an upgrade, make that dependency explicit. If retrieval is unavailable, state the gap and use available local evidence rather than inventing syntax.
+Use installed help, generated project types, and public documentation to check whether documented features exist in the project's version. If a required feature needs an upgrade, make that dependency explicit. If retrieval is unavailable, state the gap and use available local evidence rather than inventing syntax.
 
 ## Apply the Change
 

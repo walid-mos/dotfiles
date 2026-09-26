@@ -13,10 +13,7 @@
 ### CSP Blocking Beacon
 
 **Symptom:** Console error "Refused to load script"  
-**Fix:** Allow both domains:
-```
-script-src 'self' https://static.cloudflareinsights.com https://cloudflareinsights.com;
-```
+**Fix:** Use the complete CSP example in [integration.md](integration.md) — the beacon needs both `script-src` and `connect-src` permissions; a `script-src`-only policy loads the script but blocks event delivery under a restrictive `connect-src`.
 
 ### Hash-Based Routing Unsupported
 

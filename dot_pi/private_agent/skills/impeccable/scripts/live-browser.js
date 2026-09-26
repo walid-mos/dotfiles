@@ -58,8 +58,8 @@
   const Z = { highlight: 100001, bar: 100005, picker: 100007, toast: 100010 };
   const EASE = 'cubic-bezier(0.22, 1, 0.36, 1)'; // ease-out-quint
   const PREFIX = 'impeccable-live';
-  const IMPECCABLE_COMMAND = (window.__IMPECCABLE_COMMAND_PREFIX__ || '/') + 'impeccable';
-  const PICK_CURSOR_STYLE_ID = PREFIX + '-pick-cursor-style';
+  const IMPECCABLE_COMMAND = `${window.__IMPECCABLE_COMMAND_PREFIX__ || '/'  }impeccable`;
+  const PICK_CURSOR_STYLE_ID = `${PREFIX  }-pick-cursor-style`;
   const MANUAL_APPLY_STATE_TTL_MS = 15 * 60 * 1000;
   const sessionState = window.__IMPECCABLE_LIVE_SESSION__?.createLiveBrowserSessionState({
     prefix: PREFIX,
@@ -72,13 +72,13 @@
     return;
   }
   const HIGHLIGHT_TRANSITION =
-    'top 140ms ' + EASE +
-    ', left 140ms ' + EASE +
-    ', width 140ms ' + EASE +
-    ', height 140ms ' + EASE +
-    ', opacity 150ms ease';
+    `top 140ms ${  EASE 
+    }, left 140ms ${  EASE 
+    }, width 140ms ${  EASE 
+    }, height 140ms ${  EASE 
+    }, opacity 150ms ease`;
   const TOOLTIP_TRANSITION =
-    'top 140ms ' + EASE + ', left 140ms ' + EASE + ', opacity 150ms ease';
+    `top 140ms ${  EASE  }, left 140ms ${  EASE  }, opacity 150ms ease`;
 
   const SKIP_TAGS = new Set([
     'html', 'head', 'body', 'script', 'style', 'link', 'meta', 'noscript', 'br', 'wbr',
@@ -215,7 +215,7 @@
   const SCROLL_ANCHOR_LOCK_ID = 'impeccable-scroll-anchor-lock';
   const VARIANT_STATE_STYLE_ID = 'impeccable-variant-state';
   const DISCARD_STATE_STYLE_ID = 'impeccable-discard-state';
-  const HANDLED_WRAPPER_RELOAD_KEY = PREFIX + '-handled-wrapper-reload';
+  const HANDLED_WRAPPER_RELOAD_KEY = `${PREFIX  }-handled-wrapper-reload`;
 
   // Dedicated key for scroll position - SEPARATE from LS_KEY so that
   // saveSession's state updates don't clobber a carefully-captured scrollY.
@@ -333,10 +333,10 @@
 
   function initHighlight() {
     highlightEl = document.createElement('div');
-    highlightEl.id = PREFIX + '-highlight';
+    highlightEl.id = `${PREFIX  }-highlight`;
     Object.assign(highlightEl.style, {
       position: 'fixed', top: '0', left: '0', width: '0', height: '0',
-      border: '2px solid ' + C.brand, borderRadius: '3px',
+      border: `2px solid ${  C.brand}`, borderRadius: '3px',
       pointerEvents: 'none', zIndex: Z.highlight, boxSizing: 'border-box',
       transition: HIGHLIGHT_TRANSITION,
       display: 'none', opacity: '0',
@@ -344,7 +344,7 @@
     uiAppend(highlightEl);
 
     tooltipEl = document.createElement('div');
-    tooltipEl.id = PREFIX + '-tooltip';
+    tooltipEl.id = `${PREFIX  }-tooltip`;
     Object.assign(tooltipEl.style, {
       position: 'fixed',
       background: C.ink, color: C.white,
@@ -373,8 +373,8 @@
     if (!el || !highlightEl) return;
     if (el.hasAttribute?.('data-impeccable-insert-placeholder')) return;
     const r = el.getBoundingClientRect();
-    const top = (r.top - 2) + 'px', left = (r.left - 2) + 'px';
-    const width = (r.width + 4) + 'px', height = (r.height + 4) + 'px';
+    const top = `${r.top - 2  }px`, left = `${r.left - 2  }px`;
+    const width = `${r.width + 4  }px`, height = `${r.height + 4  }px`;
     const showTagTooltip = shouldShowHighlightTagTooltip();
 
     const hiWasHidden = highlightEl.style.display === 'none' || highlightEl.style.opacity === '0';
@@ -395,8 +395,8 @@
     }
 
     const tipTop = r.top - 20;
-    const tipY = (tipTop < 4 ? r.bottom + 4 : tipTop) + 'px';
-    const tipX = Math.max(4, r.left) + 'px';
+    const tipY = `${tipTop < 4 ? r.bottom + 4 : tipTop  }px`;
+    const tipX = `${Math.max(4, r.left)  }px`;
     tooltipEl.textContent = desc(el);
     if (hiWasHidden) {
       tooltipEl.style.transition = 'none';
@@ -430,7 +430,7 @@
   let annotSvgEl = null;
   let annotPinsEl = null;
   let annotClearChipEl = null;
-  let annotState = { comments: [], strokes: [] };
+  const annotState = { comments: [], strokes: [] };
   let annotActive = false;
   // `annotPointer` is either:
   //   { kind: 'new',   x0, y0, moved, strokeEl, strokePoints }   creating a stroke/pin
@@ -443,7 +443,7 @@
 
   function initAnnotOverlay() {
     annotOverlayEl = document.createElement('div');
-    annotOverlayEl.id = PREFIX + '-annot';
+    annotOverlayEl.id = `${PREFIX  }-annot`;
     Object.assign(annotOverlayEl.style, {
       position: 'fixed', top: '0', left: '0', width: '0', height: '0',
       pointerEvents: 'auto', zIndex: Z.highlight + 2,
@@ -452,7 +452,7 @@
     });
 
     annotSvgEl = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-    annotSvgEl.id = PREFIX + '-annot-svg';
+    annotSvgEl.id = `${PREFIX  }-annot-svg`;
     Object.assign(annotSvgEl.style, {
       position: 'absolute', top: '0', left: '0',
       width: '100%', height: '100%',
@@ -463,7 +463,7 @@
     annotOverlayEl.appendChild(annotSvgEl);
 
     annotPinsEl = document.createElement('div');
-    annotPinsEl.id = PREFIX + '-annot-pins';
+    annotPinsEl.id = `${PREFIX  }-annot-pins`;
     Object.assign(annotPinsEl.style, {
       position: 'absolute', inset: '0',
       pointerEvents: 'none',
@@ -471,7 +471,7 @@
     annotOverlayEl.appendChild(annotPinsEl);
 
     annotClearChipEl = document.createElement('div');
-    annotClearChipEl.id = PREFIX + '-annot-clear';
+    annotClearChipEl.id = `${PREFIX  }-annot-clear`;
     annotClearChipEl.dataset.annotClear = 'true';
     annotClearChipEl.textContent = 'Clear';
     Object.assign(annotClearChipEl.style, {
@@ -487,7 +487,7 @@
     annotOverlayEl.appendChild(annotClearChipEl);
 
     placeholderResizeLayerEl = document.createElement('div');
-    placeholderResizeLayerEl.id = PREFIX + '-placeholder-resize';
+    placeholderResizeLayerEl.id = `${PREFIX  }-placeholder-resize`;
     Object.assign(placeholderResizeLayerEl.style, {
       position: 'absolute',
       inset: '0',
@@ -537,10 +537,10 @@
     if (!annotOverlayEl || !el) return;
     const r = el.getBoundingClientRect();
     Object.assign(annotOverlayEl.style, {
-      top: r.top + 'px', left: r.left + 'px',
-      width: r.width + 'px', height: r.height + 'px',
+      top: `${r.top  }px`, left: `${r.left  }px`,
+      width: `${r.width  }px`, height: `${r.height  }px`,
     });
-    annotSvgEl.setAttribute('viewBox', '0 0 ' + r.width + ' ' + r.height);
+    annotSvgEl.setAttribute('viewBox', `0 0 ${  r.width  } ${  r.height}`);
     syncPlaceholderResizeHandles();
   }
 
@@ -727,9 +727,9 @@
 
   function pointsToPath(points) {
     if (!points || points.length === 0) return '';
-    let d = 'M' + points[0][0].toFixed(1) + ' ' + points[0][1].toFixed(1);
+    let d = `M${  points[0][0].toFixed(1)  } ${  points[0][1].toFixed(1)}`;
     for (let i = 1; i < points.length; i++) {
-      d += ' L' + points[i][0].toFixed(1) + ' ' + points[i][1].toFixed(1);
+      d += ` L${  points[i][0].toFixed(1)  } ${  points[i][1].toFixed(1)}`;
     }
     return d;
   }
@@ -745,7 +745,7 @@
 
     if (annotPointer.kind === 'pin') {
       const wasDrag = annotPointer.moved;
-      const idx = annotPointer.idx;
+      const {idx} = annotPointer;
       try { annotOverlayEl.releasePointerCapture(e.pointerId); } catch {}
       annotPointer = null;
       if (wasDrag) {
@@ -791,7 +791,7 @@
     if (interactive) wrap.dataset.annotPin = String(idx);
     Object.assign(wrap.style, {
       position: 'absolute',
-      left: (comment.x - 7) + 'px', top: (comment.y - 7) + 'px',
+      left: `${comment.x - 7  }px`, top: `${comment.y - 7  }px`,
       pointerEvents: interactive ? 'auto' : 'none',
       display: 'flex', alignItems: 'flex-start', gap: '6px',
       cursor: interactive ? 'grab' : 'default',
@@ -800,7 +800,7 @@
     const dot = document.createElement('div');
     Object.assign(dot.style, {
       width: '14px', height: '14px', borderRadius: '50%',
-      background: C.brand, border: '2px solid ' + C.white,
+      background: C.brand, border: `2px solid ${  C.white}`,
       boxShadow: '0 1px 3px rgba(0,0,0,0.25)',
       flexShrink: '0',
     });
@@ -823,7 +823,7 @@
   }
 
   function beginEditPin(idx) {
-    const wrapEl = annotPinsEl.querySelector('[data-annot-pin="' + idx + '"]');
+    const wrapEl = annotPinsEl.querySelector(`[data-annot-pin="${  idx  }"]`);
     if (!wrapEl) return;
     // Strip any existing bubble (but keep the dot)
     wrapEl.querySelectorAll('div:not(:first-child)').forEach(n => n.remove());
@@ -834,7 +834,7 @@
       background: C.ink, color: C.white,
       fontFamily: FONT, fontSize: '12px', lineHeight: '1.4',
       padding: '4px 8px', borderRadius: '3px',
-      border: '1px solid ' + C.brand,
+      border: `1px solid ${  C.brand}`,
       outline: 'none', marginTop: '-2px',
       width: '220px', pointerEvents: 'auto',
     });
@@ -903,12 +903,12 @@
     const wrap = document.createElement('div');
     Object.assign(wrap.style, {
       position: 'absolute', top: '0', left: '0',
-      width: rect.width + 'px', height: rect.height + 'px',
+      width: `${rect.width  }px`, height: `${rect.height  }px`,
       pointerEvents: 'none', overflow: 'visible',
     });
     if (strokes.length > 0) {
       const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      svg.setAttribute('viewBox', '0 0 ' + rect.width + ' ' + rect.height);
+      svg.setAttribute('viewBox', `0 0 ${  rect.width  } ${  rect.height}`);
       Object.assign(svg.style, {
         position: 'absolute', top: '0', left: '0',
         width: '100%', height: '100%', overflow: 'visible',
@@ -1000,10 +1000,10 @@
       },
       cssCustomProperties: props,
       parentContext: el.parentElement
-        ? '<' + el.parentElement.tagName.toLowerCase()
-          + (el.parentElement.id ? ' id="' + el.parentElement.id + '"' : '')
-          + (el.parentElement.className ? ' class="' + el.parentElement.className + '"' : '')
-          + '>'
+        ? `<${  el.parentElement.tagName.toLowerCase()
+           }${el.parentElement.id ? ' id="' + el.parentElement.id + '"' : ''
+           }${el.parentElement.className ? ' class="' + el.parentElement.className + '"' : ''
+           }>`
         : null,
       boundingRect: { width: Math.round(r.width), height: Math.round(r.height) },
     };
@@ -1095,17 +1095,17 @@
   function initBar() {
     BP = barPaletteForTheme(detectPageTheme());
     barEl = document.createElement('div');
-    barEl.id = PREFIX + '-bar';
+    barEl.id = `${PREFIX  }-bar`;
     Object.assign(barEl.style, {
       position: 'fixed', zIndex: Z.bar,
       display: 'none', opacity: '0',
       transform: 'translateY(6px)',
-      transition: 'opacity 0.25s ' + EASE + ', transform 0.3s ' + EASE,
+      transition: `opacity 0.25s ${  EASE  }, transform 0.3s ${  EASE}`,
       background: BP.surface,
-      border: '1px solid ' + BP.border,
+      border: `1px solid ${  BP.border}`,
       borderRadius: '8px',
       boxShadow: BP.shadow,
-      transition: 'box-shadow 0.2s ease, opacity 0.25s ' + EASE + ', transform 0.3s ' + EASE,
+      transition: `box-shadow 0.2s ease, opacity 0.25s ${  EASE  }, transform 0.3s ${  EASE}`,
       fontFamily: FONT, fontSize: '13px', color: BP.text,
       padding: '5px',
       maxWidth: '560px', minWidth: '340px',
@@ -1131,7 +1131,7 @@
         : GLOBAL_BAR_RESERVE;
       const top = window.innerHeight - barH - reserve;
       const left = Math.max(GAP, (window.innerWidth - barW) / 2);
-      Object.assign(barEl.style, { top: top + 'px', left: left + 'px' });
+      Object.assign(barEl.style, { top: `${top  }px`, left: `${left  }px` });
       return;
     }
 
@@ -1156,7 +1156,7 @@
     let left = r.left + (r.width - barW) / 2;
     if (left < GAP) left = GAP;
     if (left + barW > window.innerWidth - GAP) left = window.innerWidth - barW - GAP;
-    Object.assign(barEl.style, { top: top + 'px', left: left + 'px' });
+    Object.assign(barEl.style, { top: `${top  }px`, left: `${left  }px` });
   }
 
   function showBar(mode) {
@@ -1254,13 +1254,13 @@
     barEl.style.padding = '5px';
     barEl.style.background = BP.surface;
     barEl.style.overflow = '';
-    barEl.style.border = '1px solid ' + BP.border;
+    barEl.style.border = `1px solid ${  BP.border}`;
     barEl.style.borderColor = BP.border;
     barEl.style.boxShadow = BP.shadow;
   }
 
   function syncConfigureInputChrome() {
-    const input = uiGetById(PREFIX + '-input') || uiGetById(PREFIX + '-insert-input');
+    const input = uiGetById(`${PREFIX  }-input`) || uiGetById(`${PREFIX  }-insert-input`);
     const surface = barEl?.dataset.configureSurface === 'true' ? barEl : null;
     if (!surface || !input) return;
     const focused = activeElementDeep() === input;
@@ -1306,7 +1306,7 @@
     return {
       display: 'flex', alignItems: 'center', gap: '6px',
       flex: '1', minWidth: '0', height: '100%',
-      padding: '0 6px 0 ' + CONFIGURE_BAR_INSET,
+      padding: `0 6px 0 ${  CONFIGURE_BAR_INSET}`,
     };
   }
 
@@ -1336,7 +1336,7 @@
     return {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       gap: '2px', height: 'auto', minHeight: CONFIGURE_ROW_TRACK_H,
-      padding: CONFIGURE_PILL_PAD_Y + ' 8px', flexShrink: '0',
+      padding: `${CONFIGURE_PILL_PAD_Y  } 8px`, flexShrink: '0',
       boxSizing: 'border-box',
       border: '1px solid transparent',
       borderRadius: CONFIGURE_PILL_RADIUS,
@@ -1407,7 +1407,7 @@
       padding: '6px 9px',
       borderRadius: '7px',
       background: P.chatSurface,
-      border: '1px solid ' + P.hairline,
+      border: `1px solid ${  P.hairline}`,
       boxShadow: P.shadow,
       color: P.text,
       fontFamily: FONT,
@@ -1418,7 +1418,7 @@
       whiteSpace: 'normal',
       wordBreak: 'break-word',
     });
-    configureBarTooltipEl.id = PREFIX + '-configure-bar-tooltip';
+    configureBarTooltipEl.id = `${PREFIX  }-configure-bar-tooltip`;
     uiAppend(configureBarTooltipEl);
     return configureBarTooltipEl;
   }
@@ -1435,8 +1435,8 @@
     const tipH = tip.offsetHeight;
     const left = Math.max(8, Math.min(window.innerWidth - tipW - 8, r.left + r.width / 2 - tipW / 2));
     const top = Math.max(8, r.top - tipH - 8);
-    tip.style.left = left + 'px';
-    tip.style.top = top + 'px';
+    tip.style.left = `${left  }px`;
+    tip.style.top = `${top  }px`;
   }
 
   function hideConfigureBarTooltip() {
@@ -1457,8 +1457,8 @@
     let node = el;
     while (node && node.nodeType === 1 && node !== document.body) {
       let part = node.tagName.toLowerCase();
-      if (node.id) part += '#' + node.id;
-      else if (node.classList?.length) part += '.' + [...node.classList].slice(0, 2).join('.');
+      if (node.id) part += `#${  node.id}`;
+      else if (node.classList?.length) part += `.${  [...node.classList].slice(0, 2).join('.')}`;
       parts.unshift(part);
       node = node.parentElement;
       if (parts.length >= maxDepth) break;
@@ -1469,7 +1469,7 @@
   function variantCountTooltipText(count) {
     const n = Number(count) || selectedCount;
     const word = n === 1 ? 'variant' : 'variants';
-    return 'Click to change \u00b7 ' + n + ' ' + word;
+    return `Click to change \u00b7 ${  n  } ${  word}`;
   }
 
   function removeConfigureSelection() {
@@ -1487,9 +1487,9 @@
     const path = elementPath(targetEl);
     const P = configureBarPalette();
     const pill = el('button', configureSelectionPillStyle({ minWidth: '32px' }));
-    pill.id = PREFIX + '-selection-pill';
+    pill.id = `${PREFIX  }-selection-pill`;
     pill.type = 'button';
-    pill.setAttribute('aria-label', 'Selected element: ' + tag);
+    pill.setAttribute('aria-label', `Selected element: ${  tag}`);
     pill.disabled = controlsLocked;
     pill.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
     pill.style.opacity = controlsLocked ? '0.58' : '1';
@@ -1522,7 +1522,7 @@
       clearFace.style.opacity = armed ? '1' : '0';
       pill.style.background = armed ? P.toggleActive : 'transparent';
       pill.style.border = CONFIGURE_SELECTION_PILL_BORDER;
-      pill.setAttribute('aria-label', armed ? 'Clear selection' : 'Selected element: ' + tag);
+      pill.setAttribute('aria-label', armed ? 'Clear selection' : `Selected element: ${  tag}`);
     };
     const arm = () => {
       if (controlsLocked) {
@@ -1594,7 +1594,7 @@
     const count = el('button', configureInlineControlStyle({
       fontFamily: MONO, fontWeight: '600', letterSpacing: '0',
     }));
-    count.textContent = '\u00D7' + selectedCount;
+    count.textContent = `\u00D7${  selectedCount}`;
     count.disabled = controlsLocked;
     count.style.cursor = controlsLocked ? 'not-allowed' : 'pointer';
     count.style.opacity = controlsLocked ? '0.58' : '1';
@@ -1610,7 +1610,7 @@
       boxSizing: 'border-box',
       width: CONFIGURE_BAR_H, height: '100%', flexShrink: '0',
       padding: '0', margin: '0',
-      border: 'none', borderRight: '1px solid ' + BP.hairline,
+      border: 'none', borderRight: `1px solid ${  BP.hairline}`,
       borderRadius: '0', background: 'transparent',
       color: BP.textDim, cursor: 'pointer',
       transition: 'color 0.12s ease, background 0.12s ease',
@@ -1630,7 +1630,7 @@
   function buildConfigureTrailingCluster(controls, voiceBtn, submitBtn) {
     const cluster = el('div', {
       display: 'inline-flex', alignItems: 'stretch', flexShrink: '0',
-      height: '100%', borderLeft: '1px solid ' + BP.hairline,
+      height: '100%', borderLeft: `1px solid ${  BP.hairline}`,
     });
     if (controls.length) {
       const controlsWrap = el('div', {
@@ -1640,7 +1640,7 @@
       controls.forEach((control) => controlsWrap.appendChild(control));
       cluster.appendChild(controlsWrap);
     }
-    voiceBtn.style.borderLeft = '1px solid ' + BP.hairline;
+    voiceBtn.style.borderLeft = `1px solid ${  BP.hairline}`;
     cluster.appendChild(voiceBtn);
     cluster.appendChild(submitBtn);
     return cluster;
@@ -1651,7 +1651,7 @@
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       boxSizing: 'border-box', width: CONFIGURE_BAR_H, height: CONFIGURE_BAR_H,
       padding: '0', flexShrink: '0',
-      border: 'none', borderLeft: '1px solid ' + BP.hairline,
+      border: 'none', borderLeft: `1px solid ${  BP.hairline}`,
       borderRadius: '0',
       background: BP.accent, color: C.ink,
       cursor: controlsLocked ? 'not-allowed' : 'pointer',
@@ -1855,12 +1855,12 @@
     placeholder.style.width = '';
     if (sizing.kind === 'flex') {
       placeholder.style.flex = sizing.flex;
-      placeholder.style.minWidth = sizing.minWidth + 'px';
+      placeholder.style.minWidth = `${sizing.minWidth  }px`;
     } else if (sizing.kind === 'percent') {
       placeholder.style.width = '100%';
       placeholder.style.maxWidth = '100%';
     } else if (sizing.kind === 'explicit') {
-      placeholder.style.width = sizing.width + 'px';
+      placeholder.style.width = `${sizing.width  }px`;
     }
   }
 
@@ -1872,7 +1872,7 @@
     placeholder.style.flex = '';
     placeholder.style.minWidth = '';
     placeholder.style.maxWidth = '';
-    placeholder.style.width = w + 'px';
+    placeholder.style.width = `${w  }px`;
     placeholder.dataset.impeccablePlaceholderWidth = 'explicit';
   }
 
@@ -1900,8 +1900,8 @@
 
   function cursorForPlaceholderEdge(edge) {
     if (edge === 'n' || edge === 's') return 'ns-resize';
-    if (edge === 'e' || edge === 'w') return 'ew-resize';
-    return 'default';
+    if (!(edge === 'e' || edge === 'w')) return 'default'
+    return 'ew-resize'
   }
 
   function resizePlaceholderFromEdge(start, edge, dx, dy, parentWidth) {
@@ -1934,12 +1934,12 @@
   function ensureInsertLine() {
     if (insertLineEl) return insertLineEl;
     insertLineEl = document.createElement('div');
-    insertLineEl.id = PREFIX + '-insert-line';
+    insertLineEl.id = `${PREFIX  }-insert-line`;
     Object.assign(insertLineEl.style, {
       position: 'fixed',
       zIndex: String(Z.highlight),
       height: '0',
-      borderTop: '2px dotted ' + C.brand,
+      borderTop: `2px dotted ${  C.brand}`,
       pointerEvents: 'none',
       display: 'none',
       opacity: '0.9',
@@ -1956,22 +1956,22 @@
     if (coords.axis === 'row') {
       Object.assign(line.style, {
         display: 'block',
-        top: coords.top + 'px',
-        left: coords.left + 'px',
+        top: `${coords.top  }px`,
+        left: `${coords.left  }px`,
         width: '0',
-        height: coords.height + 'px',
+        height: `${coords.height  }px`,
         borderTop: 'none',
-        borderLeft: '2px dotted ' + C.brand,
+        borderLeft: `2px dotted ${  C.brand}`,
       });
     } else {
       Object.assign(line.style, {
         display: 'block',
-        top: coords.top + 'px',
-        left: coords.left + 'px',
-        width: coords.width + 'px',
+        top: `${coords.top  }px`,
+        left: `${coords.left  }px`,
+        width: `${coords.width  }px`,
         height: '0',
         borderLeft: 'none',
-        borderTop: '2px dotted ' + C.brand,
+        borderTop: `2px dotted ${  C.brand}`,
       });
     }
     insertHoverAnchor = resolved.anchor;
@@ -2013,9 +2013,9 @@
       (document.head || document.documentElement).appendChild(style);
     }
     style.textContent =
-      '* { cursor: ' + cursor + ' !important; }\n'
-      + '[id^="' + PREFIX + '"],\n'
-      + '[id^="' + PREFIX + '"] * { cursor: revert !important; }';
+      `* { cursor: ${  cursor  } !important; }\n`
+      + `[id^="${  PREFIX  }"],\n`
+      + `[id^="${  PREFIX  }"] * { cursor: revert !important; }`;
   }
 
   /** Page-level cursor while pick or insert mode is targeting page elements. */
@@ -2076,8 +2076,8 @@
     }
     if (selectedElement && document.body.contains(selectedElement)) return selectedElement;
     if (placeholderElement && document.body.contains(placeholderElement)) return placeholderElement;
-    if (insertAnchorElement && document.body.contains(insertAnchorElement)) return insertAnchorElement;
-    return null;
+    if (!(insertAnchorElement && document.body.contains(insertAnchorElement))) return null
+    return insertAnchorElement
   }
 
   function removeInsertPlaceholderDom() {
@@ -2119,7 +2119,7 @@
     const tag = (snap.anchorTag || 'div').toLowerCase();
     const cls = (snap.anchorClasses || '').split(/\s+/).filter(Boolean)[0];
     const needle = snap.anchorText || '';
-    const sel = cls ? tag + '.' + cls : tag;
+    const sel = cls ? `${tag  }.${  cls}` : tag;
     const candidates = document.querySelectorAll(sel);
     for (const candidate of candidates) {
       if (own(candidate)) continue;
@@ -2168,10 +2168,10 @@
     const ph = placeholderElement;
     if (!ph) return;
     materializePlaceholderWidth(ph);
-    ph.style.width = width + 'px';
-    ph.style.height = height + 'px';
-    ph.style.marginLeft = marginLeft ? marginLeft + 'px' : '';
-    ph.style.marginTop = marginTop ? marginTop + 'px' : '';
+    ph.style.width = `${width  }px`;
+    ph.style.height = `${height  }px`;
+    ph.style.marginLeft = marginLeft ? `${marginLeft  }px` : '';
+    ph.style.marginTop = marginTop ? `${marginTop  }px` : '';
     positionAnnotOverlay(ph);
     positionBar();
   }
@@ -2198,12 +2198,12 @@
         pointerEvents: 'auto',
         cursor: cursorForPlaceholderEdge(spec.edge),
       });
-      if (spec.top != null) handle.style.top = spec.top + 'px';
-      if (spec.bottom != null) handle.style.bottom = spec.bottom + 'px';
-      if (spec.left != null) handle.style.left = spec.left + 'px';
-      if (spec.right != null) handle.style.right = spec.right + 'px';
-      if (spec.width != null) handle.style.width = spec.width + 'px';
-      if (spec.height != null) handle.style.height = spec.height + 'px';
+      if (spec.top != null) handle.style.top = `${spec.top  }px`;
+      if (spec.bottom != null) handle.style.bottom = `${spec.bottom  }px`;
+      if (spec.left != null) handle.style.left = `${spec.left  }px`;
+      if (spec.right != null) handle.style.right = `${spec.right  }px`;
+      if (spec.width != null) handle.style.width = `${spec.width  }px`;
+      if (spec.height != null) handle.style.height = `${spec.height  }px`;
       handle.dataset.impeccablePlaceholderResize = spec.edge;
       handle.setAttribute('aria-label', 'Resize placeholder');
       handle.title = 'Drag to resize';
@@ -2258,14 +2258,14 @@
       anchorFlex: ast.flex,
     });
     const placeholder = document.createElement('div');
-    placeholder.id = PREFIX + '-insert-placeholder';
+    placeholder.id = `${PREFIX  }-insert-placeholder`;
     placeholder.setAttribute('data-impeccable-insert-placeholder', 'true');
     placeholder.setAttribute('aria-hidden', 'true');
     Object.assign(placeholder.style, {
       boxSizing: 'border-box',
-      height: PLACEHOLDER_DEFAULT_HEIGHT + 'px',
-      minHeight: PLACEHOLDER_MIN_HEIGHT + 'px',
-      border: '2px dotted ' + BP.accent,
+      height: `${PLACEHOLDER_DEFAULT_HEIGHT  }px`,
+      minHeight: `${PLACEHOLDER_MIN_HEIGHT  }px`,
+      border: `2px dotted ${  BP.accent}`,
       borderRadius: '0',
       background: 'transparent',
       opacity: '1',
@@ -2289,7 +2289,7 @@
   }
 
   function isInsertCreateEnabled(btn) {
-    btn = btn || uiGetById(PREFIX + '-insert-create');
+    btn = btn || uiGetById(`${PREFIX  }-insert-create`);
     return !!btn && btn.getAttribute('aria-disabled') !== 'true';
   }
 
@@ -2306,7 +2306,7 @@
       padding: '6px 9px',
       borderRadius: '7px',
       background: BP.chatSurface,
-      border: '1px solid ' + BP.hairline,
+      border: `1px solid ${  BP.hairline}`,
       boxShadow: BP.shadow,
       color: BP.text,
       fontFamily: FONT,
@@ -2314,7 +2314,7 @@
       fontWeight: '500',
       lineHeight: '1.35',
     });
-    insertCreateTooltipEl.id = PREFIX + '-insert-create-tooltip';
+    insertCreateTooltipEl.id = `${PREFIX  }-insert-create-tooltip`;
     uiAppend(insertCreateTooltipEl);
     return insertCreateTooltipEl;
   }
@@ -2329,8 +2329,8 @@
     const tipH = tip.offsetHeight;
     const left = Math.max(8, Math.min(window.innerWidth - tipW - 8, r.left + r.width / 2 - tipW / 2));
     const top = Math.max(8, r.top - tipH - 8);
-    tip.style.left = left + 'px';
-    tip.style.top = top + 'px';
+    tip.style.left = `${left  }px`;
+    tip.style.top = `${top  }px`;
   }
 
   function hideInsertCreateTooltip() {
@@ -2347,8 +2347,8 @@
   }
 
   function syncInsertCreateButton(btn, input) {
-    btn = btn || uiGetById(PREFIX + '-insert-create');
-    input = input || uiGetById(PREFIX + '-insert-input');
+    btn = btn || uiGetById(`${PREFIX  }-insert-create`);
+    input = input || uiGetById(`${PREFIX  }-insert-input`);
     if (!btn || !input) return;
     const gate = insertCreateGateState(input);
     const ok = canCreateInsert(gate);
@@ -2365,7 +2365,7 @@
     } else {
       btn.style.background = 'transparent';
       btn.style.color = BP.textDim;
-      btn.style.border = '1px solid ' + BP.hairline;
+      btn.style.border = `1px solid ${  BP.hairline}`;
       btn.style.opacity = '0.72';
       btn.style.cursor = 'not-allowed';
     }
@@ -2373,16 +2373,16 @@
 
   /** Stylesheet shared by the replace and insert configure rows. */
   function ensureConfigureInputStyle() {
-    if (uiGetById(PREFIX + '-configure-input-style')) return;
+    if (uiGetById(`${PREFIX  }-configure-input-style`)) return;
     const s = document.createElement('style');
-    s.id = PREFIX + '-configure-input-style';
+    s.id = `${PREFIX  }-configure-input-style`;
     s.textContent =
-      '@keyframes impeccable-configure-voice-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }' +
-      '#' + PREFIX + '-input, #' + PREFIX + '-insert-input { box-sizing: border-box; height: ' + CONFIGURE_ROW_TRACK_H + '; line-height: ' + CONFIGURE_ROW_TRACK_H + '; padding: 0; margin: 0; caret-color: ' + CONFIGURE_PILL_TEXT + '; }' +
-      '#' + PREFIX + '-input::placeholder, #' + PREFIX + '-insert-input::placeholder { color: ' + BP.textDim + '; opacity: 1; }' +
-      '#' + PREFIX + '-configure-voice[data-listening="true"] svg, #' + PREFIX + '-insert-voice[data-listening="true"] svg { animation: impeccable-configure-voice-pulse 1.1s ease-in-out infinite; }' +
-      '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-configure-voice[data-listening="true"] svg, #' + PREFIX + '-insert-voice[data-listening="true"] svg { animation: none; opacity: 1; } }' +
-      '#' + PREFIX + '-configure-voice:hover, #' + PREFIX + '-insert-voice:hover { background: oklch(27% 0 0); color: ' + BP.accent + '; }';
+      `@keyframes impeccable-configure-voice-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }` +
+      `#${  PREFIX  }-input, #${  PREFIX  }-insert-input { box-sizing: border-box; height: ${  CONFIGURE_ROW_TRACK_H  }; line-height: ${  CONFIGURE_ROW_TRACK_H  }; padding: 0; margin: 0; caret-color: ${  CONFIGURE_PILL_TEXT  }; }` +
+      `#${  PREFIX  }-input::placeholder, #${  PREFIX  }-insert-input::placeholder { color: ${  BP.textDim  }; opacity: 1; }` +
+      `#${  PREFIX  }-configure-voice[data-listening="true"] svg, #${  PREFIX  }-insert-voice[data-listening="true"] svg { animation: impeccable-configure-voice-pulse 1.1s ease-in-out infinite; }` +
+      `@media (prefers-reduced-motion: reduce) { #${  PREFIX  }-configure-voice[data-listening="true"] svg, #${  PREFIX  }-insert-voice[data-listening="true"] svg { animation: none; opacity: 1; } }` +
+      `#${  PREFIX  }-configure-voice:hover, #${  PREFIX  }-insert-voice:hover { background: oklch(27% 0 0); color: ${  BP.accent  }; }`;
     uiAppendStyle(s);
   }
 
@@ -2395,7 +2395,7 @@
     const inputShell = el('div', configureInputShellStyle());
 
     const input = document.createElement('input');
-    input.id = PREFIX + '-input';
+    input.id = `${PREFIX  }-input`;
     input.type = 'text';
     input.placeholder = '';
     input.setAttribute('aria-label', 'Describe the change');
@@ -2421,7 +2421,7 @@
       onClick: (e) => {
         e.stopPropagation();
         if (controlsLocked) { showManualApplyBusyToast(); return; }
-        count.textContent = '\u00D7' + cycleSelectedCount();
+        count.textContent = `\u00D7${  cycleSelectedCount()}`;
         if (count.matches(':hover')) {
           showConfigureBarTooltip(count, variantCountTooltipText(selectedCount));
         }
@@ -2449,7 +2449,7 @@
     });
 
     const voiceBtn = buildConfigureVoiceButton({
-      id: PREFIX + '-configure-voice',
+      id: `${PREFIX  }-configure-voice`,
       controlsLocked,
       onClick: (e) => {
         e.stopPropagation();
@@ -2485,7 +2485,7 @@
     const inputShell = el('div', configureInputShellStyle());
 
     const input = document.createElement('input');
-    input.id = PREFIX + '-insert-input';
+    input.id = `${PREFIX  }-insert-input`;
     input.type = 'text';
     input.placeholder = '';
     input.setAttribute('aria-label', 'Describe the new element');
@@ -2502,7 +2502,7 @@
       onClick: (e) => {
         e.stopPropagation();
         if (controlsLocked) { showManualApplyBusyToast(); return; }
-        count.textContent = '\u00D7' + cycleSelectedCount();
+        count.textContent = `\u00D7${  cycleSelectedCount()}`;
         if (count.matches(':hover')) {
           showConfigureBarTooltip(count, variantCountTooltipText(selectedCount));
         }
@@ -2538,7 +2538,7 @@
     input.addEventListener('blur', () => syncConfigureInputChrome());
 
     const voiceBtn = buildConfigureVoiceButton({
-      id: PREFIX + '-insert-voice',
+      id: `${PREFIX  }-insert-voice`,
       controlsLocked,
       onClick: (e) => {
         e.stopPropagation();
@@ -2558,7 +2558,7 @@
         handleInsertCreate();
       },
     });
-    create.id = PREFIX + '-insert-create';
+    create.id = `${PREFIX  }-insert-create`;
     create.addEventListener('mouseenter', () => {
       if (controlsLocked) return;
       if (isInsertCreateEnabled(create)) {
@@ -2616,7 +2616,7 @@
     if (generationPhase === 'scaffold_fallback') return 'Agent is locating the source...';
     if (generationPhase === 'first_reviewable') return 'First variant is ready. Exploring more...';
     if (generationPhase === 'second_reviewable') return 'Checking the remaining variants...';
-    return 'Generating ' + expectedVariants + ' variants...';
+    return `Generating ${  expectedVariants  } variants...`;
   }
 
   // Cycling row
@@ -2644,7 +2644,7 @@
    */
   function cyclingCounterText() {
     const total = arrivedVariants > 0 ? arrivedVariants : expectedVariants;
-    return cyclingShownVariant() + '/' + total;
+    return `${cyclingShownVariant()  }/${  total}`;
   }
 
   function buildCyclingRow() {
@@ -2658,7 +2658,7 @@
 
     // Prev
     const prev = navBtn('\u2190');
-    prev.id = PREFIX + '-variant-prev';
+    prev.id = `${PREFIX  }-variant-prev`;
     prev.addEventListener('click', (e) => { e.stopPropagation(); cycleVariant(-1); });
     if (cyclingShownVariant() <= 1) prev.style.opacity = '0.3';
     row.appendChild(prev);
@@ -2671,13 +2671,13 @@
       fontFamily: MONO, fontSize: '11px', fontWeight: '500',
       color: BP.textDim, minWidth: '24px', textAlign: 'center',
     });
-    counter.id = PREFIX + '-variant-counter';
+    counter.id = `${PREFIX  }-variant-counter`;
     counter.textContent = cyclingCounterText();
     row.appendChild(counter);
 
     // Next
     const next = navBtn('\u2192');
-    next.id = PREFIX + '-variant-next';
+    next.id = `${PREFIX  }-variant-next`;
     next.addEventListener('click', (e) => { e.stopPropagation(); cycleVariant(1); });
     if (cyclingShownVariant() >= arrivedVariants) next.style.opacity = '0.3';
     row.appendChild(next);
@@ -2702,7 +2702,7 @@
       if (paramsPending) {
         const spinner = el('span', {
           width: '11px', height: '11px', borderRadius: '50%',
-          border: '1.5px solid ' + BP.hairline,
+          border: `1.5px solid ${  BP.hairline}`,
           borderTopColor: BP.accent,
           animation: 'impeccable-spin 0.6s linear infinite',
           boxSizing: 'border-box', flexShrink: '0',
@@ -2729,7 +2729,7 @@
         });
         tuneBadge.textContent = String(visParams.length);
         tune.appendChild(tuneBadge);
-        tune.title = 'Tune this variant (' + visParams.length + ' knob' + (visParams.length === 1 ? '' : 's') + ')';
+        tune.title = `Tune this variant (${  visParams.length  } knob${  visParams.length === 1 ? '' : 's'  })`;
         tune.addEventListener('mouseenter', () => {
           if (!tuneOpen) tune.style.background = BP.accentSoft;
         });
@@ -2755,7 +2755,7 @@
       const progress = el('span', {
         fontSize: '11px', color: BP.textDim, whiteSpace: 'nowrap',
       });
-      progress.textContent = remaining + ' more arriving...';
+      progress.textContent = `${remaining  } more arriving...`;
       row.appendChild(progress);
     }
 
@@ -2783,7 +2783,7 @@
     // Discard
     const discard = el('button', {
       padding: '4px 6px', borderRadius: '5px',
-      border: '1px solid ' + BP.hairline, background: 'transparent',
+      border: `1px solid ${  BP.hairline}`, background: 'transparent',
       fontFamily: FONT, fontSize: '11px', color: BP.textDim,
       cursor: 'pointer', transition: 'color 0.12s ease, border-color 0.12s ease',
     });
@@ -2808,7 +2808,7 @@
     });
     const spinner = el('div', {
       width: '14px', height: '14px', borderRadius: '50%',
-      border: '2px solid ' + BP.hairline,
+      border: `2px solid ${  BP.hairline}`,
       borderTopColor: BP.accent,
       animation: 'impeccable-spin 0.6s linear infinite',
       flexShrink: '0',
@@ -2862,7 +2862,7 @@
       const dotBg = active ? C.brand
         : arrived ? BP.textDim
         : 'transparent';
-      const dotBorder = arrived ? 'none' : '1.5px solid ' + BP.hairline;
+      const dotBorder = arrived ? 'none' : `1.5px solid ${  BP.hairline}`;
       const dot = el('div', {
         width: active ? '8px' : '6px',
         height: active ? '8px' : '6px',
@@ -2870,7 +2870,7 @@
         background: dotBg,
         border: dotBorder,
         boxSizing: 'border-box',
-        transition: 'all 0.2s ' + EASE,
+        transition: `all 0.2s ${  EASE}`,
         cursor: (clickable && arrived) ? 'pointer' : 'default',
         transform: arrived ? 'scale(1)' : 'scale(0.85)',
         opacity: arrived ? (active ? '1' : '0.6') : '0.4',
@@ -2890,7 +2890,7 @@
   function navBtn(text) {
     const b = el('button', {
       width: '26px', height: '26px', borderRadius: '5px',
-      border: '1px solid ' + BP.hairline, background: 'transparent',
+      border: `1px solid ${  BP.hairline}`, background: 'transparent',
       color: BP.text, fontFamily: FONT, fontSize: '13px',
       cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
       transition: 'border-color 0.12s ease, background 0.12s ease',
@@ -2921,15 +2921,15 @@
   function initActionPicker() {
     const P = barPaletteForTheme(detectPageTheme());
     pickerEl = document.createElement('div');
-    pickerEl.id = PREFIX + '-picker';
+    pickerEl.id = `${PREFIX  }-picker`;
     Object.assign(pickerEl.style, {
       position: 'fixed', zIndex: Z.picker,
       display: 'none', opacity: '0',
       transform: 'scale(0.96) translateY(4px)',
       transformOrigin: 'bottom right',
-      transition: 'opacity 0.18s ' + EASE + ', transform 0.2s ' + EASE,
+      transition: `opacity 0.18s ${  EASE  }, transform 0.2s ${  EASE}`,
       background: P.surface,
-      border: '1px solid ' + P.border,
+      border: `1px solid ${  P.border}`,
       borderRadius: '8px',
       boxShadow: P.shadow,
       padding: '6px',
@@ -2973,11 +2973,11 @@
       chip.addEventListener('click', (e) => {
         e.preventDefault();
         e.stopPropagation();
-        const prompt = uiGetById(PREFIX + '-input')?.value || '';
+        const prompt = uiGetById(`${PREFIX  }-input`)?.value || '';
         selectedAction = action.value;
         hideActionPicker();
         updateBarContent('configure');
-        const input = uiGetById(PREFIX + '-input');
+        const input = uiGetById(`${PREFIX  }-input`);
         if (input && prompt) input.value = prompt;
       });
       grid.appendChild(chip);
@@ -3012,8 +3012,8 @@
     let left = barRect.right - pickerW;
     left = Math.max(8, Math.min(left, window.innerWidth - pickerW - 8));
     Object.assign(pickerEl.style, {
-      top: top + 'px',
-      left: left + 'px',
+      top: `${top  }px`,
+      left: `${left  }px`,
     });
     requestAnimationFrame(() => {
       pickerEl.style.opacity = '1';
@@ -3098,7 +3098,7 @@
     // hides everything initially; as it grows, content is revealed from
     // the bar edge outward.
     paramsPanelEl = document.createElement('div');
-    paramsPanelEl.id = PREFIX + '-params-panel';
+    paramsPanelEl.id = `${PREFIX  }-params-panel`;
     Object.assign(paramsPanelEl.style, {
       position: 'fixed', zIndex: String(Z.bar - 1),
       background: P.surfaceDeep,
@@ -3113,7 +3113,7 @@
       // transition support across engines. Closed state clips from the far
       // edge; open = inset(0) shows everything.
       clipPath: 'inset(0 0 100% 0)',
-      transition: 'clip-path 0.44s ' + EASE,
+      transition: `clip-path 0.44s ${  EASE}`,
 
       // Park off-screen until positionParamsPanel places it. These are NOT
       // in the transition list, so they snap instantly - no fly-in from the
@@ -3158,7 +3158,7 @@
     }
     const wrapper = findVariantsWrapper(currentSessionId);
     if (!wrapper) return null;
-    return wrapper.querySelector('[data-impeccable-variant="' + visibleVariant + '"]');
+    return wrapper.querySelector(`[data-impeccable-variant="${  visibleVariant  }"]`);
   }
 
   function parseVariantParams(variantEl) {
@@ -3185,7 +3185,7 @@
 
   function applyParamValue(variantEl, param, value) {
     if (!variantEl) return;
-    const attr = 'data-p-' + param.id;
+    const attr = `data-p-${  param.id}`;
     if (param.kind === 'toggle') {
       const on = !!value;
       if (on) variantEl.setAttribute(attr, 'on');
@@ -3199,8 +3199,8 @@
     // so there is no React hydration to mismatch. Drive range/toggle --p-* inline
     // on the mounted element so scoped preview CSS resolves them.
     if (svelteComponentSession?.sessionId === currentSessionId) {
-      if (param.kind === 'range') variantEl.style.setProperty('--p-' + param.id, String(value));
-      else if (param.kind === 'toggle') variantEl.style.setProperty('--p-' + param.id, value ? '1' : '0');
+      if (param.kind === 'range') variantEl.style.setProperty(`--p-${  param.id}`, String(value));
+      else if (param.kind === 'toggle') variantEl.style.setProperty(`--p-${  param.id}`, value ? '1' : '0');
       return;
     }
     // range/toggle --p-* custom properties are driven through the injected
@@ -3248,9 +3248,9 @@
       if (p.kind === 'range') {
         const input = document.createElement('input');
         input.type = 'range';
-        input.min = String(p.min != null ? p.min : 0);
-        input.max = String(p.max != null ? p.max : 1);
-        input.step = String(p.step != null ? p.step : 0.05);
+        input.min = String(p.min == null ? 0 : p.min);
+        input.max = String(p.max == null ? 1 : p.max);
+        input.step = String(p.step == null ? 0.05 : p.step);
         input.value = String(p.default);
         Object.assign(input.style, {
           width: '100%', accentColor: C.brand, cursor: 'pointer',
@@ -3281,7 +3281,7 @@
           left: initial ? '18px' : '2px',
           width: '16px', height: '16px', borderRadius: '50%',
           background: C.ink,
-          transition: 'left 0.18s ' + EASE,
+          transition: `left 0.18s ${  EASE}`,
           boxShadow: '0 1px 2px oklch(0% 0 0 / 0.2)',
         });
         track.appendChild(knob);
@@ -3304,7 +3304,7 @@
         readout.textContent = activeOpt ? activeOpt.label : String(p.default);
         const segRow = el('div', {
           display: 'grid',
-          gridTemplateColumns: 'repeat(' + opts.length + ', 1fr)',
+          gridTemplateColumns: `repeat(${  opts.length  }, 1fr)`,
           gap: '1px', padding: '2px',
           background: P.hairline, borderRadius: '5px',
         });
@@ -3652,11 +3652,11 @@
 
   function documentRefSegment(el) {
     const tag = el.tagName.toLowerCase();
-    return tag + documentRefIdSuffix(el) + documentRefClassSuffix(el) + ':nth-of-type(' + indexAmongSameTag(el) + ')';
+    return `${tag + documentRefIdSuffix(el) + documentRefClassSuffix(el)  }:nth-of-type(${  indexAmongSameTag(el)  })`;
   }
 
   function documentRefIdSuffix(el) {
-    return el.id ? '#' + normalizeDocumentRefToken(el.id) : '';
+    return el.id ? `#${  normalizeDocumentRefToken(el.id)}` : '';
   }
 
   function documentRefClassSuffix(el) {
@@ -3667,7 +3667,7 @@
       classes.push(normalizeDocumentRefToken(cls));
       if (classes.length === 2) break;
     }
-    return classes.length ? '.' + classes.join('.') : '';
+    return classes.length ? `.${  classes.join('.')}` : '';
   }
 
   function normalizeDocumentRefToken(value) {
@@ -3754,7 +3754,7 @@
         }
         const forbidden = forbiddenManualTextChars(newText);
         if (forbidden.length > 0) {
-          showToast('Save rejected: newText cannot contain ' + forbidden.join(' ') + ' (plain text only; ask the AI to insert markup)', 5500);
+          showToast(`Save rejected: newText cannot contain ${  forbidden.join(' ')  } (plain text only; ask the AI to insert markup)`, 5500);
           return;
         }
         const locator = buildLocatorForLeaf(row.el, selectedElement);
@@ -3785,7 +3785,7 @@
       // Token in the query string as well as the body: the URL token is what
       // authorizes the CORS preflight when the page runs on a non-loopback
       // dev host (ddev, Valet), since the preflight carries no request body.
-      const res = await fetch('http://localhost:' + PORT + '/manual-edit-stash?token=' + encodeURIComponent(TOKEN), {
+      const res = await fetch(`http://localhost:${  PORT  }/manual-edit-stash?token=${  encodeURIComponent(TOKEN)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -3798,7 +3798,7 @@
       });
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || ('HTTP ' + res.status));
+        throw new Error(errBody.error || (`HTTP ${  res.status}`));
       }
       const stashResult = await res.json();
       updatePendingCounter(stashResult.pendingCount || 0);
@@ -3812,7 +3812,7 @@
       console.error('[impeccable] manual edit stash failed:', err);
       const detail = String(err?.message || '');
       if (detail.includes('newText cannot contain') || detail.includes('newText cannot be empty')) {
-        showToast('Save rejected: ' + detail.replace(/^manual_edits:\s*/, ''), 5500);
+        showToast(`Save rejected: ${  detail.replace(/^manual_edits:\s*/, '')}`, 5500);
       } else {
         showToast('Save failed - retry or cancel', 4000);
       }
@@ -3829,9 +3829,9 @@
     const width = globalBarEl.offsetWidth;
     const height = globalBarEl.offsetHeight;
     if (!width || !height) return;
-    pendingDockEl.style.left = Math.round((window.innerWidth / 2) - (width / 2) - 18) + 'px';
+    pendingDockEl.style.left = `${Math.round((window.innerWidth / 2) - (width / 2) - 18)  }px`;
     pendingDockEl.style.top = 'auto';
-    pendingDockEl.style.bottom = Math.round(14 + (height / 2)) + 'px';
+    pendingDockEl.style.bottom = `${Math.round(14 + (height / 2))  }px`;
   }
 
   function playPendingIntroAnimation() {
@@ -3862,9 +3862,9 @@
   }
 
   function ensureSpinKeyframes() {
-    if (uiGetById(PREFIX + '-keyframes')) return;
+    if (uiGetById(`${PREFIX  }-keyframes`)) return;
     const style = document.createElement('style');
-    style.id = PREFIX + '-keyframes';
+    style.id = `${PREFIX  }-keyframes`;
     style.textContent = '@keyframes impeccable-spin { to { transform: rotate(360deg); } }';
     uiAppendStyle(style);
   }
@@ -3878,7 +3878,7 @@
   }
 
   function manualApplyStateKey() {
-    return PREFIX + ':manual-apply:' + PORT + ':' + TOKEN + ':' + location.pathname;
+    return `${PREFIX  }:manual-apply:${  PORT  }:${  TOKEN  }:${  location.pathname}`;
   }
 
   function readStoredManualApplyState() {
@@ -3921,7 +3921,7 @@
       remainingCount: Number.isFinite(Number(existing.remainingCount)) ? Number(existing.remainingCount) : currentCount,
       phase: existing.phase || 'applying',
       startedAt: Number(existing.startedAt) || Date.now(),
-      ...(patch || {}),
+      ...patch,
     });
   }
 
@@ -3943,14 +3943,14 @@
     if (stored?.phase === 'repairing') {
       const attempt = Number(stored.repairAttempt) || 1;
       const max = Number(stored.repairMaxAttempts) || 3;
-      return 'Fixing apply issue, attempt ' + attempt + '/' + max;
+      return `Fixing apply issue, attempt ${  attempt  }/${  max}`;
     }
     if (stored?.phase === 'verifying') return 'Verifying copy edits';
     const remaining = Number.isFinite(Number(stored?.remainingCount))
       ? Number(stored.remainingCount)
       : Number(fallbackCount) || 0;
     return remaining > 0
-      ? 'Applying ' + remaining + ' copy edit' + (remaining === 1 ? '' : 's')
+      ? `Applying ${  remaining  } copy edit${  remaining === 1 ? '' : 's'}`
       : 'Verifying copy edits';
   }
 
@@ -3999,10 +3999,10 @@
       closeTunePopover();
     }
     if (barEl && barEl.style.display !== 'none' && state === 'CONFIGURING') {
-      const input = uiGetById(PREFIX + '-input');
+      const input = uiGetById(`${PREFIX  }-input`);
       const prompt = input ? input.value : '';
       updateBarContent('configure');
-      const nextInput = uiGetById(PREFIX + '-input');
+      const nextInput = uiGetById(`${PREFIX  }-input`);
       if (nextInput) nextInput.value = prompt;
     }
     if (editBadgeEl && editBadgeEl.style.display !== 'none') {
@@ -4081,7 +4081,7 @@
     }
     pendingPillLabelEl.textContent = pendingApplyLabel(currentPageCount);
     pendingPillCountEl.textContent = String(currentPageCount);
-    pendingPillEl.setAttribute('aria-label', 'Apply ' + currentPageCount + ' copy edit' + (currentPageCount === 1 ? '' : 's') + ' to source');
+    pendingPillEl.setAttribute('aria-label', `Apply ${  currentPageCount  } copy edit${  currentPageCount === 1 ? '' : 's'  } to source`);
     pendingPillEl.style.display = 'inline-flex';
     pendingTrashBtn.style.display = 'inline-flex';
     pendingDockEl.style.display = 'inline-flex';
@@ -4100,7 +4100,7 @@
   async function fetchPendingCount() {
     try {
       const res = await fetch(
-        'http://localhost:' + PORT + '/manual-edit-stash?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname),
+        `http://localhost:${  PORT  }/manual-edit-stash?token=${  encodeURIComponent(TOKEN)  }&pageUrl=${  encodeURIComponent(location.pathname)}`,
       );
       if (!res.ok) return;
       const data = await res.json();
@@ -4113,19 +4113,19 @@
   async function onPendingPillClick() {
     const count = parseInt(pendingPillEl?.dataset.count || '0', 10);
     if (count <= 0 || pendingApplyInFlight) return;
-    const ok = confirm('Apply ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' to source?');
+    const ok = confirm(`Apply ${  count  } copy edit${  count === 1 ? '' : 's'  } to source?`);
     if (!ok) return;
     let waitForSseCompletion = false;
     resetManualApplyProgress(count);
     setPendingApplyLoading(true, count);
     try {
       const res = await fetch(
-        'http://localhost:' + PORT + '/manual-edit-commit?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname) + '&async=1',
+        `http://localhost:${  PORT  }/manual-edit-commit?token=${  encodeURIComponent(TOKEN)  }&pageUrl=${  encodeURIComponent(location.pathname)  }&async=1`,
         { method: 'POST', keepalive: true },
       );
       if (!res.ok) {
         const errBody = await res.json().catch(() => ({}));
-        throw new Error(errBody.error || ('HTTP ' + res.status));
+        throw new Error(errBody.error || (`HTTP ${  res.status}`));
       }
       const result = await res.json();
       if (res.status === 202 || result.status === 'started') {
@@ -4136,11 +4136,11 @@
       updatePendingCounter(remaining);
       if (result.failed && result.failed.length > 0) {
         console.warn('[impeccable] some copy edits failed:', result.failed);
-        showToast('Applied ' + (result.applied?.length || 0) + ', ' + result.failed.length + ' failed - see console', 5000);
+        showToast(`Applied ${  result.applied?.length || 0  }, ${  result.failed.length  } failed - see console`, 5000);
       } else {
         const n = Array.isArray(result.applied) ? result.applied.length : (result.cleared || 0);
         if (n > 0) {
-          showToast('Applied ' + n + ' edit' + (n === 1 ? '' : 's'), 2500);
+          showToast(`Applied ${  n  } edit${  n === 1 ? '' : 's'}`, 2500);
         } else {
           console.warn('[impeccable] apply returned no verified edits:', result);
           showToast('No edits applied - see console', 4000);
@@ -4160,21 +4160,21 @@
   async function onPendingTrashClick() {
     const count = parseInt(pendingPillEl?.dataset.count || '0', 10);
     if (count <= 0 || pendingApplyInFlight) return;
-    const ok = confirm('Discard ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' on this page?');
+    const ok = confirm(`Discard ${  count  } copy edit${  count === 1 ? '' : 's'  } on this page?`);
     if (!ok) return;
     try {
       const res = await fetch(
-        'http://localhost:' + PORT + '/manual-edit-discard?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname),
+        `http://localhost:${  PORT  }/manual-edit-discard?token=${  encodeURIComponent(TOKEN)  }&pageUrl=${  encodeURIComponent(location.pathname)}`,
         { method: 'POST' },
       );
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (!res.ok) throw new Error(`HTTP ${  res.status}`);
       const result = await res.json().catch(() => ({}));
       const restoreFailures = restoreDiscardedManualEdits(result.entries || []);
       updatePendingCounter(0);
       if (restoreFailures > 0) {
-        showToast('Discarded ' + count + ' copy edit' + (count === 1 ? '' : 's') + ' - refresh to reset ' + restoreFailures, 4000);
+        showToast(`Discarded ${  count  } copy edit${  count === 1 ? '' : 's'  } - refresh to reset ${  restoreFailures}`, 4000);
       } else {
-        showToast('Discarded ' + count + ' copy edit' + (count === 1 ? '' : 's'), 2500);
+        showToast(`Discarded ${  count  } copy edit${  count === 1 ? '' : 's'}`, 2500);
       }
     } catch (err) {
       console.error('[impeccable] discard failed:', err);
@@ -4213,10 +4213,10 @@
     updateManualApplyRepairState({ attempt: 1, maxAttempts: 3 }, 'repairing');
     try {
       const res = await fetch(
-        'http://localhost:' + PORT + '/manual-edit-commit?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname) + '&async=1&repair=1',
+        `http://localhost:${  PORT  }/manual-edit-commit?token=${  encodeURIComponent(TOKEN)  }&pageUrl=${  encodeURIComponent(location.pathname)  }&async=1&repair=1`,
         { method: 'POST', keepalive: true },
       );
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (!res.ok) throw new Error(`HTTP ${  res.status}`);
       if (pendingKeepFixingBtn) pendingKeepFixingBtn.style.display = 'none';
       if (pendingRollbackBtn) pendingRollbackBtn.style.display = 'none';
       if (pendingTrashBtn) pendingTrashBtn.style.display = 'inline-flex';
@@ -4232,14 +4232,14 @@
     if (!ok) return;
     try {
       const res = await fetch(
-        'http://localhost:' + PORT + '/manual-edit-repair-decision?token=' + encodeURIComponent(TOKEN) + '&pageUrl=' + encodeURIComponent(location.pathname),
+        `http://localhost:${  PORT  }/manual-edit-repair-decision?token=${  encodeURIComponent(TOKEN)  }&pageUrl=${  encodeURIComponent(location.pathname)}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ token: TOKEN, pageUrl: location.pathname, action: 'rollback' }),
         },
       );
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      if (!res.ok) throw new Error(`HTTP ${  res.status}`);
       const result = await res.json().catch(() => ({}));
       clearStoredManualApplyState();
       updatePendingCounter(numberOrNull(result.remainingCount) || 0);
@@ -4326,9 +4326,9 @@
         const failedCount = numberOrNull(msg.failedCount) || 0;
         const appliedCount = numberOrNull(msg.appliedCount) || numberOrNull(msg.cleared) || 0;
         if (failedCount > 0) {
-          showToast('Applied ' + appliedCount + ', ' + failedCount + ' failed - see console', 5000);
+          showToast(`Applied ${  appliedCount  }, ${  failedCount  } failed - see console`, 5000);
         } else if (appliedCount > 0) {
-          showToast('Applied ' + appliedCount + ' edit' + (appliedCount === 1 ? '' : 's'), 2500);
+          showToast(`Applied ${  appliedCount  } edit${  appliedCount === 1 ? '' : 's'}`, 2500);
         }
       }
       return;
@@ -4471,8 +4471,8 @@
     for (const cls of segment.classes) {
       if (!el.classList || !el.classList.contains(cls)) return false;
     }
-    if (segment.nth && indexAmongSameTag(el) !== segment.nth) return false;
-    return true;
+    if (!(segment.nth && indexAmongSameTag(el) !== segment.nth)) return true
+    return false
   }
 
   function cssIdent(value) {
@@ -4492,7 +4492,7 @@
 
   function usesShadowChromeRoot() {
     const root = liveUiRoot();
-    return root && root !== document.body && root.host && root.host.id === PREFIX + '-root';
+    return root && root !== document.body && root.host && root.host.id === `${PREFIX  }-root`;
   }
 
   function setImportantStyle(el, name, value) {
@@ -4502,7 +4502,7 @@
   function initEditBadgeHitProxies() {
     if (!usesShadowChromeRoot() || editBadgeProxyRoot) return;
     editBadgeProxyRoot = document.createElement('div');
-    editBadgeProxyRoot.id = PREFIX + '-edit-badge-hit-proxies';
+    editBadgeProxyRoot.id = `${PREFIX  }-edit-badge-hit-proxies`;
     editBadgeProxyRoot.setAttribute('aria-hidden', 'true');
     const styles = {
       all: 'initial',
@@ -4516,7 +4516,7 @@
       overflow: 'visible',
     };
     for (const [name, value] of Object.entries(styles)) {
-      setImportantStyle(editBadgeProxyRoot, name.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()), value);
+      setImportantStyle(editBadgeProxyRoot, name.replace(/[A-Z]/g, (m) => `-${  m.toLowerCase()}`), value);
     }
     document.body.appendChild(editBadgeProxyRoot);
   }
@@ -4527,10 +4527,10 @@
     const styles = {
       all: 'initial',
       position: 'fixed',
-      left: rect.left + 'px',
-      top: rect.top + 'px',
-      width: rect.width + 'px',
-      height: rect.height + 'px',
+      left: `${rect.left  }px`,
+      top: `${rect.top  }px`,
+      width: `${rect.width  }px`,
+      height: `${rect.height  }px`,
       margin: '0',
       padding: '0',
       border: '0',
@@ -4543,7 +4543,7 @@
       zIndex: String(Z.toast + 2),
     };
     for (const [name, value] of Object.entries(styles)) {
-      setImportantStyle(proxy, name.replace(/[A-Z]/g, (m) => '-' + m.toLowerCase()), value);
+      setImportantStyle(proxy, name.replace(/[A-Z]/g, (m) => `-${  m.toLowerCase()}`), value);
     }
   }
 
@@ -4647,7 +4647,7 @@
 
   function initEditBadge() {
     editBadgeEl = document.createElement('div');
-    editBadgeEl.id = PREFIX + '-edit-badge';
+    editBadgeEl.id = `${PREFIX  }-edit-badge`;
     Object.assign(editBadgeEl.style, {
       position: 'fixed',
       zIndex: String(Z.highlight + 1),
@@ -4659,16 +4659,16 @@
     initEditBadgeHitProxies();
 
     // Remove focus rings on edit badge buttons + contenteditable elements
-    if (!uiGetById(PREFIX + '-edit-badge-focus-style')) {
+    if (!uiGetById(`${PREFIX  }-edit-badge-focus-style`)) {
       const s = document.createElement('style');
-      s.id = PREFIX + '-edit-badge-focus-style';
+      s.id = `${PREFIX  }-edit-badge-focus-style`;
       s.textContent =
-        '#' + PREFIX + '-edit-badge button { outline: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important; }' +
-        '#' + PREFIX + '-edit-badge button:focus { outline: none !important; }' +
-        '#' + PREFIX + '-edit-badge button:focus-visible { outline: none !important; }' +
-        '[data-impeccable-editable="true"] { outline: none !important; box-shadow: none !important; }' +
-        '[data-impeccable-editable="true"]:focus { outline: none !important; box-shadow: none !important; }' +
-        '[data-impeccable-editable="true"]:focus-visible { outline: none !important; box-shadow: none !important; }';
+        `#${  PREFIX  }-edit-badge button { outline: none !important; box-shadow: 0 2px 8px rgba(0,0,0,0.1) !important; }` +
+        `#${  PREFIX  }-edit-badge button:focus { outline: none !important; }` +
+        `#${  PREFIX  }-edit-badge button:focus-visible { outline: none !important; }` +
+        `[data-impeccable-editable="true"] { outline: none !important; box-shadow: none !important; }` +
+        `[data-impeccable-editable="true"]:focus { outline: none !important; box-shadow: none !important; }` +
+        `[data-impeccable-editable="true"]:focus-visible { outline: none !important; box-shadow: none !important; }`;
       uiAppendStyle(s);
     }
   }
@@ -4682,8 +4682,8 @@
     const bw = editBadgeEl.offsetWidth;
     // Match showHighlight's 2px outset so the badge right edge lines up with the outline.
     const outlineRight = r.right + 2;
-    editBadgeEl.style.top = Math.max(4, r.top - 28) + 'px';
-    editBadgeEl.style.left = Math.min(window.innerWidth - bw - 4, outlineRight - bw) + 'px';
+    editBadgeEl.style.top = `${Math.max(4, r.top - 28)  }px`;
+    editBadgeEl.style.left = `${Math.min(window.innerWidth - bw - 4, outlineRight - bw)  }px`;
     syncEditBadgeHitProxies();
   }
 
@@ -4712,7 +4712,7 @@
       color: color,
       background: SURFACE,
       padding: '2px 8px',
-      border: '1px solid ' + (borderColor || color),
+      border: `1px solid ${  borderColor || color}`,
       borderRadius: '6px',
       boxSizing: 'border-box',
       minHeight: '22px',
@@ -4751,7 +4751,7 @@
         btn.style.cursor = 'not-allowed';
         btn.style.opacity = '0.55';
         btn.disabled = true;
-        const disabledTip = EDIT_COPY_LABEL + ' is disabled while the current copy edit is applying';
+        const disabledTip = `${EDIT_COPY_LABEL  } is disabled while the current copy edit is applying`;
         btn.addEventListener('mouseenter', () => showConfigureBarTooltip(btn, disabledTip));
         btn.addEventListener('mouseleave', hideConfigureBarTooltip);
       } else {
@@ -4820,20 +4820,20 @@
     const prevDirection = paramsPanelEl.dataset.tuneDirection;
 
     // top/left/width are NOT in the transition list, so they snap instantly.
-    paramsPanelEl.style.left = br.left + 'px';
-    paramsPanelEl.style.width = br.width + 'px';
+    paramsPanelEl.style.left = `${br.left  }px`;
+    paramsPanelEl.style.width = `${br.width  }px`;
 
     if (direction === 'below') {
-      paramsPanelEl.style.top = (br.bottom - TUNE_OVERLAP) + 'px';
+      paramsPanelEl.style.top = `${br.bottom - TUNE_OVERLAP  }px`;
       paramsPanelEl.style.borderRadius = '0 0 10px 10px';
-      paramsPanelEl.style.paddingTop = (14 + TUNE_OVERLAP) + 'px';
+      paramsPanelEl.style.paddingTop = `${14 + TUNE_OVERLAP  }px`;
       paramsPanelEl.style.paddingBottom = '14px';
     } else {
       const ih = paramsPanelEl.offsetHeight || 80;
-      paramsPanelEl.style.top = (br.top - ih + TUNE_OVERLAP) + 'px';
+      paramsPanelEl.style.top = `${br.top - ih + TUNE_OVERLAP  }px`;
       paramsPanelEl.style.borderRadius = '10px 10px 0 0';
       paramsPanelEl.style.paddingTop = '14px';
-      paramsPanelEl.style.paddingBottom = (14 + TUNE_OVERLAP) + 'px';
+      paramsPanelEl.style.paddingBottom = `${14 + TUNE_OVERLAP  }px`;
     }
     paramsPanelEl.dataset.tuneDirection = direction;
 
@@ -4985,10 +4985,10 @@
 
   function syncCyclingControls() {
     const shown = cyclingShownVariant();
-    const counter = uiGetById(PREFIX + '-variant-counter');
+    const counter = uiGetById(`${PREFIX  }-variant-counter`);
     if (counter) counter.textContent = cyclingCounterText();
-    const prev = uiGetById(PREFIX + '-variant-prev');
-    const next = uiGetById(PREFIX + '-variant-next');
+    const prev = uiGetById(`${PREFIX  }-variant-prev`);
+    const next = uiGetById(`${PREFIX  }-variant-next`);
     if (prev) prev.style.opacity = shown <= 1 ? '0.3' : '1';
     if (next) next.style.opacity = shown >= arrivedVariants ? '0.3' : '1';
     if (currentSessionId && state === 'CYCLING') saveSession();
@@ -5024,7 +5024,7 @@
 
   function parseOriginalMarkupElement(originalMarkup) {
     const parser = new DOMParser();
-    const doc = parser.parseFromString('<div id="impeccable-anchor">' + originalMarkup + '</div>', 'text/html');
+    const doc = parser.parseFromString(`<div id="impeccable-anchor">${  originalMarkup  }</div>`, 'text/html');
     return doc.getElementById('impeccable-anchor')?.firstElementChild || null;
   }
 
@@ -5189,7 +5189,7 @@
       // A wrapper can land incomplete ("wrap HMR landed, variant insert did
       // not"); injectVariantsFromSource owns both cases - it replaces an
       // existing wrapper from source and clears recoveryWaitingForAnchor.
-      const wrapperLanded = !!document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+      const wrapperLanded = !!document.querySelector(`[data-impeccable-variants="${  sessionId  }"]`);
       if (!wrapperLanded) {
         const liveEl = resolveLiveInjectionAnchor(originalMarkup);
         if (!liveEl?.parentElement) return;
@@ -5229,7 +5229,7 @@
     for (const script of scripts) {
       const src = script.getAttribute('src') || '';
       const idx = src.indexOf('/@vite/client');
-      if (idx > 0) { detectedDevBase = src.slice(0, idx) + '/'; break; }
+      if (idx > 0) { detectedDevBase = `${src.slice(0, idx)  }/`; break; }
       if (idx === 0) { detectedDevBase = '/'; break; }
     }
     return detectedDevBase;
@@ -5239,13 +5239,13 @@
     const base = detectDevServerBase();
     const rel = String(modulePath || '').replace(/^\/+/, '');
     const candidates = [new URL(base + rel, location.origin).href];
-    if (base !== '/') candidates.push(new URL('/' + rel, location.origin).href);
+    if (base !== '/') candidates.push(new URL(`/${  rel}`, location.origin).href);
     if (absPath) {
-      const fsRel = '@fs/' + String(absPath).replace(/^\/+/, '');
+      const fsRel = `@fs/${  String(absPath).replace(/^\/+/, '')}`;
       candidates.push(new URL(base + fsRel, location.origin).href);
       // Vite versions differ on whether @fs is served under base or at the
       // server root; with a non-root base, try both.
-      if (base !== '/') candidates.push(new URL('/' + fsRel, location.origin).href);
+      if (base !== '/') candidates.push(new URL(`/${  fsRel}`, location.origin).href);
     }
     return candidates;
   }
@@ -5254,7 +5254,7 @@
     let lastErr = null;
     for (const candidate of candidates) {
       try {
-        const url = bust ? candidate + (candidate.includes('?') ? '&' : '?') + 't=' + Date.now() : candidate;
+        const url = bust ? `${candidate + (candidate.includes('?') ? '&' : '?')  }t=${  Date.now()}` : candidate;
         const mod = await import(/* @vite-ignore */ url);
         return { mod, url: candidate };
       } catch (err) {
@@ -5295,8 +5295,8 @@
   async function loadSvelteComponentParams(manifest) {
     const dir = String(manifest?.revisionDir || manifest?.componentDir || '').replace(/^\/+/, '');
     if (!dir) return {};
-    const paramsPath = dir + '/params.json';
-    const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(paramsPath);
+    const paramsPath = `${dir  }/params.json`;
+    const url = `http://localhost:${  PORT  }/source?token=${  TOKEN  }&path=${  encodeURIComponent(paramsPath)}`;
     try {
       const res = await fetch(url);
       if (!res.ok) return {};
@@ -5351,11 +5351,11 @@
       }
       const body = css.slice(open + 1, close);
       if (shouldScopeNestedCssAtRule(prelude)) {
-        out += prelude + ' {\n' + scopeCssBlock(body, prefix) + '\n}';
+        out += `${prelude  } {\n${  scopeCssBlock(body, prefix)  }\n}`;
       } else if (prelude.startsWith('@')) {
-        out += prelude + ' {' + body + '}';
+        out += `${prelude  } {${  body  }}`;
       } else {
-        out += prefixCssSelectors(prelude, prefix) + ' {' + body + '}';
+        out += `${prefixCssSelectors(prelude, prefix)  } {${  body  }}`;
       }
       i = close + 1;
     }
@@ -5394,8 +5394,8 @@
         const s = unwrapSvelteGlobalSelector(selector.trim());
         if (!s) return '';
         if (s.startsWith(prefix.trim())) return s;
-        if (s.startsWith(':host')) return s.replace(/^:host\b/, prefix.trim());
-        return prefix + s;
+        if (!s.startsWith(':host')) return prefix + s
+        return s.replace(/^:host\b/, prefix.trim())
       })
       .filter(Boolean)
       .join(', ');
@@ -5443,7 +5443,7 @@
     if (!sourceOriginal) return values;
     const map = buildSvelteExpressionTextMap(sourceOriginal, liveEl);
     for (const entry of contract) {
-      const token = entry.previewToken || ('{' + entry.expr + '}');
+      const token = entry.previewToken || (`{${  entry.expr  }}`);
       values[entry.prop] = map.get(token) || '';
     }
     return values;
@@ -5472,7 +5472,7 @@
         values[entry.prop] = matches.map((itemEl, index) => {
           const texts = collectVisibleTexts(itemEl).filter((t) => !statics.has(t));
           const item = {};
-          slots.forEach((slot, i) => { item[slot.key] = texts[i] != null ? texts[i] : ''; });
+          slots.forEach((slot, i) => { item[slot.key] = texts[i] == null ? '' : texts[i]; });
           // Attribute-bound values (href={link.href}) hydrate from the
           // rendered attribute on the live item element or a descendant.
           for (const slot of entry.item.attrSlots || []) {
@@ -5486,7 +5486,7 @@
           // Keyed each: the key field is never rendered, so hydrate it with a
           // unique per-index value or Svelte throws each_key_duplicate.
           if (entry.item.keyField && item[entry.item.keyField] == null) {
-            item[entry.item.keyField] = 'impeccable-live-' + index;
+            item[entry.item.keyField] = `impeccable-live-${  index}`;
           }
           return item;
         });
@@ -5499,7 +5499,7 @@
           // the picked element itself or on a descendant carrying the class.
           try {
             values[entry.prop] = liveEl.classList.contains(entry.probe.className)
-              || !!liveEl.querySelector('.' + cssEscapeIdent(entry.probe.className));
+              || !!liveEl.querySelector(`.${  cssEscapeIdent(entry.probe.className)}`);
           } catch { /* keep default */ }
         }
       }
@@ -5518,7 +5518,7 @@
         const filteredLive = cloneWithoutElements(liveEl, excluded);
         const map = buildSvelteExpressionTextMap(sourceOriginal, filteredLive);
         for (const entry of textEntries) {
-          const token = '{' + entry.expr + '}';
+          const token = `{${  entry.expr  }}`;
           if (map.has(token)) values[entry.prop] = map.get(token) || '';
         }
       }
@@ -5550,8 +5550,8 @@
     let out = String(markup || '');
     out = stripSvelteKeyDelimiters(out);
     for (const kind of ['each', 'if']) {
-      const open = '{#' + kind;
-      const close = '{/' + kind + '}';
+      const open = `{#${  kind}`;
+      const close = `{/${  kind  }}`;
       for (;;) {
         const start = out.indexOf(open);
         if (start === -1) break;
@@ -5609,7 +5609,7 @@
     let clone;
     try {
       clone = rootEl.cloneNode(true);
-      clone.querySelectorAll('[' + MARK + ']').forEach((el) => el.remove());
+      clone.querySelectorAll(`[${  MARK  }]`).forEach((el) => el.remove());
     } finally {
       for (const el of excludedSet) { try { el.removeAttribute(MARK); } catch { /* detached */ } }
     }
@@ -5628,10 +5628,10 @@
     const dirRel = manifest.revisionDir || manifest.componentDir || '';
     const dirAbs = manifest.revisionDirAbs || manifest.componentDirAbs || null;
     const moduleBase = manifest.componentModuleBase
-      || ('/' + String(dirRel).replace(/^\/+/, ''));
-    const modulePath = String(moduleBase).replace(/\/+$/, '') + '/v' + variantNum + '.' + extension;
+      || (`/${  String(dirRel).replace(/^\/+/, '')}`);
+    const modulePath = `${String(moduleBase).replace(/\/+$/, '')  }/v${  variantNum  }.${  extension}`;
     const moduleAbs = dirAbs
-      ? String(dirAbs).replace(/\/+$/, '') + '/v' + variantNum + '.' + extension
+      ? `${String(dirAbs).replace(/\/+$/, '')  }/v${  variantNum  }.${  extension}`
       : null;
     const candidates = componentModuleCandidates(manifest, modulePath, moduleAbs);
     let moduleUrl = candidates[0];
@@ -5641,7 +5641,7 @@
       const runtime = await loadSvelteRuntime(manifest.runtimeModule, manifest);
       const imported = await importFirstReachable(candidates, true);
       moduleUrl = imported.url;
-      const mod = imported.mod;
+      const {mod} = imported;
       const Component = mod.default;
       if (svelteComponentSession.mountedInstance && runtime.unmount) {
         await runtime.unmount(svelteComponentSession.mountedInstance);
@@ -5686,7 +5686,7 @@
       if (svelteComponentSession?.sessionId === sessionId) {
         svelteComponentSession.swapAnchor = null;
       }
-      console.error('[impeccable] Failed to mount component variant ' + variantNum + ' for ' + sessionId + ':', err);
+      console.error(`[impeccable] Failed to mount component variant ${  variantNum  } for ${  sessionId  }:`, err);
       reportVariantMountFailed(sessionId, variantNum, moduleUrl, err);
       // Every mount failure gets the card, so the variant-switch path (which
       // used to revert with no feedback whatsoever) says what broke too.
@@ -5705,12 +5705,12 @@
     try {
       const probe = await probePreviewTree(manifest);
       if (probe.ok === false) {
-        return 'The preview tree is not reachable from the dev server (probe failed on '
-          + (probe.tried || []).join(', ')
-          + '). The resolved app root and the dev server root likely disagree; restart live from the app the dev server serves.';
+        return `The preview tree is not reachable from the dev server (probe failed on ${
+           (probe.tried || []).join(', ')
+           }). The resolved app root and the dev server root likely disagree; restart live from the app the dev server serves.`;
       }
     } catch { /* probe is best-effort */ }
-    return 'The compiled component could not be imported or mounted. ' + (err?.message || 'Unknown error');
+    return `The compiled component could not be imported or mounted. ${  err?.message || 'Unknown error'}`;
   }
 
   function teardownSvelteComponentSession(restoreOriginal) {
@@ -5769,7 +5769,7 @@
     // republish that is STILL broken at the same URL reports again instead of
     // being swallowed while the agent believes the repair landed.
     lastReportedMountFailure = null;
-    const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(manifestPath);
+    const url = `http://localhost:${  PORT  }/source?token=${  TOKEN  }&path=${  encodeURIComponent(manifestPath)}`;
     try {
       const res = await fetch(url);
       if (!res.ok) throw new Error(String(res.status));
@@ -5778,7 +5778,7 @@
         // A manifest at the expected path belonging to a different session is
         // an agent-side publish error. Left as a bare return it stranded the
         // bar in GENERATING with no explanation and no event.
-        const mismatch = 'Manifest at ' + manifestPath + ' belongs to session ' + (manifest.id || 'unknown') + ', not ' + sessionId + '.';
+        const mismatch = `Manifest at ${  manifestPath  } belongs to session ${  manifest.id || 'unknown'  }, not ${  sessionId  }.`;
         reportVariantMountFailed(sessionId, visibleVariant || 1, manifestPath, mismatch);
         showMountErrorCard(sessionId, {
           variant: visibleVariant || 0,
@@ -5803,7 +5803,7 @@
       });
       if (state !== 'CYCLING') setLiveState('GENERATING');
 
-      const existingWrapper = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+      const existingWrapper = document.querySelector(`[data-impeccable-variants="${  sessionId  }"]`);
       if (existingWrapper && svelteComponentSession?.sessionId === sessionId) {
         recoveryWaitingForAnchor = false;
         svelteComponentSession.manifest = manifest;
@@ -5912,7 +5912,7 @@
       positionBar();
       saveSession();
       completeParameterGenerationIfReady();
-      console.log('[impeccable] Mounted ' + arrivedVariants + ' ' + manifest.framework + ' component variants.');
+      console.log(`[impeccable] Mounted ${  arrivedVariants  } ${  manifest.framework  } component variants.`);
     } catch (err) {
       console.error('[impeccable] Failed to mount component-preview variants:', err);
       // Report the manifest PATH, never the fetch URL: that URL carries the
@@ -5921,7 +5921,7 @@
       abortSvelteComponentInjection(sessionId, {
         variant: visibleVariant || 0,
         url: manifestPath,
-        message: 'Could not read the variant manifest. ' + (err?.message || 'Unknown error'),
+        message: `Could not read the variant manifest. ${  err?.message || 'Unknown error'}`,
         previewFile: manifestPath,
       });
     }
@@ -5978,7 +5978,7 @@
     // Report each distinct one once so the agent's poll queue and the journal
     // stay readable; a genuinely new failure (different variant, URL, or
     // message) still gets through.
-    const key = sessionId + '|' + variant + '|' + url + '|' + message;
+    const key = `${sessionId  }|${  variant  }|${  url  }|${  message}`;
     if (lastReportedMountFailure === key) return;
     lastReportedMountFailure = key;
     sendEvent({ type: 'variant_mount_failed', id: sessionId, variant, url, error: message });
@@ -5989,7 +5989,7 @@
     if (text.length <= max) return text;
     const head = Math.ceil((max - 1) / 2);
     const tail = max - 1 - head;
-    return text.slice(0, head) + '…' + text.slice(text.length - tail);
+    return `${text.slice(0, head)  }…${  text.slice(text.length - tail)}`;
   }
 
   /**
@@ -6029,7 +6029,7 @@
     if (mountErrorEl) mountErrorEl.remove();
     const P = BP || barPaletteForTheme(detectPageTheme());
     const card = el('div', {
-      position: 'fixed', bottom: mountErrorCardBottomOffset() + 'px', left: '50%',
+      position: 'fixed', bottom: `${mountErrorCardBottomOffset()  }px`, left: '50%',
       transform: 'translateX(-50%)',
       display: 'flex', flexDirection: 'column', gap: '6px',
       background: P.surface, color: P.text,
@@ -6040,7 +6040,7 @@
       maxWidth: 'min(520px, calc(100vw - 32px))',
       pointerEvents: 'auto', textAlign: 'left',
     });
-    card.id = PREFIX + '-mount-error';
+    card.id = `${PREFIX  }-mount-error`;
 
     const head = el('div', { display: 'flex', alignItems: 'center', gap: '8px' });
     const glyph = el('span', { fontSize: '13px', lineHeight: '1', color: 'oklch(62% 0.19 30)', flexShrink: '0' });
@@ -6048,7 +6048,7 @@
     head.appendChild(glyph);
     const title = el('span', { fontWeight: '600', flex: '1' });
     title.textContent = mountErrorState.variant > 0
-      ? 'Variant ' + mountErrorState.variant + ' failed to load'
+      ? `Variant ${  mountErrorState.variant  } failed to load`
       : 'Variants failed to load';
     head.appendChild(title);
     const dismiss = el('button', {
@@ -6087,7 +6087,7 @@
 
     const actions = el('div', { display: 'flex', gap: '8px', marginTop: '2px' });
     const retry = el('button', {
-      border: '1px solid ' + P.hairline, background: 'transparent',
+      border: `1px solid ${  P.hairline}`, background: 'transparent',
       color: P.text, fontFamily: FONT, fontSize: '12px', fontWeight: '500',
       borderRadius: '5px', padding: '4px 10px', cursor: 'pointer',
     });
@@ -6129,7 +6129,7 @@
       if (svelteComponentSession?.sessionId === sessionId) {
         teardownSvelteComponentSession(true);
       } else {
-        const orphan = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+        const orphan = document.querySelector(`[data-impeccable-variants="${  sessionId  }"]`);
         if (orphan) orphan.remove();
       }
     } catch (err) {
@@ -6163,7 +6163,7 @@
       if (svelteComponentSession?.sessionId === sessionId) {
         teardownSvelteComponentSession(true);
       } else {
-        const orphan = document.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+        const orphan = document.querySelector(`[data-impeccable-variants="${  sessionId  }"]`);
         if (orphan) orphan.remove();
       }
     } catch (err) {
@@ -6206,7 +6206,7 @@
   function discardOrphanedSession(reason) {
     const sessionId = currentSessionId;
     if (!sessionId) return;
-    console.warn('[impeccable] Discarding orphaned session ' + sessionId + ': ' + reason);
+    console.warn(`[impeccable] Discarding orphaned session ${  sessionId  }: ${  reason}`);
     sendEvent({ type: 'discard', id: sessionId, orphaned: true }).catch(() => {});
     markSessionHandled();
     cleanup({ instantChrome: true });
@@ -6219,9 +6219,9 @@
 
   function sourceHasSessionWrapper(text, sessionId) {
     const src = String(text || '');
-    return src.indexOf('data-impeccable-variants="' + sessionId + '"') !== -1
-      || src.indexOf("data-impeccable-variants='" + sessionId + "'") !== -1
-      || src.indexOf('impeccable-variants-start ' + sessionId) !== -1;
+    return src.indexOf(`data-impeccable-variants="${  sessionId  }"`) !== -1
+      || src.indexOf(`data-impeccable-variants='${  sessionId  }'`) !== -1
+      || src.indexOf(`impeccable-variants-start ${  sessionId}`) !== -1;
   }
 
   /**
@@ -6239,7 +6239,7 @@
    */
   function probeJsxWrapperForOrphan(filePath, sessionId, opts) {
     const attempt = opts._orphanAttempt || 0;
-    const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(filePath);
+    const url = `http://localhost:${  PORT  }/source?token=${  TOKEN  }&path=${  encodeURIComponent(filePath)}`;
     const stillActive = () => sessionId === currentSessionId && (state === 'GENERATING' || state === 'CYCLING');
     const retryLater = () => {
       setTimeout(() => {
@@ -6262,11 +6262,11 @@
     const onUnreadable = (detail) => {
       if (!stillActive()) return;
       if (attempt < COMPLETED_SOURCE_FALLBACK_RETRIES) { retryLater(); return; }
-      console.warn('[impeccable] Could not read source to check the variant wrapper; keeping the session: ' + detail);
+      console.warn(`[impeccable] Could not read source to check the variant wrapper; keeping the session: ${  detail}`);
       showToast('Could not read the source file to check this session; it stays open and is checked again on the next event.', 5500);
     };
     fetch(url)
-      .then(r => { if (!r.ok) throw new Error('source read failed: ' + r.status); return r.text(); })
+      .then(r => { if (!r.ok) throw new Error(`source read failed: ${  r.status}`); return r.text(); })
       .then(text => {
         if (!stillActive()) return;
         if (sourceHasSessionWrapper(text, sessionId)) return;
@@ -6274,7 +6274,7 @@
       })
       .catch(err => {
         const detail = err && err.message ? err.message : 'fetch failed';
-        if (/source read failed: 404$/.test(detail)) {
+        if (detail.endsWith('source read failed: 404')) {
           onNoWrapper('source file missing (404) while checking for the variant wrapper');
           return;
         }
@@ -6310,8 +6310,8 @@
         // here would strand the tab in GENERATING forever.
         const attempt = opts.attempt || 0;
         if (attempt < COMPLETED_SOURCE_FALLBACK_RETRIES) {
-          console.log('[impeccable] Generation is done but source shows no variants yet; retrying read ('
-            + (attempt + 1) + '/' + COMPLETED_SOURCE_FALLBACK_RETRIES + ').');
+          console.log(`[impeccable] Generation is done but source shows no variants yet; retrying read (${
+             attempt + 1  }/${  COMPLETED_SOURCE_FALLBACK_RETRIES  }).`);
           setTimeout(() => {
             if (state !== 'GENERATING' || currentSessionId !== sessionId) return;
             if (arrivedVariants > 0) return;
@@ -6341,7 +6341,7 @@
     positionBar();
     saveSession();
     completeParameterGenerationIfReady();
-    console.log('[impeccable] Injected ' + arrivedVariants + ' variants from source file.');
+    console.log(`[impeccable] Injected ${  arrivedVariants  } variants from source file.`);
   }
 
   /**
@@ -6396,20 +6396,20 @@
       }
       return;
     }
-    const url = 'http://localhost:' + PORT + '/source?token=' + TOKEN + '&path=' + encodeURIComponent(filePath);
+    const url = `http://localhost:${  PORT  }/source?token=${  TOKEN  }&path=${  encodeURIComponent(filePath)}`;
     fetch(url)
       .then(r => { if (!r.ok) throw new Error(r.status); return r.text(); })
       .then(html => {
         const parser = new DOMParser();
-        const startMark = '<!-- impeccable-variants-start ' + sessionId + ' -->';
-        const endMark = '<!-- impeccable-variants-end ' + sessionId + ' -->';
+        const startMark = `<!-- impeccable-variants-start ${  sessionId  } -->`;
+        const endMark = `<!-- impeccable-variants-end ${  sessionId  } -->`;
         const startIdx = html.indexOf(startMark);
         const endIdx = html.indexOf(endMark);
         const block = startIdx !== -1 && endIdx !== -1 && endIdx > startIdx
           ? html.slice(startIdx + startMark.length, endIdx).trim()
           : html;
         const doc = parser.parseFromString(block, 'text/html');
-        const srcWrapper = doc.querySelector('[data-impeccable-variants="' + sessionId + '"]');
+        const srcWrapper = doc.querySelector(`[data-impeccable-variants="${  sessionId  }"]`);
         if (!srcWrapper) {
           console.warn('[impeccable] Variant wrapper not found in source file.');
           // A resumed cycling session whose wrapper is gone from source is an
@@ -6521,7 +6521,7 @@
       pattern += '(.*?)';
       cursor = index + token.length;
     }
-    pattern += escapeRegExp(sourceText.slice(cursor)).replace(/\s+/g, '\\s*') + '$';
+    pattern += `${escapeRegExp(sourceText.slice(cursor)).replace(/\s+/g, '\\s*')  }$`;
     return new RegExp(pattern);
   }
 
@@ -6620,7 +6620,7 @@
   // (it wraps all of them and gets correct bounds).
   function pickVariantContent(wrapper, index) {
     if (!wrapper) return null;
-    const variantDiv = wrapper.querySelector('[data-impeccable-variant="' + index + '"]');
+    const variantDiv = wrapper.querySelector(`[data-impeccable-variant="${  index  }"]`);
     if (!variantDiv) return null;
     const NON_VISUAL = new Set(['STYLE', 'SCRIPT', 'LINK', 'META', 'TEMPLATE']);
     const visual = [];
@@ -6647,11 +6647,11 @@
   // single variant (`… > [data-impeccable-variant="N"]`); without it, targets
   // every variant via the bare `[data-impeccable-variant]` attribute.
   function variantStateSelector(sessionId, num) {
-    const wrapper = '[data-impeccable-variants="' + sessionId + '"]';
+    const wrapper = `[data-impeccable-variants="${  sessionId  }"]`;
     const variant = num == null
       ? '[data-impeccable-variant]'
-      : '[data-impeccable-variant="' + num + '"]';
-    return wrapper + ' > ' + variant;
+      : `[data-impeccable-variant="${  num  }"]`;
+    return `${wrapper  } > ${  variant}`;
   }
 
   // Serialize the visible variant's knob values into `--p-<id>` custom-property
@@ -6660,9 +6660,9 @@
   function variantParamDecls(values) {
     return Object.entries(values || {})
       .map(([id, val]) => {
-        if (typeof val === 'number') return ' --p-' + id + ': ' + val + ';';
-        if (typeof val === 'boolean') return ' --p-' + id + ': ' + (val ? '1' : '0') + ';';
-        return '';
+        if (typeof val === 'number') return ` --p-${  id  }: ${  val  };`;
+        if (!(typeof val === 'boolean')) return ''
+        return ' --p-' + id + ': ' + (val ? '1' : '0') + ';'
       })
       .join('');
   }
@@ -6678,15 +6678,15 @@
     }
 
     // Hide every variant except the visible one (incl. the SSR'd "original").
-    const hideOthers = variantStateSelector(sessionId)
-      + ':not([data-impeccable-variant="' + num + '"]) { ' + VARIANT_HIDE_DECL + ' }';
+    const hideOthers = `${variantStateSelector(sessionId)
+       }:not([data-impeccable-variant="${  num  }"]) { ${  VARIANT_HIDE_DECL  } }`;
 
     // Force-show the visible variant (beats the source inline display:none on
     // v2/v3) and apply its knob values as custom properties.
-    const showVisible = variantStateSelector(sessionId, num)
-      + ' { ' + VARIANT_SHOW_DECL + variantParamDecls(paramsCurrentValues) + ' }';
+    const showVisible = `${variantStateSelector(sessionId, num)
+       } { ${  VARIANT_SHOW_DECL  }${variantParamDecls(paramsCurrentValues)  } }`;
 
-    styleEl.textContent = hideOthers + '\n' + showVisible + '\n';
+    styleEl.textContent = `${hideOthers  }\n${  showVisible  }\n`;
   }
 
   function removeVariantStateStylesheet() {
@@ -6694,7 +6694,7 @@
   }
 
   function discardStateStyleId(sessionId) {
-    return DISCARD_STATE_STYLE_ID + '-' + sessionId;
+    return `${DISCARD_STATE_STYLE_ID  }-${  sessionId}`;
   }
 
   function showOriginalDuringDiscard(sessionId) {
@@ -6706,9 +6706,9 @@
       (document.head || document.documentElement).appendChild(styleEl);
     }
     styleEl.dataset.impeccableDiscardSession = sessionId;
-    const wrapper = '[data-impeccable-variants="' + sessionId + '"]';
-    styleEl.textContent = wrapper + ' > [data-impeccable-variant]:not([data-impeccable-variant="original"]) { display:none !important; }\n'
-      + wrapper + ' > [data-impeccable-variant="original"] { display:block !important; }';
+    const wrapper = `[data-impeccable-variants="${  sessionId  }"]`;
+    styleEl.textContent = `${wrapper  } > [data-impeccable-variant]:not([data-impeccable-variant="original"]) { display:none !important; }\n${
+       wrapper  } > [data-impeccable-variant="original"] { display:block !important; }`;
   }
 
   function removeDiscardStateStylesheet(sessionId) {
@@ -6723,7 +6723,7 @@
    */
   function discardedWrappers(sessionId) {
     if (!sessionId) return [];
-    return [...document.querySelectorAll('[data-impeccable-variants="' + sessionId + '"]')];
+    return [...document.querySelectorAll(`[data-impeccable-variants="${  sessionId  }"]`)];
   }
 
   function releaseDiscardedStaticWrapper(wrapper) {
@@ -6752,7 +6752,7 @@
   function watchForDiscardedFrameworkWrapperRemoval(sessionId) {
     if (!sessionId || !document.body) return;
     if (discardedFrameworkWrapperWatchers.has(sessionId)) return;
-    const selector = '[data-impeccable-variants="' + sessionId + '"]';
+    const selector = `[data-impeccable-variants="${  sessionId  }"]`;
     let observer = null;
     let timer = null;
     const stopWatching = function() {
@@ -6789,7 +6789,7 @@
   function resolveScrollLockAnchorTop() {
     const anchor = resolveBarAnchor();
     if (!anchor?.isConnected) return null;
-    const top = anchor.getBoundingClientRect().top;
+    const {top} = anchor.getBoundingClientRect();
     return Number.isFinite(top) ? top : null;
   }
 
@@ -6851,12 +6851,12 @@
 
     scrollLockObserver = new MutationObserver((mutations) => {
       for (const m of mutations) {
-        if (m.target?.closest?.('[data-impeccable-variants="' + sessionId + '"]')) {
+        if (m.target?.closest?.(`[data-impeccable-variants="${  sessionId  }"]`)) {
           schedule('mutation-in-wrapper');
           return;
         }
         for (const n of m.addedNodes) {
-          if (n.nodeType === 1 && (n.matches?.('[data-impeccable-variants="' + sessionId + '"]') || n.querySelector?.('[data-impeccable-variants="' + sessionId + '"]'))) {
+          if (n.nodeType === 1 && (n.matches?.(`[data-impeccable-variants="${  sessionId  }"]`) || n.querySelector?.(`[data-impeccable-variants="${  sessionId  }"]`))) {
             schedule('wrapper-added');
             return;
           }
@@ -6892,7 +6892,7 @@
     window.addEventListener('touchstart', () => markGesture('touchstart'), { passive: true, ...sig });
     window.addEventListener('touchmove', () => markGesture('touchmove'), { passive: true, ...sig });
     window.addEventListener('keydown', (e) => {
-      if (['PageDown', 'PageUp', ' ', 'End', 'Home', 'ArrowDown', 'ArrowUp'].includes(e.key)) markGesture('key:' + e.key);
+      if (['PageDown', 'PageUp', ' ', 'End', 'Home', 'ArrowDown', 'ArrowUp'].includes(e.key)) markGesture(`key:${  e.key}`);
     }, sig);
 
     // Correct on EVERY scroll event: whether it's the browser's
@@ -6957,7 +6957,7 @@
   /** The wrapper holding `sessionId`'s variants, or null without an id. */
   function findVariantsWrapper(sessionId) {
     if (!sessionId) return null;
-    return pickPopulatedVariantsWrapper('[data-impeccable-variants="' + sessionId + '"]');
+    return pickPopulatedVariantsWrapper(`[data-impeccable-variants="${  sessionId  }"]`);
   }
 
   /** Any live variant wrapper, for the resume paths that have no id yet. */
@@ -7121,7 +7121,7 @@
   const SSE_MAX_RETRIES = 20;  // generous: heartbeats keep the connection alive, so retries mean real trouble
 
   function connectSSE() {
-    evtSource = new EventSource('http://localhost:' + PORT + '/events?token=' + TOKEN);
+    evtSource = new EventSource(`http://localhost:${  PORT  }/events?token=${  TOKEN}`);
 
     evtSource.onopen = () => {
       sseRetries = 0; // reset on successful (re)connect
@@ -7281,12 +7281,12 @@
             // overclaim. Normalize the server message's terminal punctuation
             // so the two sentences don't run together.
             const acceptFailDetail = String(msg.message || 'unknown error').trim().replace(/[.!?]?$/, '.');
-            showToast('Accept failed: ' + acceptFailDetail + ' The variant may not have been saved. If the change is missing, pick the element and generate again.', 8000);
+            showToast(`Accept failed: ${  acceptFailDetail  } The variant may not have been saved. If the change is missing, pick the element and generate again.`, 8000);
             break;
           }
           if (maybeCompleteSteer(msg)) break;
           console.error('[impeccable] Error:', msg.message);
-          showToast('Error: ' + msg.message, 5000);
+          showToast(`Error: ${  msg.message}`, 5000);
           // An agent error reply is terminal for the session it names: tear
           // it down exactly like 'discarded' (cleanup includes clearSession),
           // or the durable localStorage checkpoint survives and every reload
@@ -7310,7 +7310,7 @@
     evtSource.onerror = () => {
       sseRetries++;
       if (sseRetries <= SSE_MAX_RETRIES) {
-        console.log('[impeccable] SSE connection lost. Retry ' + sseRetries + '/' + SSE_MAX_RETRIES + '...');
+        console.log(`[impeccable] SSE connection lost. Retry ${  sseRetries  }/${  SSE_MAX_RETRIES  }...`);
         return; // EventSource auto-reconnects
       }
       // Server is gone. Clean up gracefully.
@@ -7364,7 +7364,7 @@
     // Token in the query string as well as the body: the URL token is what
     // authorizes the CORS preflight when the page runs on a non-loopback
     // dev host (ddev, Valet), since the preflight carries no request body.
-    const doSend = () => fetch('http://localhost:' + PORT + '/events?token=' + encodeURIComponent(TOKEN), {
+    const doSend = () => fetch(`http://localhost:${  PORT  }/events?token=${  encodeURIComponent(TOKEN)}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(msg),
@@ -7381,7 +7381,7 @@
         abandonForeignSession(msg.id);
         return null;
       }
-      return handleFailure(new Error(body.error || ('HTTP ' + res.status + ' ' + res.statusText)));
+      return handleFailure(new Error(body.error || (`HTTP ${  res.status  } ${  res.statusText}`)));
     }).catch(handleFailure);
 
     if (msg.type === 'generate' || msg.type === 'steer') {
@@ -7396,7 +7396,7 @@
   function abandonForeignSession(sessionId) {
     if (abandonedForeignSessionId === sessionId || sessionId !== currentSessionId) return;
     abandonedForeignSessionId = sessionId;
-    console.warn('[impeccable] The live server has no record of session ' + sessionId + '; clearing stale local state.');
+    console.warn(`[impeccable] The live server has no record of session ${  sessionId  }; clearing stale local state.`);
     markSessionHandled();
     cleanup({ instantChrome: true });
     showToast('A saved live session belonged to a different project, so it was cleared. Pick an element to start fresh.', 6000);
@@ -7438,7 +7438,7 @@
       phase: 'steer',
       reason,
       pageUrl: location.pathname,
-      ...(extra || {}),
+      ...extra,
     }).catch(() => null);
   }
 
@@ -7646,8 +7646,8 @@
     if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return false;
     if (!/^(INPUT|TEXTAREA)$/.test(deepActive.tagName || '')) return false;
     if (deepActive.value) return false;
-    if (deepActive.id === PREFIX + '-input' && state === 'CONFIGURING') return true;
-    if (deepActive.id === PREFIX + '-page-chat-input' && state === 'PICKING') return true;
+    if (deepActive.id === `${PREFIX  }-input` && state === 'CONFIGURING') return true;
+    if (deepActive.id === `${PREFIX  }-page-chat-input` && state === 'PICKING') return true;
     return false;
   }
 
@@ -7715,7 +7715,7 @@
     }
 
     // Arrow/Enter nav works in PICKING (hover) and CONFIGURING (selected, input empty)
-    var navEl = (state === 'PICKING') ? hoveredElement : (state === 'CONFIGURING') ? selectedElement : null;
+    const navEl = (state === 'PICKING') ? hoveredElement : (state === 'CONFIGURING') ? selectedElement : null;
     if (navEl && (e.key === 'ArrowUp' || e.key === 'ArrowDown' || (e.key === 'Enter' && state === 'PICKING'))) {
       let next = null;
       if (e.key === 'ArrowDown' && !e.shiftKey) {
@@ -7773,7 +7773,7 @@
     if (pendingApplyInFlight) { showManualApplyBusyToast(); return; }
     if (!selectedElement || state !== 'CONFIGURING') return;
     stopVoice({ suppressSubmit: true });
-    const input = uiGetById(PREFIX + '-input');
+    const input = uiGetById(`${PREFIX  }-input`);
     const prompt = input ? input.value.trim() : '';
 
     // Commit any pending pin edit BEFORE we snapshot annotations.
@@ -7857,7 +7857,7 @@
 
   function handleInsertCreate() {
     if (!placeholderElement || !insertAnchorElement || state !== 'CONFIGURING' || configureKind !== 'insert') return;
-    const input = uiGetById(PREFIX + '-insert-input');
+    const input = uiGetById(`${PREFIX  }-insert-input`);
     const prompt = input ? input.value.trim() : '';
     if (annotEditing) finalizeEditingPin();
     const snapshot = {
@@ -7932,7 +7932,7 @@
     if (msLoadPromise) return msLoadPromise;
     msLoadPromise = new Promise((resolve, reject) => {
       const s = document.createElement('script');
-      s.src = 'http://localhost:' + PORT + '/modern-screenshot.js';
+      s.src = `http://localhost:${  PORT  }/modern-screenshot.js`;
       s.onload = () => resolve(window.modernScreenshot);
       s.onerror = () => { msLoadPromise = null; reject(new Error('modern-screenshot failed to load')); };
       uiAppendStyle(s);
@@ -7977,12 +7977,12 @@
         const buf = await res.arrayBuffer();
         const ext = url.toLowerCase().match(FONT_EXT_RE)?.[1] || 'woff2';
         const mime = FONT_MIME[ext] || 'application/octet-stream';
-        map.set(url, 'data:' + mime + ';base64,' + bufferToBase64(buf));
+        map.set(url, `data:${  mime  };base64,${  bufferToBase64(buf)}`);
       } catch { /* skip; fall through to URL */ }
     }));
     return cssText.replace(urlRe, (orig, q, url) => {
       const data = map.get(url);
-      return data ? 'url(' + q + data + q + ')' : orig;
+      return data ? `url(${  q  }${data  }${q  })` : orig;
     });
   }
   async function collectFontCssText() {
@@ -8019,8 +8019,8 @@
     const m = /rgba?\(([^)]+)\)/.exec(s);
     if (!m) return false;
     const parts = m[1].split(',').map((p) => p.trim());
-    if (parts.length === 4) return parseFloat(parts[3]) === 0;
-    return false;
+    if (!(parts.length === 4)) return false
+    return parseFloat(parts[3]) === 0
   }
 
   // modern-screenshot force-sets `background-color: X !important` on the
@@ -8056,20 +8056,20 @@
       if (!node || node === document.body || nodes.includes(node)) return;
       nodes.push(node);
     };
-    add(document.getElementById(PREFIX + '-root'));
+    add(document.getElementById(`${PREFIX  }-root`));
     [
-      PREFIX + '-highlight',
-      PREFIX + '-tooltip',
-      PREFIX + '-bar',
-      PREFIX + '-picker',
-      PREFIX + '-params-panel',
-      PREFIX + '-insert-line',
-      PREFIX + '-insert-placeholder',
-      PREFIX + '-insert-create-tooltip',
-      PREFIX + '-annot',
-      PREFIX + '-design-host',
-      PREFIX + '-toast',
-      PREFIX + '-shader',
+      `${PREFIX  }-highlight`,
+      `${PREFIX  }-tooltip`,
+      `${PREFIX  }-bar`,
+      `${PREFIX  }-picker`,
+      `${PREFIX  }-params-panel`,
+      `${PREFIX  }-insert-line`,
+      `${PREFIX  }-insert-placeholder`,
+      `${PREFIX  }-insert-create-tooltip`,
+      `${PREFIX  }-annot`,
+      `${PREFIX  }-design-host`,
+      `${PREFIX  }-toast`,
+      `${PREFIX  }-shader`,
     ].forEach((id) => add(uiGetById(id)));
     return nodes;
   }
@@ -8260,8 +8260,8 @@
     if (blob && hasAnnotations) {
       try {
         const uploadRes = await fetch(
-          'http://localhost:' + PORT + '/annotation?token=' + encodeURIComponent(TOKEN) +
-          '&eventId=' + encodeURIComponent(basePayload.id),
+          `http://localhost:${  PORT  }/annotation?token=${  encodeURIComponent(TOKEN) 
+          }&eventId=${  encodeURIComponent(basePayload.id)}`,
           { method: 'POST', headers: { 'Content-Type': 'image/png' }, body: blob },
         );
         if (uploadRes.ok) {
@@ -8447,7 +8447,7 @@ void main() {
   // Mean sRGB (0-1) of a canvas region, used as the halftone ground when the
   // backdrop was captured from an ancestor rather than read from a CSS color.
   function averageRgb01(ctx, w, h) {
-    const data = ctx.getImageData(0, 0, w, h).data;
+    const {data} = ctx.getImageData(0, 0, w, h);
     let r = 0, g = 0, b = 0, n = 0;
     // Stride a few pixels for speed; exact average is unnecessary for a ground.
     for (let i = 0; i < data.length; i += 16) { r += data[i]; g += data[i + 1]; b += data[i + 2]; n++; }
@@ -8458,13 +8458,13 @@ void main() {
   // gets pulled by text and icons; the dominant bucket usually represents the
   // surface the shader should dissolve into.
   function dominantRgb01(ctx, w, h) {
-    const data = ctx.getImageData(0, 0, w, h).data;
+    const {data} = ctx.getImageData(0, 0, w, h);
     const stride = Math.max(1, Math.floor((w * h) / 6000));
     const buckets = new Map();
     for (let p = 0; p < w * h; p += stride) {
       const i = p * 4;
       if (data[i + 3] < 16) continue;
-      const key = (data[i] >> 4) + ',' + (data[i + 1] >> 4) + ',' + (data[i + 2] >> 4);
+      const key = `${data[i] >> 4  },${  data[i + 1] >> 4  },${  data[i + 2] >> 4}`;
       const bucket = buckets.get(key) || { count: 0, r: 0, g: 0, b: 0 };
       bucket.count += 1;
       bucket.r += data[i];
@@ -8508,7 +8508,7 @@ void main() {
     if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
       const info = gl.getShaderInfoLog(sh);
       gl.deleteShader(sh);
-      throw new Error('shader compile failed: ' + info);
+      throw new Error(`shader compile failed: ${  info}`);
     }
     return sh;
   }
@@ -8519,14 +8519,14 @@ void main() {
     if (!anchor) return;
     const r = anchor.getBoundingClientRect();
     Object.assign(shaderState.canvas.style, {
-      top: r.top + 'px', left: r.left + 'px',
-      width: r.width + 'px', height: r.height + 'px',
+      top: `${r.top  }px`, left: `${r.left  }px`,
+      width: `${r.width  }px`, height: `${r.height  }px`,
     });
   }
 
   /** Drop a shader node no shaderState owns (an abandoned construction). */
   function removeStrayShaderNode() {
-    const stray = uiGetById(PREFIX + '-shader');
+    const stray = uiGetById(`${PREFIX  }-shader`);
     if (stray) stray.remove();
   }
 
@@ -8552,16 +8552,16 @@ void main() {
     canvas.remove();
     const objectUrl = URL.createObjectURL(blob);
     const fallback = document.createElement('div');
-    fallback.id = PREFIX + '-shader';
+    fallback.id = `${PREFIX  }-shader`;
     // Copy positioning via cssText. Object.assign across CSSStyleDeclaration
     // throws in modern Chromium because the source's indexed properties
     // (style[0], [1], ...) are read-only and the engine forbids writing
     // them on the destination.
     fallback.style.cssText = canvas.style.cssText;
-    fallback.style.backgroundImage = 'url("' + objectUrl + '")';
+    fallback.style.backgroundImage = `url("${  objectUrl  }")`;
     fallback.style.backgroundSize = '100% 100%';
     fallback.style.backgroundRepeat = 'no-repeat';
-    fallback.style.outline = '2px dashed ' + C.brand;
+    fallback.style.outline = `2px dashed ${  C.brand}`;
     fallback.style.outlineOffset = '-2px';
     uiAppend(fallback);
     shaderState = { canvas: fallback, gl: null, program: null, texture: null, rafId: 0, startTime: 0, objectUrl };
@@ -8581,15 +8581,15 @@ void main() {
       return true;
     };
     const canvas = document.createElement('canvas');
-    canvas.id = PREFIX + '-shader';
+    canvas.id = `${PREFIX  }-shader`;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
     const radius = getComputedStyle(el).borderRadius;
     canvas.width = Math.max(1, Math.floor(rect.width * dpr));
     canvas.height = Math.max(1, Math.floor(rect.height * dpr));
     Object.assign(canvas.style, {
       position: 'fixed',
-      top: rect.top + 'px', left: rect.left + 'px',
-      width: rect.width + 'px', height: rect.height + 'px',
+      top: `${rect.top  }px`, left: `${rect.left  }px`,
+      width: `${rect.width  }px`, height: `${rect.height  }px`,
       borderRadius: radius,
       overflow: 'hidden',
       pointerEvents: 'none',
@@ -8616,7 +8616,7 @@ void main() {
       gl.attachShader(program, fs);
       gl.linkProgram(program);
       if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-        throw new Error('program link failed: ' + gl.getProgramInfoLog(program));
+        throw new Error(`program link failed: ${  gl.getProgramInfoLog(program)}`);
       }
       // Full-screen quad
       const buf = gl.createBuffer();
@@ -8809,7 +8809,7 @@ void main() {
 
   function snapshotAcceptedVariantDom(sessionId, variantId) {
     const wrapper = findVariantsWrapper(sessionId);
-    const accepted = wrapper?.querySelector?.('[data-impeccable-variant="' + variantId + '"]');
+    const accepted = wrapper?.querySelector?.(`[data-impeccable-variant="${  variantId  }"]`);
     const root = accepted?.firstElementChild || null;
     return {
       acceptedHtml: accepted ? accepted.innerHTML : '',
@@ -8860,7 +8860,7 @@ void main() {
     }
     for (const wrapper of wrappers) {
       if (!wrapper?.isConnected) continue;
-      const accepted = wrapper.querySelector?.('[data-impeccable-variant="' + variantId + '"]');
+      const accepted = wrapper.querySelector?.(`[data-impeccable-variant="${  variantId  }"]`);
       if (!accepted) {
         wrapper.remove();
         continue;
@@ -8878,8 +8878,8 @@ void main() {
   function findAcceptedRuntimeWrappers(sessionId) {
     if (!sessionId) return [];
     return [...new Set([
-      ...document.querySelectorAll('[data-impeccable-variants="' + sessionId + '"]'),
-      ...document.querySelectorAll('[data-impeccable-carbonize="' + sessionId + '"]'),
+      ...document.querySelectorAll(`[data-impeccable-variants="${  sessionId  }"]`),
+      ...document.querySelectorAll(`[data-impeccable-carbonize="${  sessionId  }"]`),
     ])];
   }
 
@@ -8908,7 +8908,7 @@ void main() {
   function reloadAfterMissingAcceptedDom(pending, recoveryRevision) {
     if (deferredRecoverySuperseded(pending?.id, recoveryRevision)) return;
     if (acceptedDomAlreadyClean(pending)) return;
-    if (pending?.id && document.querySelector('[data-impeccable-variants="' + pending.id + '"]')) return;
+    if (pending?.id && document.querySelector(`[data-impeccable-variants="${  pending.id  }"]`)) return;
     location.reload();
   }
 
@@ -8937,13 +8937,13 @@ void main() {
   function commitAcceptedVariantToDom(sessionId, variantId) {
     const wrapper = findVariantsWrapper(sessionId);
     if (!wrapper) return false;
-    const accepted = wrapper.querySelector('[data-impeccable-variant="' + variantId + '"]');
+    const accepted = wrapper.querySelector(`[data-impeccable-variant="${  variantId  }"]`);
     if (!accepted || !accepted.firstElementChild) return false;
     const parent = wrapper.parentElement;
     if (!parent) return false;
 
     const style = wrapper.querySelector('style[data-impeccable-css]');
-    if (style && !document.querySelector('style[data-impeccable-accepted-css="' + sessionId + '"]')) {
+    if (style && !document.querySelector(`style[data-impeccable-accepted-css="${  sessionId  }"]`)) {
       const promotedStyle = style.cloneNode(true);
       promotedStyle.setAttribute('data-impeccable-accepted-css', sessionId);
       parent.insertBefore(promotedStyle, wrapper);
@@ -9233,7 +9233,7 @@ void main() {
     // is that project's leftover, never a session this server can complete;
     // resuming it freezes the picker behind an unfinishable banner.
     if (saved?.appRoot && APP_ROOT && saved.appRoot !== APP_ROOT) {
-      console.warn('[impeccable] Ignoring saved live session from another project (' + saved.appRoot + ').');
+      console.warn(`[impeccable] Ignoring saved live session from another project (${  saved.appRoot  }).`);
       sessionState.clearSession();
       return null;
     }
@@ -9370,17 +9370,17 @@ void main() {
       ? Math.max(16, window.innerHeight - barRect.top + 12)
       : 16;
     const currentToast = el('div', {
-      position: 'fixed', bottom: barTopFromBottom + 'px', left: '50%',
+      position: 'fixed', bottom: `${barTopFromBottom  }px`, left: '50%',
       transform: 'translateX(-50%) translateY(8px)',
       background: C.ink, color: C.white,
       fontFamily: FONT, fontSize: '12px',
       padding: '8px 16px', borderRadius: '8px',
       zIndex: Z.toast, opacity: '0',
-      transition: 'opacity 0.25s ' + EASE + ', transform 0.25s ' + EASE,
+      transition: `opacity 0.25s ${  EASE  }, transform 0.25s ${  EASE}`,
       pointerEvents: 'none', maxWidth: '420px', textAlign: 'center',
     });
     toastEl = currentToast;
-    currentToast.id = PREFIX + '-toast';
+    currentToast.id = `${PREFIX  }-toast`;
     currentToast.textContent = message;
     uiAppend(currentToast);
     requestAnimationFrame(() => {
@@ -9408,7 +9408,7 @@ void main() {
   // If a [data-impeccable-variants] wrapper exists in the DOM, the agent wrote
   // variants before HMR fired. Pick up where we left off.
   function handledWrapperReloadKey(sessionId) {
-    return HANDLED_WRAPPER_RELOAD_KEY + ':' + sessionId;
+    return `${HANDLED_WRAPPER_RELOAD_KEY  }:${  sessionId}`;
   }
 
   function clearHandledWrapperReloadStamp(sessionId) {
@@ -9416,7 +9416,7 @@ void main() {
       if (sessionId) {
         sessionStorage.removeItem(handledWrapperReloadKey(sessionId));
         const legacy = sessionStorage.getItem(HANDLED_WRAPPER_RELOAD_KEY) || '';
-        if (legacy === sessionId || legacy.startsWith(sessionId + ':')) {
+        if (legacy === sessionId || legacy.startsWith(`${sessionId  }:`)) {
           sessionStorage.removeItem(HANDLED_WRAPPER_RELOAD_KEY);
         }
         return;
@@ -9424,7 +9424,7 @@ void main() {
       sessionStorage.removeItem(HANDLED_WRAPPER_RELOAD_KEY);
       for (let i = sessionStorage.length - 1; i >= 0; i--) {
         const key = sessionStorage.key(i);
-        if (key?.startsWith(HANDLED_WRAPPER_RELOAD_KEY + ':')) sessionStorage.removeItem(key);
+        if (key?.startsWith(`${HANDLED_WRAPPER_RELOAD_KEY  }:`)) sessionStorage.removeItem(key);
       }
     } catch {}
   }
@@ -9456,8 +9456,8 @@ void main() {
         return;
       }
       const staleWrapper = document.querySelector(
-        '[data-impeccable-variants="' + sessionId + '"],'
-        + '[data-impeccable-carbonize="' + sessionId + '"]',
+        `[data-impeccable-variants="${  sessionId  }"],`
+        + `[data-impeccable-carbonize="${  sessionId  }"]`,
       );
       if (staleWrapper) location.reload();
       else {
@@ -9476,8 +9476,8 @@ void main() {
 
     const findHandledWrapper = function() {
       const wrapper = document.querySelector(
-        '[data-impeccable-variants="' + sessionId + '"],'
-        + '[data-impeccable-carbonize="' + sessionId + '"]',
+        `[data-impeccable-variants="${  sessionId  }"],`
+        + `[data-impeccable-carbonize="${  sessionId  }"]`,
       );
       if (wrapper) scheduleHandledRuntimeWrapperReload(wrapper, recoveryRevision);
     };
@@ -9744,8 +9744,8 @@ void main() {
     saveInteractionPrefs();
   }
 
-  let pickActive = loadInteractionPrefs().pickActive;
-  let insertActive = loadInteractionPrefs().insertActive;
+  let {pickActive} = loadInteractionPrefs();
+  let {insertActive} = loadInteractionPrefs();
   let configureKind = 'replace';
   let insertLineEl = null;
   let insertHoverAnchor = null;
@@ -9895,10 +9895,10 @@ void main() {
 
   function globalBarModeToggles() {
     return [
-      uiGetById(PREFIX + '-pick-toggle'),
-      uiGetById(PREFIX + '-insert-toggle'),
-      uiGetById(PREFIX + '-detect-toggle'),
-      uiGetById(PREFIX + '-design-toggle'),
+      uiGetById(`${PREFIX  }-pick-toggle`),
+      uiGetById(`${PREFIX  }-insert-toggle`),
+      uiGetById(`${PREFIX  }-detect-toggle`),
+      uiGetById(`${PREFIX  }-design-toggle`),
     ].filter(Boolean);
   }
 
@@ -9925,13 +9925,13 @@ void main() {
   }
 
   function pageChatExpandedWidth() {
-    if (!pageChatEl || !globalBarEl) return PAGE_CHAT_EXPANDED_MAX_W + 'px';
+    if (!pageChatEl || !globalBarEl) return `${PAGE_CHAT_EXPANDED_MAX_W  }px`;
     const currentChatWidth = pageChatEl.getBoundingClientRect().width || pageChatCollapsedWidthPx();
     const barWidth = Math.max(globalBarEl.getBoundingClientRect().width || 0, globalBarEl.scrollWidth || 0);
     const nonChatWidth = Math.max(0, barWidth - currentChatWidth);
     const available = window.innerWidth - 16 - nonChatWidth;
     const next = Math.max(pageChatCollapsedWidthPx(), Math.min(PAGE_CHAT_EXPANDED_MAX_W, available));
-    return Math.round(next) + 'px';
+    return `${Math.round(next)  }px`;
   }
 
   function syncPageChatExpandedWidth() {
@@ -9987,7 +9987,7 @@ void main() {
     pageChatSendBtn.disabled = !visible || !hasText;
     pageChatSendBtn.style.background = P.accent;
     pageChatSendBtn.style.color = C.ink;
-    pageChatSendBtn.style.borderLeft = '1px solid ' + P.hairline;
+    pageChatSendBtn.style.borderLeft = `1px solid ${  P.hairline}`;
     pageChatSendBtn.style.opacity = pageChatSendBtn.disabled ? '0.42' : '1';
     pageChatSendBtn.style.cursor = pageChatSendBtn.disabled ? 'not-allowed' : 'pointer';
     pageChatSendBtn.title = pageChatSendBtn.disabled ? 'Type what to change first' : 'Send (Enter)';
@@ -10014,7 +10014,7 @@ void main() {
       whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
       pointerEvents: 'none',
     });
-    hint.id = PREFIX + '-page-chat-queue';
+    hint.id = `${PREFIX  }-page-chat-queue`;
     return hint;
   }
 
@@ -10070,8 +10070,8 @@ void main() {
     if (!(sel.toString() || '').trim()) return false;
     const node = sel.anchorNode;
     const el = node?.nodeType === 1 ? node : node?.parentElement;
-    if (el && own(el)) return false;
-    return true;
+    if (!(el && own(el))) return true
+    return false
   }
 
   function shouldSteerAutoFocus() {
@@ -10159,7 +10159,7 @@ void main() {
   function steerFocusTargetLabel(el) {
     if (!el || el === document.body) return 'body';
     if (el === document.documentElement) return 'html';
-    if (el.id) return el.tagName.toLowerCase() + '#' + el.id;
+    if (el.id) return `${el.tagName.toLowerCase()  }#${  el.id}`;
     return el.tagName?.toLowerCase() || String(el);
   }
 
@@ -10176,7 +10176,7 @@ void main() {
       pageChatExpanded,
       active: steerFocusTargetLabel(activeElementDeep()),
       shouldSteer: shouldFocusSteerChat(),
-      ...(extra || {}),
+      ...extra,
     });
   }
 
@@ -10192,7 +10192,7 @@ void main() {
 
   function focusConfigureInput(reason) {
     steerFocusLog('focusConfigureInput', { reason });
-    const inputId = configureKind === 'insert' ? PREFIX + '-insert-input' : PREFIX + '-input';
+    const inputId = configureKind === 'insert' ? `${PREFIX  }-insert-input` : `${PREFIX  }-input`;
     const input = uiGetById(inputId);
     if (!input) {
       steerFocusLog('focusConfigureInput missing', { reason });
@@ -10300,8 +10300,8 @@ void main() {
         display: 'inline-block',
         width: '4px', height: '4px', borderRadius: '50%',
         background: P.patinaPale,
-        boxShadow: '0 0 6px ' + P.patinaSoft,
-        animation: 'impeccable-steer-dot 1.05s ease-in-out ' + (i * 0.14) + 's infinite',
+        boxShadow: `0 0 6px ${  P.patinaSoft}`,
+        animation: `impeccable-steer-dot 1.05s ease-in-out ${  i * 0.14  }s infinite`,
       }));
     }
     return wrap;
@@ -10380,12 +10380,12 @@ void main() {
   function steerTimeoutMessage() {
     const head = 'Steer timed out after 2 minutes. ';
     if (steerQueuedBehindGeneration()) {
-      return head + 'The agent is still busy with the current generation - your message was not lost, but it never got picked up. Send it again once the variants land.';
+      return `${head  }The agent is still busy with the current generation - your message was not lost, but it never got picked up. Send it again once the variants land.`;
     }
     if (!agentPollingConnected) {
-      return head + 'No agent is polling right now. Run live-poll.mjs, then send it again.';
+      return `${head  }No agent is polling right now. Run live-poll.mjs, then send it again.`;
     }
-    return head + 'The agent picked it up but never replied with steer_done. Check the agent session for a stalled or failed steer.';
+    return `${head  }The agent picked it up but never replied with steer_done. Check the agent session for a stalled or failed steer.`;
   }
 
   function lockSteerChat() {
@@ -10508,7 +10508,7 @@ void main() {
       case 'aborted':
         return null;
       default:
-        return 'Voice input failed (' + code + ')';
+        return `Voice input failed (${  code  })`;
     }
   }
 
@@ -10526,7 +10526,7 @@ void main() {
     } else if (voiceCtx?.mode === 'configure') {
       // The bar shows either the replace row's voice button or the insert
       // row's - both run voice through the 'configure' mode.
-      const voiceBtn = uiGetById(PREFIX + '-configure-voice') || uiGetById(PREFIX + '-insert-voice');
+      const voiceBtn = uiGetById(`${PREFIX  }-configure-voice`) || uiGetById(`${PREFIX  }-insert-voice`);
       if (voiceBtn) {
         voiceBtn.dataset.active = listening ? 'true' : 'false';
         voiceBtn.dataset.listening = listening ? 'true' : 'false';
@@ -10597,7 +10597,7 @@ void main() {
     if (ctx.beforeStart) ctx.beforeStart();
 
     voiceInterimBase = ctx.input.value.trim()
-      ? ctx.input.value.trim() + ' '
+      ? `${ctx.input.value.trim()  } `
       : '';
 
     const rec = new Ctor();
@@ -10660,7 +10660,7 @@ void main() {
 
   function configureVoiceContext() {
     const input = uiGetById(
-      configureKind === 'insert' ? PREFIX + '-insert-input' : PREFIX + '-input',
+      configureKind === 'insert' ? `${PREFIX  }-insert-input` : `${PREFIX  }-input`,
     );
     return {
       mode: 'configure',
@@ -10769,7 +10769,7 @@ void main() {
   function initPageChat(parent, P) {
     pageChatEl = el('div', {
       display: 'inline-flex', alignItems: 'center',
-      height: '28px', margin: '0 4px 0 ' + (GLOBAL_BAR_SECTION_GAP - GLOBAL_BAR_INNER_GAP) + 'px',
+      height: '28px', margin: `0 4px 0 ${  GLOBAL_BAR_SECTION_GAP - GLOBAL_BAR_INNER_GAP  }px`,
       borderRadius: '7px',
       background: P.chatSurface,
       border: '1px solid transparent',
@@ -10779,7 +10779,7 @@ void main() {
       width: PAGE_CHAT_COLLAPSED_W,
       transition: 'border-color 0.15s ease',
     });
-    pageChatEl.id = PREFIX + '-page-chat';
+    pageChatEl.id = `${PREFIX  }-page-chat`;
     pageChatEl.dataset.expanded = 'false';
     pageChatEl.title = 'Steer the page';
 
@@ -10801,7 +10801,7 @@ void main() {
     pageChatHint.textContent = 'Steer';
 
     pageChatInput = document.createElement('input');
-    pageChatInput.id = PREFIX + '-page-chat-input';
+    pageChatInput.id = `${PREFIX  }-page-chat-input`;
     pageChatInput.type = 'text';
     pageChatInput.placeholder = PAGE_CHAT_PLACEHOLDER_COLLAPSED;
     pageChatInput.setAttribute('aria-label', 'Steer the page');
@@ -10822,7 +10822,7 @@ void main() {
       color: P.textDim, cursor: 'pointer',
       transition: 'color 0.12s ease, background 0.12s ease',
     });
-    pageChatVoiceBtn.id = PREFIX + '-page-chat-voice';
+    pageChatVoiceBtn.id = `${PREFIX  }-page-chat-voice`;
     pageChatVoiceBtn.type = 'button';
     pageChatVoiceBtn.setAttribute('aria-label', 'Voice input');
     pageChatVoiceBtn.innerHTML = ICON_PAGE_VOICE;
@@ -10834,13 +10834,13 @@ void main() {
       display: 'none', alignItems: 'center', justifyContent: 'center',
       padding: '0', boxSizing: 'border-box',
       width: '28px', height: '28px', flexShrink: '0',
-      border: 'none', borderLeft: '1px solid ' + P.hairline,
+      border: 'none', borderLeft: `1px solid ${  P.hairline}`,
       borderRadius: '0',
       background: P.accent, color: C.ink,
       cursor: 'pointer',
       transition: 'filter 0.12s ease, opacity 0.12s ease',
     });
-    pageChatSendBtn.id = PREFIX + '-page-chat-send';
+    pageChatSendBtn.id = `${PREFIX  }-page-chat-send`;
     pageChatSendBtn.type = 'button';
     pageChatSendBtn.setAttribute('aria-label', 'Send steer message');
     pageChatSendBtn.innerHTML = ICON_CONFIGURE_SUBMIT;
@@ -10863,22 +10863,22 @@ void main() {
     pageChatEl.appendChild(pageChatVoiceBtn);
     pageChatEl.appendChild(pageChatSendBtn);
 
-    if (!uiGetById(PREFIX + '-page-chat-style')) {
+    if (!uiGetById(`${PREFIX  }-page-chat-style`)) {
       const s = document.createElement('style');
-      s.id = PREFIX + '-page-chat-style';
+      s.id = `${PREFIX  }-page-chat-style`;
       s.textContent =
-        '@keyframes impeccable-steer-dot { 0%, 70%, 100% { opacity: 0.28; transform: scale(0.82); } 35% { opacity: 1; transform: scale(1); } }' +
-        '@keyframes impeccable-steer-processing { 0%, 100% { border-color: oklch(70% 0.12 188 / 0.28); box-shadow: 0 0 0 0 oklch(70% 0.12 188 / 0); } 50% { border-color: oklch(82% 0.07 188 / 0.55); box-shadow: 0 0 14px oklch(70% 0.12 188 / 0.18); } }' +
-        '@keyframes impeccable-voice-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }' +
-        '#' + PREFIX + '-page-chat[data-processing="true"] { animation: impeccable-steer-processing 1.6s ease-in-out infinite; }' +
-        '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-page-chat[data-processing="true"] { animation: none; border-color: oklch(70% 0.12 188 / 0.45); } #' + PREFIX + '-page-chat[data-processing="true"] [aria-hidden="true"] span { animation: none; opacity: 0.85; } }' +
-        '#' + PREFIX + '-page-chat[data-voice-listening="true"] { border-color: oklch(70% 0.12 188 / 0.45); }' +
-        '#' + PREFIX + '-page-chat-voice[data-listening="true"] svg { animation: impeccable-voice-pulse 1.1s ease-in-out infinite; }' +
-        '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-page-chat-voice[data-listening="true"] svg { animation: none; opacity: 1; } }' +
-        '#' + PREFIX + '-page-chat-input::placeholder { color: oklch(72% 0 0); opacity: 1; }' +
-        '#' + PREFIX + '-page-chat-input { caret-color: oklch(84% 0.19 80.46); }' +
-        '#' + PREFIX + '-page-chat[data-input-focused="true"]:not([data-expanded="true"]) #' + PREFIX + '-page-chat-input::placeholder { color: oklch(72% 0 0); }' +
-        '#' + PREFIX + '-page-chat-voice:hover { background: oklch(78% 0.12 82 / 0.12); }';
+        `@keyframes impeccable-steer-dot { 0%, 70%, 100% { opacity: 0.28; transform: scale(0.82); } 35% { opacity: 1; transform: scale(1); } }` +
+        `@keyframes impeccable-steer-processing { 0%, 100% { border-color: oklch(70% 0.12 188 / 0.28); box-shadow: 0 0 0 0 oklch(70% 0.12 188 / 0); } 50% { border-color: oklch(82% 0.07 188 / 0.55); box-shadow: 0 0 14px oklch(70% 0.12 188 / 0.18); } }` +
+        `@keyframes impeccable-voice-pulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }` +
+        `#${  PREFIX  }-page-chat[data-processing="true"] { animation: impeccable-steer-processing 1.6s ease-in-out infinite; }` +
+        `@media (prefers-reduced-motion: reduce) { #${  PREFIX  }-page-chat[data-processing="true"] { animation: none; border-color: oklch(70% 0.12 188 / 0.45); } #${  PREFIX  }-page-chat[data-processing="true"] [aria-hidden="true"] span { animation: none; opacity: 0.85; } }` +
+        `#${  PREFIX  }-page-chat[data-voice-listening="true"] { border-color: oklch(70% 0.12 188 / 0.45); }` +
+        `#${  PREFIX  }-page-chat-voice[data-listening="true"] svg { animation: impeccable-voice-pulse 1.1s ease-in-out infinite; }` +
+        `@media (prefers-reduced-motion: reduce) { #${  PREFIX  }-page-chat-voice[data-listening="true"] svg { animation: none; opacity: 1; } }` +
+        `#${  PREFIX  }-page-chat-input::placeholder { color: oklch(72% 0 0); opacity: 1; }` +
+        `#${  PREFIX  }-page-chat-input { caret-color: oklch(84% 0.19 80.46); }` +
+        `#${  PREFIX  }-page-chat[data-input-focused="true"]:not([data-expanded="true"]) #${  PREFIX  }-page-chat-input::placeholder { color: oklch(72% 0 0); }` +
+        `#${  PREFIX  }-page-chat-voice:hover { background: oklch(78% 0.12 82 / 0.12); }`;
       uiAppendStyle(s);
     }
 
@@ -10991,7 +10991,7 @@ void main() {
     // The tooltip is mouse-only, so carry the same distinction in the label or
     // screen-reader users are left with the vaguer of the two readings.
     globalBarBrandEl.setAttribute('aria-label', agentStatusMessage
-      ? 'Impeccable live mode - ' + (agentHasWorkInFlight() ? 'agent is working' : 'agent not polling')
+      ? `Impeccable live mode - ${  agentHasWorkInFlight() ? 'agent is working' : 'agent not polling'}`
       : 'Impeccable live mode');
     globalBarBrandEl.removeAttribute('title');
     globalBarBrandEl.style.cursor = agentStatusMessage ? 'help' : 'default';
@@ -11018,7 +11018,7 @@ void main() {
       padding: '6px 9px',
       borderRadius: '7px',
       background: P.chatSurface,
-      border: '1px solid ' + P.hairline,
+      border: `1px solid ${  P.hairline}`,
       boxShadow: P.shadow,
       color: P.text,
       fontFamily: FONT,
@@ -11028,7 +11028,7 @@ void main() {
       letterSpacing: '0.01em',
       whiteSpace: 'normal',
     });
-    agentPollTooltipEl.id = PREFIX + '-agent-poll-tooltip';
+    agentPollTooltipEl.id = `${PREFIX  }-agent-poll-tooltip`;
     agentPollTooltipEl.textContent = agentStatusText() || AGENT_DISCONNECTED_TIP;
     uiAppend(agentPollTooltipEl);
     return agentPollTooltipEl;
@@ -11048,8 +11048,8 @@ void main() {
     const tipH = tip.offsetHeight;
     const left = Math.max(8, Math.min(window.innerWidth - tipW - 8, r.left + r.width / 2 - tipW / 2));
     const top = Math.max(8, r.top - tipH - 8);
-    tip.style.left = left + 'px';
-    tip.style.top = top + 'px';
+    tip.style.left = `${left  }px`;
+    tip.style.top = `${top  }px`;
   }
 
   function hideAgentPollTooltip() {
@@ -11066,7 +11066,7 @@ void main() {
   }
 
   function fetchAgentPollingStatus() {
-    fetch('http://localhost:' + PORT + '/status?token=' + TOKEN, { cache: 'no-store' })
+    fetch(`http://localhost:${  PORT  }/status?token=${  TOKEN}`, { cache: 'no-store' })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data && typeof data.agentPolling === 'boolean') {
@@ -11089,18 +11089,18 @@ void main() {
     // Custom focus-visible for bar buttons. Browser default is a heavy
     // blue ring that looks jarring on the dark capsule. Replace with a
     // soft accent-tinted inner ring that respects the bar's palette.
-    if (!uiGetById(PREFIX + '-bar-focus-style')) {
+    if (!uiGetById(`${PREFIX  }-bar-focus-style`)) {
       const s = document.createElement('style');
-      s.id = PREFIX + '-bar-focus-style';
+      s.id = `${PREFIX  }-bar-focus-style`;
       s.textContent =
-        '#' + PREFIX + '-global-bar button:focus { outline: none; }' +
-        '#' + PREFIX + '-global-bar button:focus-visible {' +
-        '  outline: none;' +
-        '  box-shadow: 0 0 0 2px ' + P.accentSoft + ', 0 0 0 3px ' + P.accent + ';' +
-        '}' +
-        '@keyframes impeccable-agent-dot { 0%, 100% { opacity: 0.45; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1); } }' +
-        '#' + PREFIX + '-global-bar-brand[data-agent-connected="false"] [data-agent-dot] { animation: impeccable-agent-dot 1.4s ease-in-out infinite; }' +
-        '@media (prefers-reduced-motion: reduce) { #' + PREFIX + '-global-bar-brand[data-agent-connected="false"] [data-agent-dot] { animation: none; opacity: 0.9; } }';
+        `#${  PREFIX  }-global-bar button:focus { outline: none; }` +
+        `#${  PREFIX  }-global-bar button:focus-visible {` +
+        `  outline: none;` +
+        `  box-shadow: 0 0 0 2px ${  P.accentSoft  }, 0 0 0 3px ${  P.accent  };` +
+        `}` +
+        `@keyframes impeccable-agent-dot { 0%, 100% { opacity: 0.45; transform: scale(0.9); } 50% { opacity: 1; transform: scale(1); } }` +
+        `#${  PREFIX  }-global-bar-brand[data-agent-connected="false"] [data-agent-dot] { animation: impeccable-agent-dot 1.4s ease-in-out infinite; }` +
+        `@media (prefers-reduced-motion: reduce) { #${  PREFIX  }-global-bar-brand[data-agent-connected="false"] [data-agent-dot] { animation: none; opacity: 0.9; } }`;
       uiAppendStyle(s);
     }
 
@@ -11112,7 +11112,7 @@ void main() {
       gap: '0',
       width: 'max-content',
       background: P.surface,
-      border: '1px solid ' + P.border,
+      border: `1px solid ${  P.border}`,
       borderRadius: '8px',
       boxShadow: P.shadow,
       fontFamily: FONT, fontSize: '12px', lineHeight: '1',
@@ -11120,21 +11120,21 @@ void main() {
       overflow: 'hidden',          // clip the full-bleed brand mark to the bar radius
       maxWidth: 'calc(100vw - 16px)',
       boxSizing: 'border-box',
-      transition: 'opacity 0.3s ' + EASE + ', transform 0.3s ' + EASE,
+      transition: `opacity 0.3s ${  EASE  }, transform 0.3s ${  EASE}`,
     });
-    globalBarEl.id = PREFIX + '-global-bar';
+    globalBarEl.id = `${PREFIX  }-global-bar`;
     globalBarEl.dataset.theme = theme;
 
     // Brand mark - kinpaku Impeccable icon (site header / favicon paths).
     const brand = el('span', {
       display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
       alignSelf: 'stretch', position: 'relative',
-      padding: '0 ' + (GLOBAL_BAR_SECTION_GAP - GLOBAL_BAR_INNER_PAD_LEFT) + 'px 0 14px',
+      padding: `0 ${  GLOBAL_BAR_SECTION_GAP - GLOBAL_BAR_INNER_PAD_LEFT  }px 0 14px`,
       background: 'transparent',
       color: P.accent,
       flexShrink: '0',
     });
-    brand.id = PREFIX + '-global-bar-brand';
+    brand.id = `${PREFIX  }-global-bar-brand`;
     brand.dataset.agentConnected = 'false';
     brand.setAttribute('role', 'img');
     brand.setAttribute('aria-label', 'Impeccable live mode - agent not polling');
@@ -11150,7 +11150,7 @@ void main() {
       position: 'absolute', right: '-1px', bottom: '7px',
       width: '6px', height: '6px', borderRadius: '50%',
       background: 'oklch(77% 0.13 82)',
-      boxShadow: '0 0 0 2px ' + P.surface,
+      boxShadow: `0 0 0 2px ${  P.surface}`,
       display: 'none', pointerEvents: 'none',
     });
     agentDot.dataset.agentDot = 'true';
@@ -11167,10 +11167,10 @@ void main() {
     // Inner wrapper: holds the toggles with normal bar padding.
     const inner = el('div', {
       display: 'flex', alignItems: 'center',
-      padding: '4px 5px 4px ' + GLOBAL_BAR_INNER_PAD_LEFT + 'px', gap: GLOBAL_BAR_INNER_GAP + 'px',
+      padding: `4px 5px 4px ${  GLOBAL_BAR_INNER_PAD_LEFT  }px`, gap: `${GLOBAL_BAR_INNER_GAP  }px`,
       flex: '0 0 auto',
     });
-    inner.id = PREFIX + '-global-bar-inner';
+    inner.id = `${PREFIX  }-global-bar-inner`;
     globalBarEl.appendChild(inner);
 
     // Button factory: icon-only at rest, label slides in on hover/active.
@@ -11217,7 +11217,7 @@ void main() {
 
     // Pick toggle - restored from localStorage; both pick and insert may be off.
     const pickBtn = makeIconBtn({
-      id: PREFIX + '-pick-toggle',
+      id: `${PREFIX  }-pick-toggle`,
       svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><circle cx="12" cy="12" r="10"/><line x1="22" y1="12" x2="18" y2="12"/><line x1="6" y1="12" x2="2" y2="12"/><line x1="12" y1="6" x2="12" y2="2"/><line x1="12" y1="22" x2="12" y2="18"/></svg>',
       label: 'Pick',
       ariaLabel: 'Pick element',
@@ -11226,7 +11226,7 @@ void main() {
     inner.appendChild(pickBtn);
 
     const insertBtn = makeIconBtn({
-      id: PREFIX + '-insert-toggle',
+      id: `${PREFIX  }-insert-toggle`,
       svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M12 5v14"/><path d="M5 12h14"/></svg>',
       label: 'Insert',
       ariaLabel: 'Insert new element',
@@ -11236,7 +11236,7 @@ void main() {
 
     // Detect toggle
     const detectBtn = makeIconBtn({
-      id: PREFIX + '-detect-toggle',
+      id: `${PREFIX  }-detect-toggle`,
       svg: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>',
       label: 'Detect',
       ariaLabel: 'Detect anti-patterns',
@@ -11248,13 +11248,13 @@ void main() {
       background: P.accent, color: C.ink,
       display: 'none', fontFamily: MONO, marginLeft: '4px',
     });
-    detectBadge.id = PREFIX + '-detect-badge';
+    detectBadge.id = `${PREFIX  }-detect-badge`;
     detectBtn.appendChild(detectBadge);
     inner.appendChild(detectBtn);
 
     // DESIGN.md panel toggle - quartet of color squares as the mark.
     const designBtn = makeIconBtn({
-      id: PREFIX + '-design-toggle',
+      id: `${PREFIX  }-design-toggle`,
       svg: `<span style="display:inline-grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;width:14px;height:14px;border-radius:3px;overflow:hidden;box-shadow:inset 0 0 0 1px oklch(92% 0 0 / 0.13);flex-shrink:0">
         <span style="background:oklch(84% 0.19 80.46)"></span>
         <span style="background:oklch(70% 0.12 188)"></span>
@@ -11284,7 +11284,7 @@ void main() {
       fontFamily: FONT,
       pointerEvents: 'auto',
     });
-    pendingDockEl.id = PREFIX + '-pending-dock';
+    pendingDockEl.id = `${PREFIX  }-pending-dock`;
 
     pendingPillEl = el('button', {
       display: 'none',
@@ -11361,7 +11361,7 @@ void main() {
       justifyContent: 'center',
       padding: '0', boxSizing: 'border-box',
       width: '30px', height: '30px', borderRadius: '999px',
-      border: '1px solid ' + P.hairline,
+      border: `1px solid ${  P.hairline}`,
       background: P.chatSurface,
       color: P.textDim,
       overflow: 'visible',
@@ -11387,7 +11387,7 @@ void main() {
       lineHeight: '1',
       whiteSpace: 'nowrap',
       textAlign: 'center',
-      transition: 'opacity 0.16s ease, transform 0.18s ' + EASE,
+      transition: `opacity 0.16s ease, transform 0.18s ${  EASE}`,
     });
     pendingTrashTooltipEl.textContent = 'Discard copy edits';
     pendingTrashTooltipEl.setAttribute('role', 'tooltip');
@@ -11420,7 +11420,7 @@ void main() {
         height: '30px',
         padding: '0 12px',
         borderRadius: '999px',
-        border: '1px solid ' + (accent ? P.accent : P.hairline),
+        border: `1px solid ${  accent ? P.accent : P.hairline}`,
         background: accent ? P.accent : P.chatSurface,
         color: accent ? C.ink : P.textDim,
         fontFamily: FONT,
@@ -11473,7 +11473,7 @@ void main() {
       color: P.textDim, fontFamily: FONT, fontSize: '0', lineHeight: '0',
       cursor: 'pointer', transition: 'color 0.12s ease, background 0.12s ease',
     });
-    exitBtn.id = PREFIX + '-exit';
+    exitBtn.id = `${PREFIX  }-exit`;
     exitBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><line x1="3" y1="3" x2="11" y2="11"/><line x1="11" y1="3" x2="3" y2="11"/></svg>';
     exitBtn.title = 'Exit live mode';
     exitBtn.addEventListener('mouseenter', () => { exitBtn.style.color = 'oklch(58% 0.15 35)'; exitBtn.style.background = P.exitHover; });
@@ -11522,11 +11522,11 @@ void main() {
   }
 
   function updateGlobalBarState() {
-    const detectToggle = uiGetById(PREFIX + '-detect-toggle');
-    const detectBadge = uiGetById(PREFIX + '-detect-badge');
-    const pickToggle = uiGetById(PREFIX + '-pick-toggle');
-    const insertToggle = uiGetById(PREFIX + '-insert-toggle');
-    const designToggle = uiGetById(PREFIX + '-design-toggle');
+    const detectToggle = uiGetById(`${PREFIX  }-detect-toggle`);
+    const detectBadge = uiGetById(`${PREFIX  }-detect-badge`);
+    const pickToggle = uiGetById(`${PREFIX  }-pick-toggle`);
+    const insertToggle = uiGetById(`${PREFIX  }-insert-toggle`);
+    const designToggle = uiGetById(`${PREFIX  }-design-toggle`);
     const theme = globalBarEl?.dataset.theme || 'light';
     const P = barPaletteForTheme(theme);
 
@@ -11642,7 +11642,9 @@ void main() {
     saveInteractionPrefs();
     updateGlobalBarState();
 
-    if (!pickActive) {
+    if (pickActive) {
+      if (state === 'IDLE') setLiveState('PICKING');
+    } else {
       if (configureKind === 'insert' && state === 'CONFIGURING') {
         cancelInsertConfigure();
         return;
@@ -11654,8 +11656,6 @@ void main() {
       hoveredElement = null;
       configureKind = 'replace';
       if (state === 'PICKING' || state === 'CONFIGURING') setLiveState('IDLE');
-    } else {
-      if (state === 'IDLE') setLiveState('PICKING');
     }
     syncPageChatFocus('toggle-pick');
   }
@@ -11685,7 +11685,7 @@ void main() {
     if (detectScriptLoaded) return;
     detectScriptLoaded = true;
     const s = document.createElement('script');
-    s.src = 'http://localhost:' + PORT + '/detect.js';
+    s.src = `http://localhost:${  PORT  }/detect.js`;
     s.dataset.impeccableExtension = 'true';
     document.head.appendChild(s);
   }
@@ -11785,7 +11785,7 @@ void main() {
 
   let designHost = null;
   let designShadow = null;
-  let designState = {
+  const designState = {
     open: false,
     tab: 'visual',          // 'visual' | 'raw'
     parsed: null,           // parseDesignMd output (frontmatter + body sections)
@@ -11827,7 +11827,7 @@ void main() {
 
   function initDesignPanel() {
     designHost = document.createElement('div');
-    designHost.id = PREFIX + '-design-host';
+    designHost.id = `${PREFIX  }-design-host`;
     Object.assign(designHost.style, {
       position: 'fixed', top: '0', left: '0',
       width: '0', height: '0',
@@ -12313,12 +12313,12 @@ void main() {
    */
   function designEmptyMessage() {
     if (designState.hasMd && !designState.hasSidecar) {
-      return 'DESIGN.md found, no structured tokens to display. Run ' + IMPECCABLE_COMMAND + ' document to generate the .impeccable/design.json sidecar.';
+      return `DESIGN.md found, no structured tokens to display. Run ${  IMPECCABLE_COMMAND  } document to generate the .impeccable/design.json sidecar.`;
     }
-    if (designState.hasMd) {
-      return 'DESIGN.md and its sidecar were found, but neither carries colors, type, radii, or components to display.';
+    if (!designState.hasMd) {
+      return 'No design system data available.'
     }
-    return 'No design system data available.';
+    return 'DESIGN.md and its sidecar were found, but neither carries colors, type, radii, or components to display.'
   }
 
   function renderDesignVisual(body, parsed, sidecar) {
@@ -12393,7 +12393,7 @@ void main() {
         // it when a role is rendered in italic (e.g. display italic).
         style: m.style || 'normal',
         sampleSize: spec?.fontSize || '1rem',
-        lineHeight: spec?.lineHeight != null ? String(spec.lineHeight) : '',
+        lineHeight: spec?.lineHeight == null ? '' : String(spec.lineHeight),
         letterSpacing: spec?.letterSpacing,
         purpose: m.purpose,
       };
@@ -12517,7 +12517,7 @@ void main() {
       // The system's actual sample size for this role, shown as small mono meta below.
       if (t.sampleSize) {
         const scale = document.createElement('div');
-        scale.style.cssText = 'font-family:' + MONO + '; font-size: 10px; color:' + DP.meta + '; margin-top: 2px;';
+        scale.style.cssText = `font-family:${  MONO  }; font-size: 10px; color:${  DP.meta  }; margin-top: 2px;`;
         scale.textContent = t.sampleSize;
         tile.appendChild(scale);
       }
@@ -12686,7 +12686,7 @@ void main() {
       card: 'Cards',
       custom: 'Components',
     };
-    return labels[kind] || (kind ? kind.charAt(0).toUpperCase() + kind.slice(1) + 's' : 'Components');
+    return labels[kind] || (kind ? `${kind.charAt(0).toUpperCase() + kind.slice(1)  }s` : 'Components');
   }
 
   // Collapsibles.
@@ -12701,7 +12701,7 @@ void main() {
     head.innerHTML = `
       <svg class="coll-chev" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2.5L8 6 4 9.5"/></svg>
       <span>${escapeHtml(label)}</span>
-      ${count != null ? `<span class="coll-count">${escapeHtml(String(count))}</span>` : ''}
+      ${count == null ? '' : `<span class="coll-count">${escapeHtml(String(count))}</span>`}
     `;
     head.addEventListener('click', () => {
       designState.collapsed[key] = !designState.collapsed[key];
@@ -12762,7 +12762,7 @@ void main() {
     if (n.northStar) {
       const star = document.createElement('span');
       star.className = 'north-star';
-      star.textContent = '“' + n.northStar + '”';
+      star.textContent = `“${  n.northStar  }”`;
       ov.appendChild(star);
     }
     if (n.overview) {
@@ -12837,11 +12837,11 @@ void main() {
       // Code fence
       const fence = line.match(/^```(\w*)\s*$/);
       if (fence) {
-        if (!inCode) { flushAll(); inCode = true; codeBuf = []; }
-        else {
+        if (inCode) {
           out.push(`<pre><code>${escapeHtml(codeBuf.join('\n'))}</code></pre>`);
           inCode = false;
         }
+        else { flushAll(); inCode = true; codeBuf = []; }
         continue;
       }
       if (inCode) { codeBuf.push(line); continue; }
@@ -12926,7 +12926,7 @@ void main() {
     if (!text) return;
     try {
       navigator.clipboard.writeText(text);
-      showToast('Copied: ' + text);
+      showToast(`Copied: ${  text}`);
     } catch { /* ignore */ }
   }
 
@@ -12954,10 +12954,10 @@ void main() {
 
     // Check for an active session to resume (variant wrapper already in DOM after HMR)
     const resumed = resumeSession();
-    if (!resumed) {
-      console.log('[impeccable] Live variant mode ready. Hover over elements to pick one.');
-    } else {
+    if (resumed) {
       console.log('[impeccable] Resumed active variant session ' + currentSessionId + ' (' + arrivedVariants + '/' + expectedVariants + ' variants).');
+    } else {
+      console.log('[impeccable] Live variant mode ready. Hover over elements to pick one.');
     }
 
     // SvelteKit, React, and other frameworks may restore a durable session
@@ -12971,7 +12971,7 @@ void main() {
         if (!wrapper) return;
         scout.disconnect();
         if (resumeSession(deferredResumeRevision, { reason: 'browser_resumed_deferred_wrapper' })) {
-          console.log('[impeccable] Resumed deferred session ' + currentSessionId + ' (post-hydration).');
+          console.log(`[impeccable] Resumed deferred session ${  currentSessionId  } (post-hydration).`);
         }
       });
       scout.observe(document.body, { childList: true, subtree: true });

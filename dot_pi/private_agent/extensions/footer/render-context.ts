@@ -22,8 +22,8 @@ function asFinitePercent(contextPercent: ContextPercent): ContextPercent {
 
 function contextColor(percent: number): string {
 	if (percent < CONTEXT_COMFORT_PCT) return LATTE.green
-	if (percent < CONTEXT_WARNING_PCT) return LATTE.peach
-	return LATTE.red
+	if (!(percent < CONTEXT_WARNING_PCT)) return LATTE.red
+	return LATTE.peach
 }
 
 function contextMeterBar(percent: number, color: string): string {

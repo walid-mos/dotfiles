@@ -70,22 +70,11 @@ export default {
 };
 ```
 
-## Architecture Pattern: Workers + Tunnel
+## Private Networks and Tunnel
 
-Most private network connectivity combines TCP Sockets with Cloudflare Tunnel:
+> **Unverified path — do not copy as-is.** An ordinary Worker TCP socket to a Tunnel hostname on a private service is not an established supported route: a public Tunnel hostname does not by itself make the private TCP endpoint reachable from a Worker, and this reference has no verified Cloudflare-documented Workers-to-private-service path over TCP. For HTTP/HTTPS services in a private network, use **Workers VPC Services** (HTTP service bindings with built-in SSRF protection) or route through an origin proxy that is itself publicly reachable. For databases, prefer [Hyperdrive](../hyperdrive/). Verify the current supported connectivity options in official Cloudflare documentation before building on any Tunnel-based route.
 
-```
-┌─────────┐     ┌─────────────┐     ┌──────────────┐     ┌─────────────┐
-│ Worker  │────▶│ TCP Socket  │────▶│   Tunnel     │────▶│   Private   │
-│         │     │ (this API)  │     │ (cloudflared)│     │   Network   │
-└─────────┘     └─────────────┘     └──────────────┘     └─────────────┘
-```
-
-1. Worker opens TCP socket to Tunnel hostname
-2. Tunnel endpoint routes to private IP
-3. Response flows back through Tunnel to Worker
-
-See [configuration.md](./configuration.md) for Tunnel setup details.
+For detailed Tunnel setup (for inbound traffic exposure, unrelated to Worker egress), see the [Tunnel configuration reference](../tunnel/configuration.md).
 
 ## Reading Order
 

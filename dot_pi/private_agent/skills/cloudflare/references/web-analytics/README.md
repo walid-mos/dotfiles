@@ -17,16 +17,16 @@ Cloudflare Web Analytics provides:
 
 ## Quick Start Decision Tree
 
-```
-Is your site proxied through Cloudflare?
-├─ YES → Use automatic injection (configuration.md)
-│   ├─ Enable auto-injection in dashboard
-│   └─ No code changes needed (unless Cache-Control: no-transform)
-│
-└─ NO → Use manual beacon integration (integration.md)
-    ├─ Add JS snippet to HTML
-    ├─ Use spa: true for React/Vue/Next.js
-    └─ Configure CSP if needed
+```mermaid
+graph TD
+    Q[Is your site proxied through Cloudflare?]
+    Q -->|YES| A[Automatic injection — configuration.md]
+    A --> A1[Enable auto-injection in dashboard]
+    A --> A2[No code changes needed, unless Cache-Control: no-transform]
+    Q -->|NO| B[Manual beacon integration — integration.md]
+    B --> B1[Add JS snippet to HTML]
+    B --> B2[Use spa: true for React/Vue/Next.js]
+    B --> B3[Configure CSP if needed]
 ```
 
 ## Reading Order
@@ -64,10 +64,7 @@ Without `spa: true`, client-side navigation (React Router, Vue Router, Next.js r
 
 ### CSP Requirements
 
-If using Content Security Policy, allow both domains:
-```
-script-src https://static.cloudflareinsights.com https://cloudflareinsights.com;
-```
+If using Content Security Policy, use the complete example in [integration.md](integration.md) — the beacon needs both `script-src` and `connect-src` permissions; a `script-src`-only policy blocks event delivery under a restrictive `connect-src`.
 
 ## Features
 

@@ -14,7 +14,8 @@ This skill adds only the issue spec format and the creation workflow.
 1. **Resolve the project** (UUID required, by identifier): `FITAPP`, `INFRA`,
    `STYLOT`, `MINA`, `MIZRAJ`. Infer it from the current repo's git remote when
    the cwd gives one (fitapp → FITAPP, core → INFRA). If the cwd does not map or
-   the user names another repo, ask once with the project list as options.
+   the user names another repo, narrow the candidates using repository evidence
+   and ask once with two or three choices, including “other project” when needed.
 2. **Resolve the start state UUID in THAT project** (usually `Todo`) via the
    project's `states/` endpoint. State ids are per-project: reusing another
    project's UUID fails with `400 "State is not valid please pass a valid

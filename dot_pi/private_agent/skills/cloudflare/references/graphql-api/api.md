@@ -155,6 +155,8 @@ httpRequestsAdaptiveGroups(filter: { datetime_gt: "..." }, limit: 100, orderBy: 
 httpRequestsAdaptiveGroups(filter: { datetime_gt: "2025-01-01T01:35:00Z" }, limit: 100, orderBy: [datetime_ASC])
 ```
 
+**Completeness caveat:** advancing solely on `datetime_gt` skips groups that share the last page's timestamp (group datasets can contain multiple dimension groups at one datetime). This pattern is therefore *not* a complete-pagination guarantee; without a verified unique tie-breaker field for the chosen dataset, treat results as incomplete and narrow the window instead.
+
 Sort with `orderBy: [field_ASC]` or `[field_DESC]`. Multiple sort fields supported.
 
 ## Settings Node

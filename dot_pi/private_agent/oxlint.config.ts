@@ -3,6 +3,11 @@ import { defineConfig } from 'oxlint'
 
 export default defineConfig({
 	extends: [standards],
+	// Repo-specific rules the core Rust set cannot express (see lint/local-plugin.js).
+	jsPlugins: ['./lint/local-plugin.js'],
+	rules: {
+		'local/prefer-early-return': 'warn',
+	},
 	// Machine state under ~/.pi/agent: never scan (sessions are jsonl anyway,
 	// but skipping them keeps scans fast and private data out of the report).
 	// backups/ holds point-in-time config snapshots that supersede nothing.
@@ -16,6 +21,11 @@ export default defineConfig({
 		'backups/**',
 		// Vendor-managed by `herdr integration install pi`; never hand-edit.
 		'extensions/herdr-agent-state.ts',
+		'extensions/herdr-pane-meta.ts',
+		// Vendored third-party skill, not our codebase: never lint it.
+		'skills/impeccable/**',
+		// Disabled code kept for reference: frozen, not maintained here.
+		'disabled-extensions/**',
 	],
 	overrides: [
 		{
@@ -23,6 +33,13 @@ export default defineConfig({
 			// class of exception as framework pages in the shared preset
 			// (app/**/page.tsx, pages/**, middleware.ts, ...)
 			files: ['extensions/**'],
+			rules: {
+				'import/no-default-export': 'off',
+			},
+		},
+		{
+			// Oxlint's JS-plugin API loads plugins as default exports.
+			files: ['lint/**'],
 			rules: {
 				'import/no-default-export': 'off',
 			},

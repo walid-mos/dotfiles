@@ -80,9 +80,9 @@ function nameStatusFrom(
 	second: string | undefined,
 ): NameStatusEntry | undefined {
 	if (typeof first !== 'string') return undefined
-	if (typeof second === 'string' && isRenameCode(code))
-		return { code, from: first, path: second }
-	return { code, path: first }
+	if (!(typeof second === 'string' && isRenameCode(code)))
+		return { code, path: first }
+	return { code, from: first, path: second }
 }
 
 /** The scope status a raw code stands for; undefined means "not in scope". */

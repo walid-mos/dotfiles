@@ -137,9 +137,9 @@ export function modelPrice(
 	const live = liveReading(reference, pricing)
 	if (live) return live
 	if (hasCatalogPrice(cost)) return catalogReading(cost)
-	if (openRouterIdFor(reference))
-		return unpricedReading('openrouter-unpriced')
-	return unpricedReading('unknown')
+	if (!openRouterIdFor(reference))
+		return unpricedReading('unknown')
+	return unpricedReading('openrouter-unpriced')
 }
 
 export function formatRate(rate: number): string {

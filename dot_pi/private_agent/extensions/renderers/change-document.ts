@@ -28,8 +28,8 @@ export function nativeChangeDocument(
 function nativeChangeLine(row: string): ChangeLine | undefined {
 	const match = /^([+ -])\s*(\d+) (.*)$/u.exec(row)
 	if (!match) {
-		if (/^ +\.\.\.$/u.test(row)) return { kind: 'gap', text: '' }
-		return undefined
+		if (!/^ +\.\.\.$/u.test(row)) return undefined
+		return { kind: 'gap', text: '' }
 	}
 	const [, prefix, number, text] = match
 	const lineNumber = Number(number)

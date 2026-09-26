@@ -71,8 +71,8 @@ async function readClipboardText(): Promise<string | undefined> {
 		// show them as replacement glyphs, so strip them for a clean text paste.
 		// oxlint-disable-next-line eslint/no-control-regex - the control byte is the payload
 		const text = stdout.replace(/\u0000/g, '')
-		if (text) return text
-		return undefined
+		if (!text) return undefined
+		return text
 	} catch {
 		return undefined
 	}

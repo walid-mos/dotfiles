@@ -72,19 +72,19 @@ export function sessionWindow(height: number): ListWindow {
  */
 function scopeTag(row: CatalogRow): string {
 	if (row.isCurrent) return uiTheme.fg('success', '  current')
-	if (!row.isInScope) return uiTheme.fg('dim', '  not cycling now')
-	return ''
+	if (row.isInScope) return ''
+	return uiTheme.fg('dim', '  not cycling now')
 }
 
 /** The list membership of one row: an exact entry, or a saved pattern. */
 function savedTag(membership: ScopeMembership | undefined): string {
 	if (membership?.exact) return uiTheme.fg('dim', `  in ${CTRL_P_LIST}`)
-	if (membership?.pattern)
-		return uiTheme.fg(
+	if (!(membership?.pattern))
+		return ''
+	return uiTheme.fg(
 			'dim',
 			`  in ${CTRL_P_LIST} via ${membership.pattern}`,
 		)
-	return ''
 }
 
 /** One list row: the model, its scope tags and its reasoning block. */

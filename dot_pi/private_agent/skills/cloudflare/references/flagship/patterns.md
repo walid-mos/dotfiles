@@ -72,26 +72,21 @@ console.log(details.errorCode); // undefined (no error)
 
 ### Binding Passthrough (Recommended)
 
+Set up the provider with the binding exactly as shown in [api.md](./api.md) (`OpenFeature.setProviderAndWait(new FlagshipServerProvider({ binding: env.FLAGS }))`), then evaluate:
+
 ```typescript
 import { OpenFeature } from "@openfeature/server-sdk";
-import { FlagshipServerProvider } from "@cloudflare/flagship";
 
-export default {
-  async fetch(request: Request, env: Env): Promise<Response> {
-    await OpenFeature.setProviderAndWait(
-      new FlagshipServerProvider({ binding: env.FLAGS }),
-    );
-    const client = OpenFeature.getClient();
+// ... after provider setup (see api.md)
+const client = OpenFeature.getClient();
 
-    const enabled = await client.getBooleanValue("new-checkout", false, {
-      targetingKey: "user-42",
-      plan: "enterprise",
-      country: "US",
-    });
+const enabled = await client.getBooleanValue("new-checkout", false, {
+  targetingKey: "user-42",
+  plan: "enterprise",
+  country: "US",
+});
 
-    return new Response(enabled ? "New checkout" : "Standard checkout");
-  },
-};
+return new Response(enabled ? "New checkout" : "Standard checkout");
 ```
 
 ### Migration from Another Provider

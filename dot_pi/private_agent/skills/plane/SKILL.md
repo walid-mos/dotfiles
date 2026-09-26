@@ -4,8 +4,9 @@ description: >-
     Full Plane (project management) access over its REST API with curl + jq —
     no MCP. Use for ANY Plane task: list/search/create/update/close issues,
     comments, reactions, labels, states, modules, cycles, pages, members on the
-    `nextnode` workspace (api.plane.so). Trigger: any mention of Plane, a
-    ticket, the backlog, sprints, or "issue STYLOT-…".
+    `nextnode` workspace (api.plane.so). Use for Plane requests, nextnode
+    Plane tickets/backlogs/sprints, or identifiers such as STYLOT-…; an
+    explicitly Linear or Jira ticket does not route here.
 ---
 
 # Plane — REST API skill
@@ -53,7 +54,7 @@ All snippets use `W=…`, `P=<project uuid>`, `K=X-API-Key: $PLANE_API_KEY`.
 ```bash
 # Issues (filter with ?state=, ?assignee=, ?label=, ?priority=, ?search=seq-or-text, ?target_date=)
 curl -s -H "$K" "$W/projects/$P/issues/?per_page=50" | \
-  jq -r '.results[] | "\(.sequence_id)\t\(.name)\t\(.state__name // .state)\t\(.priority)"'
+  jq -r '.results[] | "\(.sequence_id)\t\(.name)\t\(.state__name // "state name pending lookup")\t\(.priority)"'
 
 # One issue (id → detail, includes description_html)
 curl -s -H "$K" "$W/projects/$P/issues/$ISSUE_ID/"
@@ -66,7 +67,9 @@ curl -s -H "$K" "$W/projects/$P/states/" | jq -r '.results[] | "\(.id)\t\(.name)
 ```
 
 Build an id→name map once per task (states, labels, members) and translate ids
-before presenting anything to the user — never show raw UUIDs.
+before presenting anything to the user — never show raw UUIDs. In the issue-list
+example, a missing `state__name` is a lookup still to perform, not a display
+value for the final report.
 
 ## Writes
 

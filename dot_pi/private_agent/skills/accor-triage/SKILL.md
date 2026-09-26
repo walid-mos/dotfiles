@@ -4,7 +4,7 @@ description: >-
     Triage review comments on MY PRs of accor-hotels/product-data-apps
     ("regarde les retours sur la 130 et la 133", "traite les commentaires de
     review"): collect threads via gh, verify each remark against the CURRENT
-    code, sort into Refusé/Caduc/Autofix/Patch/Demande/Question, produce the
+    code, sort into Rejected/Stale/Autofix/Patch/Request/Question, produce the
     recap tables + detail blocks. Only inert micro-fixes reach the working tree
     unprompted; patches, replies and thread resolution wait for approval.
 ---
@@ -25,15 +25,20 @@ comments). Default repo: the one in the cwd; otherwise
 
 Per PR, one GraphQL call carrying the threads, their resolution state, and the
 replies already posted — owner/repo derived as above (substitute `<owner>` /
-`<repo>`):
+`<repo>`). Save the response in a task-owned temporary file outside the checkout;
+remove it after extracting the needed fields:
 
+    threads_file="$(mktemp "${TMPDIR:-/tmp}/accor-threads.XXXXXX")"
     gh api graphql -f query='
     query($owner:String!,$repo:String!,$pr:Int!){
      repository(owner:$owner,name:$repo){ pullRequest(number:$pr){
       reviewThreads(first:100){ nodes{
        id isResolved isOutdated path line
        comments(first:20){ nodes{ databaseId author{login} body diffHunk createdAt } } } } } } }
-    ' -F owner=<owner> -F repo=<repo> -F pr=<n> > threads-<n>.json
+    ' -F owner=<owner> -F repo=<repo> -F pr=<n> > "$threads_file"
+    printf '%s\n' "$threads_file"
+
+Read the printed path with the dedicated file tool, complete the classification, then run `rm -- "$threads_file"` before reporting. Never leave the response in the checkout.
 
 Then the PR comments outside code lines and the review bodies:
 
@@ -52,28 +57,28 @@ doubt.
 
 Never sort on the comment text alone. For every thread, read the **current**
 code at the targeted path/line (the `diffHunk` is a snapshot, not the state of
-the file). A remark whose root cause disappeared goes to "Caduc", never to
-"Demande".
+the file). A remark whose root cause disappeared goes to "Stale", never to
+"Request".
 
 ## 3. Sorting grid
 
 | Pack | Criterion |
 | --- | --- |
-| **Refusé** | Technically wrong, rests on a misreading of the code, contradicts a repo convention (FSD, Clean Arch, RTK, zero narrative comments, `@astore/*` conventions), demands a change outside the PR's scope (→ separate ticket), or is a pure preference with no gain. |
-| **Caduc** | Already fixed in a later commit, or `isOutdated` with the root cause gone. |
+| **Rejected** | Technically wrong, rests on a misreading of the code, contradicts a repo convention (FSD, Clean Arch, RTK, zero narrative comments, `@astore/*` conventions), demands a change outside the PR's scope (→ separate ticket), or is a pure preference with no gain. |
+| **Stale** | Already fixed in a later commit, or `isOutdated` with the root cause gone. |
 | **Autofix** | Strictly inert micro-change, applied without asking. **Closed list**: typo, wording/translation key, error message, removal of a narrative comment, unused import or type, missing `const`, prop or key ordering. ≤ ~5 diff lines, one file, zero behavioral effect, nothing to re-read to understand the fix. |
 | **Patch** | Everything else that is small but non-inert: rename of a symbol, extraction of a constant or helper, rewrite of a condition, change of a default. The patch is **prepared and shown**, never applied before agreement — including when the remark is `[NIT]` or `[SUGGESTION]`. |
-| **Demande** | Changes behavior, structure or contract: real bug, broken invariant, restructuring, added test, API/schema change, security — even when the remark is short. The impact classifies, not the length. |
+| **Request** | Changes behavior, structure or contract: real bug, broken invariant, restructuring, added test, API/schema change, security — even when the remark is short. The impact classifies, not the length. |
 | **Question** | Expects an answer, not a patch. |
 
 Border rules:
 
-- **Doubt descends one level**: Autofix → Patch → Demande. Never the reverse. A
+- **Doubt descends one level**: Autofix → Patch → Request. Never the reverse. A
   change the user has not seen never enters the working tree.
 - The tag does not decide: a `[NIT]` or `[SUGGESTION]` touching anything outside
   the closed list goes to Patch.
-- A `[BLOCKING]` is never autofixed, even trivial: Demande (or Refusé, argued).
-- A `[NIT]` can be Refusé like any other.
+- A `[BLOCKING]` is never autofixed, even trivial: Request (or Rejected, argued).
+- A `[NIT]` can be Rejected like any other.
 
 ## 4. Application
 
@@ -86,7 +91,7 @@ the refs it names, never the next ones.
 - Several PRs of one stack: autofix only the PR we are on; announce the others
   as "waiting for the right branch".
 - After applying: baseline `pnpm typecheck && pnpm lint && pnpm test`. Red →
-  revert the offending fix and reclassify upward as Demande.
+  revert the offending fix and reclassify upward as Request.
 - Atomic Conventional Commits, one per theme (not per comment):
   `fix(menu-compliance): …`, `refactor(api): …`. Never push without explicit
   approval.
@@ -95,13 +100,14 @@ the refs it names, never the next ones.
 
 The output **format** (recap table, per-PR tables, detail blocks, closing) is
 single-homed in `output-format.md` next to this file — load it before writing
-the synthesis; the grid above feeds its "Verdict" column (`Demande`, `Patch`,
-`Autofix`, `Refusé`, `Caduc`, `Question`, in that order).
+the synthesis; the grid above feeds its "Verdict" column (`Request`, `Patch`,
+`Autofix`, `Rejected`, `Stale`, `Question`, in that order). Use French labels
+only when explicitly requested by the current user.
 
 ## 6. Replies and resolution
 
 Propose, don't post. Write in English (repo charter), factual tone, one concrete
-reason — especially for Refusés, where silence reads badly. Post only after
+reason — especially for rejected remarks, where silence reads badly. Post only after
 agreement:
 
     gh api repos/:owner/:repo/pulls/<n>/comments/<databaseId>/replies -f body='<reply>'

@@ -99,7 +99,7 @@ curl -X POST 'https://api.cloudflare.com/client/v4/accounts/<account_id>/realtim
 {
   "name": "realtimekit-app",
   "main": "src/index.ts",
-  "compatibility_date": "2025-01-01",  // Use current date
+  "compatibility_date": "<today>",  // set to the current date
   "vars": {
     "CLOUDFLARE_ACCOUNT_ID": "abc123",
     "REALTIMEKIT_APP_ID": "xyz789"

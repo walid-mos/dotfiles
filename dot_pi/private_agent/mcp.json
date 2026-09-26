@@ -17,6 +17,9 @@
     },
     "mcp": {
       "url": "https://mcp.linear.app/mcp"
+    },
+    "jira": {
+      "url": "https://mcp.atlassian.com/v2/mcp"
     }
   }
 }

@@ -3,7 +3,7 @@
 ## Authentication
 
 ```bash
-curl -X POST 'https://rtc.live/v1/apps/${CALLS_APP_ID}/sessions/new' \
+curl -X POST "https://rtc.live/v1/apps/${CALLS_APP_ID}/sessions/new" \
   -H "Authorization: Bearer ${CALLS_APP_SECRET}"
 ```
 
@@ -141,6 +141,14 @@ const res = await fetch(`/api/sessions/${sessionId}/tracks`, {
 });
 
 const {sessionDescription} = await res.json();
+
+// Install ontrack BEFORE setRemoteDescription: remote-track events can fire
+// while the answer is applied, and a handler assigned later misses them.
+pc.ontrack = (event) => {
+  const [remoteStream] = event.streams;
+  videoElement.srcObject = remoteStream;
+};
+
 await pc.setRemoteDescription(sessionDescription);
 
 const answer = await pc.createAnswer();
@@ -150,9 +158,4 @@ await fetch(`/api/sessions/${sessionId}/renegotiate`, {
   method: 'PUT',
   body: JSON.stringify({sdp: answer.sdp})
 });
-
-pc.ontrack = (event) => {
-  const [remoteStream] = event.streams;
-  videoElement.srcObject = remoteStream;
-};
 ```

@@ -114,7 +114,7 @@ import * as command from "@pulumi/command";
 
 const workerConfig = {
     name: "my-worker",
-    compatibilityDate: "2025-01-01",
+    compatibilityDate: new Date().toISOString().slice(0, 10), // today — set when creating the project
     compatibilityFlags: ["nodejs_compat"],
 };
 
@@ -165,6 +165,8 @@ const worker = new cloudflare.WorkerScript("worker", {
 **Alternative:** Read wrangler.toml in Pulumi (reverse direction) if wrangler is source of truth
 
 ## Build + Deploy Pattern
+
+A create-only build command does not rerun when source changes — later `pulumi up` calls skip it and deploy stale output. Add `triggers` for tracked source inputs (see the Command resource's triggers input), or run the build outside Pulumi before each deploy.
 
 ```typescript
 import * as command from "@pulumi/command";

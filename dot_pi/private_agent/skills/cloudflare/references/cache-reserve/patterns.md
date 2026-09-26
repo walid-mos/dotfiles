@@ -65,17 +65,32 @@ const cacheRules = [
 
 ### 4. Making Assets Cache Reserve Eligible from Workers
 
-**Note**: This modifies response headers to meet eligibility criteria but does NOT directly control Cache Reserve storage (which is zone-level automatic).
+**Note**: This modifies response headers to meet eligibility criteria but does NOT directly control Cache Reserve storage (which is zone-level automatic). Changing headers *after* the `fetch(request)` also does not retroactively make that upstream fetch Reserve-eligible — the zone-level configuration and the request's original cacheability determine that.
+
+Only do this for **explicitly public assets**. Never rewrite personalized, authenticated, or cookie-bearing responses as public: stripping `Set-Cookie` and marking `Cache-Control: public` can cache one user's response and serve it to everyone.
 
 ```typescript
+const PUBLIC_ASSET_PATTERN = /^\/static\//; // extend to your explicitly public paths
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const response = await fetch(request);
     if (!response.ok) return response;
+    // Skip anything that may be personalized: cookie-bearing, authenticated,
+    // or outside the explicitly public path set.
+    if (
+      !PUBLIC_ASSET_PATTERN.test(new URL(request.url).pathname) ||
+      request.headers.has('Authorization') ||
+      request.headers.has('Cookie') ||
+      response.headers.has('Set-Cookie') ||
+      response.headers.get('Cache-Control')?.includes('private')
+    ) {
+      return response;
+    }
     
     const headers = new Headers(response.headers);
     headers.set('Cache-Control', 'public, max-age=36000'); // 10hr minimum
-    headers.delete('Set-Cookie'); // Blocks caching
+    headers.delete('Set-Cookie'); // Defensive: public assets must not set cookies
     
     // Ensure Content-Length present
     if (!headers.has('Content-Length')) {

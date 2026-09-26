@@ -74,12 +74,15 @@ function VideoTile({ participant }) {
   useEffect(() => {
     if (videoRef.current && participant.videoTrack) videoRef.current.srcObject = new MediaStream([participant.videoTrack]);
   }, [participant.videoTrack]);
+  // `muted` is appropriate only when remote audio is rendered through a
+  // separate central audio element; if this tile is the participant's only
+  // playback, remove `muted` or audio playback will be impossible.
   return <div><video ref={videoRef} autoPlay playsInline muted /><div>{participant.name}</div></div>;
 }
 
 // Device selection
 const devices = await meeting.self.getAllDevices();
-const switchCamera = (deviceId: string) => {
+const switchCamera = async (deviceId: string) => {
   const device = devices.find(d => d.deviceId === deviceId);
   if (device) await meeting.self.setDevice(device);
 };
@@ -98,7 +101,7 @@ function MyComponent() {
   useEffect(() => { initMeeting({ authToken: '<token>' }); }, []);
   
   return <div>
-    <button onClick={() => meeting?.self.enableAudio()}>{audioEnabled ? 'Mute' : 'Unmute'}</button>
+    <button onClick={() => audioEnabled ? meeting?.self.disableAudio() : meeting?.self.enableAudio()}>{audioEnabled ? 'Mute' : 'Unmute'}</button>
     <span>{participantCount} participants</span>
   </div>;
 }
@@ -173,6 +176,11 @@ await meeting.plugins.deactivate();
 ## Backend Integration
 
 ### Token Generation (Workers)
+
+Supply `authenticateCaller` and `isMeetingMember` from the application's real
+identity and meeting-authorization layer before using this example; neither
+can be replaced by checking for a header.
+
 ```typescript
 export interface Env { CLOUDFLARE_API_TOKEN: string; CLOUDFLARE_ACCOUNT_ID: string; REALTIMEKIT_APP_ID: string; }
 
@@ -181,7 +189,15 @@ export default {
     const url = new URL(request.url);
     
     if (url.pathname === '/api/join-meeting') {
-      const { meetingId, userName, presetName } = await request.json();
+      const { meetingId, userName } = await request.json();
+
+      const caller = await authenticateCaller(request, env);
+      if (!caller) return new Response('Unauthorized', { status: 401 });
+      if (!(await isMeetingMember(caller, meetingId, env))) {
+        return new Response('Forbidden', { status: 403 });
+      }
+      // Choose the preset server-side; never accept client-supplied roles.
+      const presetName = 'participant'; // fixed, server-selected
       const response = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${env.CLOUDFLARE_ACCOUNT_ID}/realtime/kit/${env.REALTIMEKIT_APP_ID}/meetings/${meetingId}/participants`,
         {

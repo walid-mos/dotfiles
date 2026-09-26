@@ -43,7 +43,7 @@ Create context-appropriate strategy:
 - Bottom navigation instead of top/side navigation
 
 **Interaction Strategy**:
-- Touch targets 44x44px minimum (not hover-dependent)
+- Prefer 44×44px touch targets for primary controls; assess smaller targets against WCAG AA's 24×24px baseline and exceptions in `~/.pi/agent/skills/better-accessibility/hit-areas.md` (not hover-dependent)
 - Swipe gestures where appropriate (lists, carousels)
 - Bottom sheets instead of dropdowns
 - Thumbs-first design (controls within thumb reach)
@@ -71,7 +71,7 @@ Create context-appropriate strategy:
 
 **Interaction Strategy**:
 - Support both touch and pointer
-- Touch targets 44x44px but allow denser layouts than phone
+- Prefer 44×44px touch targets while allowing denser layouts than phone; apply the WCAG AA baseline and exceptions to smaller controls
 - Side navigation drawers
 - Multi-column forms where appropriate
 
@@ -145,7 +145,7 @@ Choose appropriate breakpoints:
 
 ### Touch Adaptation
 
-- Increase touch target sizes (44x44px minimum)
+- Increase touch target sizes toward 44×44px for primary controls; check smaller controls against the WCAG AA baseline and exceptions
 - Add more spacing between interactive elements
 - Remove hover-dependent interactions
 - Add touch feedback (ripples, highlights)

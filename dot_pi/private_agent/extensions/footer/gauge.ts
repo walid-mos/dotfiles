@@ -118,8 +118,8 @@ export function quotaColor(remaining: number, limit: number): string {
 export function balanceColor(balance: number): string {
 	if (balance >= BALANCE_COMFORTABLE_USD) return LATTE.green
 	if (balance >= BALANCE_LEISURE_USD) return LATTE.yellow
-	if (balance >= BALANCE_SCRAPING_USD) return LATTE.peach
-	return LATTE.red
+	if (!(balance >= BALANCE_SCRAPING_USD)) return LATTE.red
+	return LATTE.peach
 }
 
 /** Circle fraction glyphs, visually distinct from the context meter bar. */
@@ -127,8 +127,8 @@ export function quotaDial(ratio: number): string {
 	if (ratio > DIAL_FULL_THRESHOLD) return '●'
 	if (ratio > DIAL_THREE_QUARTER_THRESHOLD) return '◕'
 	if (ratio > DIAL_HALF_THRESHOLD) return '◑'
-	if (ratio > DIAL_QUARTER_THRESHOLD) return '◔'
-	return '○'
+	if (!(ratio > DIAL_QUARTER_THRESHOLD)) return '○'
+	return '◔'
 }
 
 /** Dial + colored percentage of remaining quota. */

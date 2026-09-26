@@ -1,6 +1,6 @@
 ---
 name: nextnode-sentry
-description: "Wire a NextNode project to the org's Sentry (sentry.io org `nextnode`), end to end and unattended: detect the stack, find or create the project via API, install and wire the SDK, set secrets, verify with a real source-map upload, commit a PR. Invoke the moment a request in a NextNode repo mentions Sentry ('intègre Sentry', 'hook ce repo à Sentry', CI warnings 'No org provided'/'Will not upload source maps') — start executing immediately in the cwd's git project; do not ask which steps to run. NOT for reading Sentry dashboards or fixing specific error events."
+description: "Wire a NextNode project to the org's Sentry (sentry.io org `nextnode`), end to end and unattended: detect the stack, find or create the project via API, install and wire the SDK, set secrets, verify with a real source-map upload, commit a PR. Invoke when a request in a NextNode repo ASKS to wire/integrate/fix Sentry ('intègre Sentry', 'hook ce repo à Sentry', fix the CI warnings 'No org provided'/'Will not upload source maps') — start executing immediately in the cwd's git project; do not ask which steps to run. A merely informational Sentry mention (reading dashboards, triaging a specific error event, referencing existing Sentry config) is NOT authorization to create projects or write secrets. NOT for reading Sentry dashboards or fixing specific error events."
 ---
 
 # Sentry onboarding — NextNode projects
@@ -70,13 +70,25 @@ Follow the doc for the row from step 0. Defaults, decided once here — do not r
 
 ## Step 3 — Set the secrets (one-shot per repo)
 
+Follow the placement and stdin rules in
+`~/.pi/agent/skills/nextnode-deploy/github-org.md`: set these per-project values
+as repo **environment** secrets for each target environment. Hold the fetched DSN
+in a shell variable without printing it or placing its value in a command.
+
 ```bash
-gh secret set SENTRY_PROJECT --body "<slug>"
-gh secret set PUBLIC_SENTRY_DSN --body "<dsn>"   # only for a browser stack
+printf '%s' "$SENTRY_PROJECT" | gh secret set SENTRY_PROJECT --repo "NextNodeSolutions/$REPO" --env "$ENVIRONMENT"
+printf '%s' "$PUBLIC_SENTRY_DSN" | gh secret set PUBLIC_SENTRY_DSN --repo "NextNodeSolutions/$REPO" --env "$ENVIRONMENT"  # browser stack only
 ```
 
-Server-side DSN goes to the runtime env, not GitHub: for NextNode deploys add
-`SENTRY_DSN` to `nextnode.toml` `[deploy].secrets`.
+For NextNode deploys, declare `SENTRY_DSN` in `nextnode.toml` `[deploy].secrets`
+and provision its actual value in each target environment before the first deploy:
+
+```bash
+printf '%s' "$SENTRY_DSN" | gh secret set SENTRY_DSN --repo "NextNodeSolutions/$REPO" --env "$ENVIRONMENT"
+```
+
+A fixed-value `[deploy].secrets` entry is not auto-generated; follow the
+set→re-trigger semantics in the linked deployment guide.
 
 ## Step 4 — Verify end-to-end (the only accepted proof)
 

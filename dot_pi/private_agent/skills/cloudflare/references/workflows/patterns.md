@@ -23,7 +23,7 @@ Read [Rules of Workflows](https://developers.cloudflare.com/workflows/build/rule
 
 ## Testing Workflows
 
-Fetch [Vitest setup](https://developers.cloudflare.com/workers/testing/vitest-integration/write-your-first-test/) for current dependencies and configuration, then use the [Workflow test APIs](https://developers.cloudflare.com/workers/testing/vitest-integration/test-apis/#workflows) for introspection, step/event mocks, sleep controls, and cleanup.
+**Note:** writing new tests requires explicit authorization in the current request — merely running existing checks does not. When the current request explicitly authorizes writing tests: fetch [Vitest setup](https://developers.cloudflare.com/workers/testing/vitest-integration/write-your-first-test/) for current dependencies and configuration, then use the [Workflow test APIs](https://developers.cloudflare.com/workers/testing/vitest-integration/test-apis/#workflows) for introspection, step/event mocks, sleep controls, and cleanup.
 
 Test retry behavior, event arrival and timeout paths, and duplicate external effects. Use documented introspection waits to observe completion rather than assuming a newly created instance has finished.
 

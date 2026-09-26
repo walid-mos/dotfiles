@@ -88,15 +88,19 @@ function parseSections(changelog: string): Section[] {
 	return sections
 }
 
-/** Numeric-dot version comparison; prerelease tags sort below the plain release. */
-function compareVersions(a: string, b: string): number {
-	const parts = (version: string): number[] =>
+/** Numeric-dot version comparison; prerelease suffixes are ignored. */
+function versionParts(version: string): number[] {
+	return (
 		version
 			.split('-')[0]
 			?.split('.')
 			.map(part => Number.parseInt(part, 10) || 0) ?? []
-	const pa = parts(a)
-	const pb = parts(b)
+	)
+}
+
+function compareVersions(a: string, b: string): number {
+	const pa = versionParts(a)
+	const pb = versionParts(b)
 	for (let index = 0; index < Math.max(pa.length, pb.length); index++) {
 		const delta = (pa[index] ?? 0) - (pb[index] ?? 0)
 		if (delta !== 0) return delta
@@ -105,12 +109,14 @@ function compareVersions(a: string, b: string): number {
 }
 
 async function main(): Promise<number> {
-	const fromVersion = process.argv[2] ?? AUDITED_PI_VERSION
+	const fromVersionArg = 2
+	const toVersionArg = 3
+	const fromVersion = process.argv[fromVersionArg] ?? AUDITED_PI_VERSION
 	const root = findPackageRoot()
 	const installedVersion: string = JSON.parse(
 		readFileSync(join(root, 'package.json'), 'utf8'),
 	).version
-	const toVersion = process.argv[3] ?? installedVersion
+	const toVersion = process.argv[toVersionArg] ?? installedVersion
 	process.stdout.write(
 		`installed pi: ${installedVersion}\nrange: > ${fromVersion} .. <= ${toVersion}\n\n`,
 	)
@@ -123,12 +129,22 @@ async function main(): Promise<number> {
 		return 1
 	}
 	const sections = parseSections(readFileSync(changelogPath, 'utf8'))
+	if (
+		!sections.some(
+			section => compareVersions(section.version, fromVersion) === 0,
+		)
+	) {
+		process.stdout.write(
+			`✗ audited version ${fromVersion} is missing from the installed changelog - fetch the older tarball and inspect the omitted interval.\n`,
+		)
+		return 1
+	}
 	const wanted = sections.filter(
 		section =>
 			compareVersions(section.version, fromVersion) > 0 &&
 			compareVersions(section.version, toVersion) <= 0,
 	)
-	if (wanted.length === 0) {
+	if (!wanted.length) {
 		process.stdout.write(
 			`✗ no changelog sections between ${fromVersion} and ${toVersion} - fetch the older tarball (npm pack @${fromVersion}) and read its CHANGELOG.md.\n`,
 		)

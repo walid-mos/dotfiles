@@ -14,9 +14,9 @@ function sourceFiles(root) {
 }
 
 function literal(ts, node) {
-	if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node))
-		return node.text
-	return null
+	if (!(ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)))
+		return null
+	return node.text
 }
 
 function visible(text) {

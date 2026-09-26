@@ -40,27 +40,35 @@ Multi-tenant platform with isolated customer code execution at scale.
 4. **Outbound Worker** (optional) - Intercepts external fetch, controls egress, logs subrequests (blocks TCP socket connect() API)
 
 **Request Flow:**
-```
-Request → Dispatch Worker → Determines user Worker → env.DISPATCHER.get("customer") 
-→ User Worker executes (Outbound Worker for external fetch) → Response → Dispatch Worker → Client
+
+```mermaid
+graph LR
+    R[Request] --> D[Dispatch Worker]
+    D -->|env.DISPATCHER.get customer| U[User Worker]
+    U -->|Outbound Worker for external fetch| X[External fetch]
+    U --> RES[Response]
+    RES --> D
+    D --> C[Client]
 ```
 
 ## Decision Trees
 
 ### When to Use Workers for Platforms
-```
-Need to run code?
-├─ Your code only → Regular Workers
-├─ Customer/AI code → Workers for Platforms
-└─ Untrusted code in sandbox → Workers for Platforms OR Sandbox API
+
+```mermaid
+graph TD
+    N[Need to run code?] -->|Your code only| RW[Regular Workers]
+    N -->|Customer/AI code| WFP[Workers for Platforms]
+    N -->|Untrusted code in sandbox| SB[Workers for Platforms OR Sandbox API]
 ```
 
 ### Routing Strategy Selection
-```
-Hostname routing needed?
-├─ Subdomains only (*.saas.com) → `*.saas.com/*` route + subdomain extraction
-├─ Custom domains → `*/*` wildcard + Cloudflare for SaaS + KV/metadata routing
-└─ Path-based (/customer/app) → Any route + path parsing
+
+```mermaid
+graph TD
+    H[Hostname routing needed?] -->|Subdomains only *.saas.com| S[*.saas.com/* route + subdomain extraction]
+    H -->|Custom domains| C[*/* wildcard + Cloudflare for SaaS + KV/metadata routing]
+    H -->|Path-based /customer/app| P[Any route + path parsing]
 ```
 
 ### Isolation Mode Selection

@@ -47,7 +47,7 @@ Run comprehensive checks across 5 dimensions. Score each dimension 0-4 using the
 
 **Check for**:
 - **Fixed widths**: Hard-coded widths that break on mobile
-- **Touch targets**: Interactive elements < 44x44px
+- **Touch targets**: Check the 24×24px WCAG AA baseline and exceptions in `~/.pi/agent/skills/better-accessibility/hit-areas.md`; prefer 44×44px for primary touch controls
 - **Horizontal scroll**: Content overflow on narrow viewports
 - **Text scaling**: Layouts that break when text size increases
 - **Missing breakpoints**: No mobile/tablet variants
@@ -105,7 +105,7 @@ For each issue, document:
 
 Identify recurring problems that indicate systemic gaps rather than one-off mistakes:
 - "Hard-coded colors appear in 15+ components, should use design tokens"
-- "Touch targets consistently too small (<44px) throughout mobile experience"
+- "Primary touch controls consistently miss the recommended 44px target; verify the 24px WCAG AA baseline separately"
 
 ### Positive Findings
 

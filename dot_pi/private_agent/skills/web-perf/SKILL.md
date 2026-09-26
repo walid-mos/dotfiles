@@ -19,14 +19,7 @@ Your knowledge of web performance metrics, thresholds, and tooling APIs may be o
 
 Discover available browser and performance tools before starting. Use the capabilities available for the requested audit. If trace tools are unavailable, continue any useful source or network analysis and state which measurements could not be collected.
 
-If the user wants Chrome DevTools MCP setup, consult its [installation guide](https://github.com/ChromeDevTools/chrome-devtools-mcp#quick-start) and use the latest package version. Only change MCP configuration when setup is within the user's authorized scope; otherwise ask first. For clients using `command` and `args`, an example server entry is:
-
-```json
-"chrome-devtools": {
-  "command": "npx",
-  "args": ["-y", "chrome-devtools-mcp@latest"]
-}
-```
+If the user wants Chrome DevTools MCP setup, consult its [installation guide](https://github.com/ChromeDevTools/chrome-devtools-mcp#quick-start) and review the exact upstream revision before adding it. Do not run a registry or marketplace CLI to install an MCP server. Change MCP configuration only when authorized; otherwise use the available frontend tools and report missing trace capabilities.
 
 ## Key Guidelines
 
@@ -81,7 +74,7 @@ Audit Progress:
 
 ### Phase 2: Core Web Vitals Analysis
 
-Use `performance_analyze_insight` to extract key metrics.
+Use `performance_analyze_insight` to extract metrics the recorded trace actually contains. A reload-only trace cannot establish INP; obtain field data or record representative interactions before reporting it. Mark unavailable metrics as unmeasured, not zero.
 
 **Note:** Insight names may vary across Chrome DevTools versions. If an insight name doesn't work, check the `insightSetId` from the trace response to discover available insights.
 
@@ -139,9 +132,9 @@ take_snapshot(verbose: true)
 
 **Flag high-level gaps:**
 - Missing or duplicate ARIA IDs
-- Elements with poor contrast ratios (check against WCAG AA: 4.5:1 for normal text, 3:1 for large text)
-- Focus traps or missing focus indicators
 - Interactive elements without accessible names
+
+The accessibility tree does not measure rendered contrast or prove keyboard focus behavior. Check those separately with computed colors and keyboard interaction when in scope; otherwise mark them unmeasured.
 
 ## Phase 5: Codebase Analysis
 
@@ -195,7 +188,7 @@ Also check `package.json` for framework dependencies and build scripts.
 
 Present findings as:
 
-1. **Core Web Vitals Summary** - Table with metric, value, and rating (good/needs-improvement/poor)
+1. **Core Web Vitals Summary** - Table with measured metric, value, rating, and evidence source; mark unmeasured metrics explicitly
 2. **Top Issues** - Prioritized list of problems with estimated impact (high/medium/low)
 3. **Recommendations** - Specific, actionable fixes with code snippets or config changes
 4. **Codebase Findings** - Framework/bundler detected, optimization opportunities (omit if no codebase access)

@@ -72,9 +72,9 @@ function sessionHint(input: RenderInput): string {
 		// A pattern stands for every model it matches: removing it stays the
 		// scope tab's own explicit action, so ctrl+x is not offered here.
 		const via = membership?.pattern
-		if (!via)
-			return `↑↓ · ←→ reasoning · ⏎ add to ${CTRL_P_LIST} · ctrl+s startup default · {esc}`
-		return `↑↓ · ←→ reasoning · ⏎ switch model · in ${CTRL_P_LIST} via ${via} · {esc}`
+		if (via)
+			return `↑↓ · ←→ reasoning · ⏎ switch model · in ${CTRL_P_LIST} via ${via} · {esc}`
+		return `↑↓ · ←→ reasoning · ⏎ add to ${CTRL_P_LIST} · ctrl+s startup default · {esc}`
 	}
 	return `↑↓ · ←→ reasoning · ⏎ switch model · ctrl+x unsave · ctrl+s startup default · {esc}`
 }
@@ -83,8 +83,8 @@ function sessionHint(input: RenderInput): string {
 function tabHint(input: RenderInput): string {
 	const { tab } = input.state
 	if (tab === 'scope') return scopeHint(input)
-	if (tab === 'session') return sessionHint(input)
-	return HINTS[tab]
+	if (!(tab === 'session')) return HINTS[tab]
+	return sessionHint(input)
 }
 
 /** The footer line: the tab's keys plus what escape does next. */
@@ -128,9 +128,9 @@ function agentsNote(view: PickerView): string {
 		const orphanNote = orphans ? ` · ${orphans} without a definition` : ''
 		return `${known} ${known === 1 ? 'agent' : 'agents'} from the subagents package${pinNote}${orphanNote}`
 	}
-	if (pinned)
-		return `inherit the session model and thinking unless pinned (${pinned} pinned)`
-	return 'inherit the session model and thinking (none pinned)'
+	if (!pinned)
+		return 'inherit the session model and thinking (none pinned)'
+	return `inherit the session model and thinking unless pinned (${pinned} pinned)`
 }
 
 /** The startup default new sessions begin on, as the settings file states it. */
@@ -189,8 +189,9 @@ const TAB_BODIES = {
 function tabBody(input: RenderInput): PickerLine[] {
 	const { view, state, size } = input
 	if (state.editor) return renderAgentEditor(input)
-	if (state.tab === 'session')
-		return renderSessionBody({
+	if (!(state.tab === 'session'))
+		return TAB_BODIES[state.tab](input)
+	return renderSessionBody({
 			view,
 			state,
 			rows: sessionRows(view, input.query),
@@ -198,7 +199,6 @@ function tabBody(input: RenderInput): PickerLine[] {
 			width: size.width,
 			searchLine: input.searchLine,
 		})
-	return TAB_BODIES[state.tab](input)
 }
 
 export function renderPicker(input: RenderInput): PickerLine[] {

@@ -31,8 +31,8 @@ try {
 
 ### "Bindings Lost on Update"
 
-**Cause:** Not using `keep_bindings` flag when updating Worker  
-**Solution:** Use `keep_bindings: true` in API requests to preserve existing bindings during updates
+**Cause:** Not using `keep_bindings` when updating Worker  
+**Solution:** Pass `keep_bindings` as an **array of binding types** to preserve (see the typed example in [configuration.md](./configuration.md)); a boolean `keep_bindings: true` is not the documented shape and can fail the update or drop bindings
 
 ### "Tag Filtering Not Working"
 

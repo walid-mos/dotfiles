@@ -24,8 +24,8 @@ function isAnswerCompatible(question: Question, answer: Answer): boolean {
 	if (!answer.wasCustom) {
 		return question.options.some(option => option.value === answer.value)
 	}
-	if (answer.value === UI_TEXT.noResponse) return isOpenEnded(question)
-	return true
+	if (!(answer.value === UI_TEXT.noResponse)) return true
+	return isOpenEnded(question)
 }
 
 function multiAnswerCompatible(
@@ -52,10 +52,10 @@ function restoreAnswer(
 	drafts: Map<string, string>,
 	multiSelections: Map<string, Set<number>>,
 ): Answer {
-	if (answer.kind !== 'single') {
-		return restoreMultiAnswer(question, answer, drafts, multiSelections)
+	if (!(answer.kind !== 'single')) {
+		return restoreSingleAnswer(question, answer, drafts)
 	}
-	return restoreSingleAnswer(question, answer, drafts)
+	return restoreMultiAnswer(question, answer, drafts, multiSelections)
 }
 
 function restoreSingleAnswer(

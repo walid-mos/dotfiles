@@ -1,5 +1,7 @@
 # Cloudflare Workers Architecture
 
+> Extends the Cloudflare Workers target deep-dive in the DeployTarget section in `SKILL.md` — read that section first; its core rules are not restated here.
+
 Deep-dive into the `cloudflare-workers` deploy target: the full-Cloudflare positioning, the Terraform/wrangler ownership boundary, config schema, provisioning, deploy, teardown, the reusable workflows, and the one-shot org bootstrap. This is the reference for the third `DeployTarget` alongside [hetzner-vps.md](hetzner-vps.md) (VPS deep-dive) and the caller convention (folded in below, mirroring [hetzner-caller.md](hetzner-caller.md)).
 
 ## Positioning
@@ -88,7 +90,7 @@ Four opt-in blocks on a worker's `[deploy.services.<name>]` table. Validated by 
 
 ```toml
 [deploy.services.web]
-url = "example.com"                       # every barrier requires url (a zone rule matches on the host)
+url = "example.com"                       # zone-rule barriers (rate_limit, public_paths) require url - a zone rule matches on the host
 public_paths = ["/webhooks/*", "/health"] # what stays open; the rule blocks the negation
 
 [deploy.services.web.rate_limit]          # zone rate-limiting ruleset
@@ -119,7 +121,7 @@ The four barriers, what each generates and what it costs:
 
 Load-time refusals (the only mechanized plan gates — no code checks an account plan, the Pro/Paid rows above are documentation):
 
-- A barrier on a worker without `url` → `deploy.services.<name>.<field> requires deploy.services.<name>.url - a zone rule matches on the host, and no host is derivable for a worker without url`.
+- A **zone-rule barrier** (`rate_limit`, `public_paths`) on a worker without `url` → `deploy.services.<name>.<field> requires deploy.services.<name>.url - a zone rule matches on the host, and no host is derivable for a worker without url`.
 - **Project-wide** ceilings counted unconditionally (no plan-aware relaxation): >1 `rate_limit` block → `...but the Cloudflare Free plan allows a single rate limiting rule per zone - keep one`; >5 `public_paths` workers → `...but the Cloudflare Free plan allows five custom rules per zone`.
 
 Path grammar (`REQUEST_PATH_PATTERN`): an entry starts with `/` and is either an exact path or carries a single **trailing** `*` (prefix). No mid-string wildcard (`/api/*/send` would be emitted as a literal and match nothing), no quote/backslash — all refused at load. Exact paths emit `http.request.uri.path eq "<path>"`, prefixes `starts_with(http.request.uri.path, "<path minus *>")`, joined with `or` in declaration order. `/*` is accepted and compiles to `starts_with(path, "/")` — a degenerate wildcard matching every path. `public_paths` names what is **open**; a wildcard one segment too wide silently reopens the tree. An internal worker (no `url`) cannot be gated by a zone rule at all.

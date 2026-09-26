@@ -57,17 +57,17 @@ All publishable packages use **tsdown** (no tsup remaining). All run on Node >=2
 - [ ] `engines.node` >= 24
 
 #### NextNode package versions (MANDATORY - check first)
-For every `@nextnode-solutions/*` dep in `package.json`, compare the **installed** version (from `pnpm-lock.yaml` or `node_modules/<pkg>/package.json`) against the **latest** on npm via `npm view <pkg> version`. Flag any mismatch as **outdated**, even if the package.json range (`^1.5.1`) would allow the newer version - what matters is what's actually installed.
+For every `@nextnode-solutions/*` dependency in `package.json`, obtain the **installed** version through `pnpm list <pkg> --depth 0 --json` in the consuming package and compare it with `npm view <pkg> version`. Never open lockfiles or dependency internals. Report version differences and check an intentional compatibility pin before recommending an update; an allowed range alone does not prove the installed version is current.
 
-- [ ] `@nextnode-solutions/standards` - installed version == npm latest
-- [ ] `@nextnode-solutions/logger` - installed version == npm latest
+- [ ] `@nextnode-solutions/standards` - installed version compared with npm latest; deliberate pins recorded
+- [ ] `@nextnode-solutions/logger` - installed version compared with npm latest; deliberate pins recorded
 - [ ] `@nextnode-solutions/infrastructure` - **private, never on npm** (`0.0.0-development`, consumed from the monorepo): skip the npm-latest check; freshness = the monorepo checkout used by CI
-- [ ] `@nextnode-solutions/worker-types` - installed version == npm latest (if used)
-- [ ] Any other `@nextnode-solutions/*` dep - installed version == npm latest
+- [ ] `@nextnode-solutions/worker-types` - installed version compared with npm latest (if used)
+- [ ] Any other `@nextnode-solutions/*` dependency - installed version compared with npm latest
 
 **Why**: Outdated installs = CI failures that don't reproduce locally.
 
-**How to resolve**: `pnpm update <pkg>` (or `pnpm update @nextnode-solutions/*` for all).
+**How to resolve a confirmed unwanted difference**: update the affected package with `pnpm update <pkg>` after checking its compatibility and the repo's release policy; do not upgrade all packages merely because a newer version exists.
 
 #### Standards / Testing / Commits / Publishing
 For the detailed setup of `@nextnode-solutions/standards` (oxlint, oxfmt incl. import sorting, TypeScript, vitest, commitlint, lint-staged, semantic-release configs and their required scripts), see the skill `nextnode-standards` "Complete project setup checklist". Audit ALL items from that checklist as part of compliance.

@@ -96,10 +96,12 @@ export default {
 ## SSR / API Gateway Pattern
 
 ```typescript
-// Frontend (edge) - auth/routing close to user
+// Frontend (edge) - auth/routing close to user.
+// Supply verifySession from the app's actual signed-session or JWT verifier.
+// The example fails closed until that verifier is implemented.
 export default {
   async fetch(request: Request, env: Env) {
-    if (!request.headers.get('Authorization')) {
+    if (!(await verifySession(request, env))) {
       return new Response('Unauthorized', { status: 401 });
     }
     const data = await env.BACKEND.fetch(request);
