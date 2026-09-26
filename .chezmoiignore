@@ -1,4 +1,5 @@
 # Pi: volatile state and secrets - never version
+.pi/generated
 .pi/agent/auth.json
 .pi/agent/sessions
 .pi/agent/models-store.json
