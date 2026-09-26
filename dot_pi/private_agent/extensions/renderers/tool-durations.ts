@@ -1,7 +1,7 @@
 /** Measured durations survive reload while their result content remains in memory.
  * Pi replays new result wrappers around the same content array. Weak keys avoid
  * retaining session history; call IDs distinguish tools that share content. */
-import { reflectMember } from '../ui/pi-members.ts'
+import { reflectMember } from '#lib/ui/pi-members.ts'
 
 const HISTORY = Symbol.for('pi.renderers.tool-durations.v1')
 const previous: unknown = Reflect.get(globalThis, HISTORY)

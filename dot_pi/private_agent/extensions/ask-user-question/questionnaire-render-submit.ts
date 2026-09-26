@@ -1,7 +1,7 @@
-import { DETAIL_INDENT, INSET } from '../ui/align.ts'
-import { uiTheme as theme } from '../ui/design-system/theme.ts'
-import { GLYPH, selectionMarker } from '../ui/selection-marker.ts'
-import { pushWrapped } from '../ui/terminal-text.ts'
+import { DETAIL_INDENT, INSET } from '#lib/ui/align.ts'
+import { uiTheme as theme } from '#lib/ui/design-system/theme.ts'
+import { GLYPH, selectionMarker } from '#lib/ui/selection-marker.ts'
+import { pushWrapped } from '#lib/ui/terminal-text.ts'
 
 import type { Answer } from './questionnaire-model.ts'
 import type { QuestionnaireCanvas } from './questionnaire-render-primitives.ts'
@@ -92,8 +92,8 @@ function navigationHint(
 		return '←→ navigate'
 	}
 	return state.canNavigateTabsFromInputEdges()
-			? 'tab or ←→ at input edges'
-			: 'tab navigate'
+		? 'tab or ←→ at input edges'
+		: 'tab navigate'
 }
 
 function interactionHint(state: QuestionnaireCanvas['state']): string {

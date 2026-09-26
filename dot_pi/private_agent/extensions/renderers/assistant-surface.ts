@@ -2,12 +2,12 @@
 import { getMarkdownTheme } from '@earendil-works/pi-coding-agent'
 import { Container, MouseRegion, Spacer, Text } from '@earendil-works/pi-tui'
 
-import { ActivityNotice } from '../ui/activity-notice.ts'
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { patchPiComponent } from '../ui/pi-component-patch.ts'
-import { invokePiMethod, reflectMember } from '../ui/pi-members.ts'
-import { ResponseDivider } from '../ui/response-divider.ts'
-import { ResponseMarkdown } from '../ui/response-markdown.ts'
+import { ActivityNotice } from '#lib/ui/activity-notice.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { patchPiComponent } from '#lib/ui/pi-component-patch.ts'
+import { invokePiMethod, reflectMember } from '#lib/ui/pi-members.ts'
+import { ResponseDivider } from '#lib/ui/response-divider.ts'
+import { ResponseMarkdown } from '#lib/ui/response-markdown.ts'
 
 import { readResponseMessage } from './response-message.ts'
 
@@ -17,7 +17,7 @@ import type {
 	MarkdownOptions,
 	MarkdownTheme,
 } from '@earendil-works/pi-tui'
-import type { ResponseEmphasis } from '../ui/response-divider.ts'
+import type { ResponseEmphasis } from '#lib/ui/response-divider.ts'
 import type { ResponseMessage, ResponseSection } from './response-message.ts'
 
 type TransformContext = Parameters<MarkdownTransformer>[1]

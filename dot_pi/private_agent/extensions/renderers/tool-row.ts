@@ -1,9 +1,9 @@
 /** One row's presentation lifecycle. Pi owns execution and expansion; this object owns only timing and details. */
 import { Container } from '@earendil-works/pi-tui'
 
-import { renderActivityLine } from '../ui/activity-line.ts'
-import { renderPiComponent } from '../ui/pi-members.ts'
-import { ToolPanel } from '../ui/tool-panel.ts'
+import { renderActivityLine } from '#lib/ui/activity-line.ts'
+import { renderPiComponent } from '#lib/ui/pi-members.ts'
+import { ToolPanel } from '#lib/ui/tool-panel.ts'
 
 import { ToolChanges } from './tool-changes.ts'
 import { ToolDetails } from './tool-details.ts'
@@ -15,8 +15,8 @@ import { outputWarning, presentTool } from './tool-presentation.ts'
 
 import type { Theme } from '@earendil-works/pi-coding-agent'
 import type { Component } from '@earendil-works/pi-tui'
-import type { ActivityClock } from '../ui/activity-clock.ts'
-import type { ActivityLine } from '../ui/activity-line.ts'
+import type { ActivityClock } from '#lib/ui/activity-clock.ts'
+import type { ActivityLine } from '#lib/ui/activity-line.ts'
 import type { RenderContext } from './tool-details.ts'
 import type { ToolOutput } from './tool-payload.ts'
 import type { ToolPresentation } from './tool-presentation.ts'

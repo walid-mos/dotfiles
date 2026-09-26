@@ -3,11 +3,11 @@ import { stripVTControlCharacters } from 'node:util'
 
 import { Text } from '@earendil-works/pi-tui'
 
-import { ActivityDetails } from '../ui/activity-details.ts'
-import { renderActivityLine } from '../ui/activity-line.ts'
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { patchPiComponent } from '../ui/pi-component-patch.ts'
-import { invokePiMethod, reflectMember } from '../ui/pi-members.ts'
+import { ActivityDetails } from '#lib/ui/activity-details.ts'
+import { renderActivityLine } from '#lib/ui/activity-line.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { patchPiComponent } from '#lib/ui/pi-component-patch.ts'
+import { invokePiMethod, reflectMember } from '#lib/ui/pi-members.ts'
 
 import { payloadNumber, payloadText } from './tool-payload.ts'
 

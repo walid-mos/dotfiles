@@ -1,20 +1,20 @@
 /** Pending preview and answer replay: domain content over shared UI primitives. */
-import { renderAttachmentStrip } from '../attachments/attachment-strip.ts'
+import { renderAttachmentStrip } from '#lib/attachments/attachment-strip.ts'
 import {
 	toPromptCapture,
 	snapshotPreviews,
-} from '../attachments/transcript-entry.ts'
-import { DETAIL_INDENT, INSET } from '../ui/align.ts'
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { blockTitle, framedBlock, frameContentWidth } from '../ui/frame.ts'
-import { GLYPH, selectionMarker } from '../ui/selection-marker.ts'
-import { pushWrapped } from '../ui/terminal-text.ts'
+} from '#lib/attachments/transcript-entry.ts'
+import { DETAIL_INDENT, INSET } from '#lib/ui/align.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { blockTitle, framedBlock, frameContentWidth } from '#lib/ui/frame.ts'
+import { GLYPH, selectionMarker } from '#lib/ui/selection-marker.ts'
+import { pushWrapped } from '#lib/ui/terminal-text.ts'
 
 import { previewLabels } from './questionnaire-transcript-args.ts'
 
 import type { Theme } from '@earendil-works/pi-coding-agent'
-import type { TranscriptCapture } from '../attachments/transcript-entry.ts'
-import type { LineSink } from '../ui/terminal-text.ts'
+import type { TranscriptCapture } from '#lib/attachments/transcript-entry.ts'
+import type { LineSink } from '#lib/ui/terminal-text.ts'
 import type { Answer, AskResult, Question } from './questionnaire-model.ts'
 
 function sectionHead(question: Question, width: number, sink: LineSink): void {

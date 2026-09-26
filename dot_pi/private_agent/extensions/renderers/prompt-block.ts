@@ -1,12 +1,15 @@
 /** Literal submitted prompts inside the shared house frame, without Markdown interpretation. */
-import { blendHex, foregroundHex } from '../ui/design-system/terminal-color.ts'
-import { UI_COLOR, uiTheme } from '../ui/design-system/theme.ts'
-import { blockTitle, framedBlock, frameContentWidth } from '../ui/frame.ts'
-import { colorizeRailLine } from '../ui/relay-line.ts'
-import { columnWidth, wrapTerminalLine } from '../ui/terminal-text.ts'
+import {
+	blendHex,
+	foregroundHex,
+} from '#lib/ui/design-system/terminal-color.ts'
+import { UI_COLOR, uiTheme } from '#lib/ui/design-system/theme.ts'
+import { blockTitle, framedBlock, frameContentWidth } from '#lib/ui/frame.ts'
+import { colorizeRailLine } from '#lib/ui/relay-line.ts'
+import { columnWidth, wrapTerminalLine } from '#lib/ui/terminal-text.ts'
 
 import type { Component } from '@earendil-works/pi-tui'
-import type { PromptAttachment } from '../ui/prompt-attachment.ts'
+import type { PromptAttachment } from '#lib/ui/prompt-attachment.ts'
 
 const MIN_CONTENT_COLUMNS = 2
 const MIN_ORNAMENT_COLUMNS = 24

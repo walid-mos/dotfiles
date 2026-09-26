@@ -1,7 +1,7 @@
 import {
 	createDefaultEditor,
 	registerEditorDecorator,
-} from '../ui/editor-decorator.ts'
+} from '#lib/ui/editor-decorator.ts'
 
 import { installInlineSkillTrigger } from './editor-trigger.ts'
 import {
