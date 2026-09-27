@@ -9,7 +9,7 @@
  * reasoning model inherits whatever level drives it.
  */
 
-import { uiTheme } from '../ui/design-system/theme.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
 
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { CatalogRow } from './model-catalog.ts'

@@ -17,7 +17,7 @@
  * cannot prove. The request carries no credentials.
  */
 
-import { readBoundedText } from '../http/bounded-response.ts'
+import { readBoundedText } from '#lib/http/bounded-response.ts'
 
 import { parseModelReference } from './chain.ts'
 
@@ -70,7 +70,7 @@ export interface OpenRouterPricingSource {
 /**
  * JSON-value narrowing for the payload this module reads. The rule's own docs
  * sanction exactly this: one canonical low-level guard at a JSON boundary
- * (`extensions/footer/json.ts` declares the footer's own copy).
+ * (`extensions/hud-footer/json.ts` declares the hud-footer's own copy).
  */
 // oxlint-disable-next-line nextnode/no-generic-runtime-guard - sanctioned JSON boundary guard
 function isRecord(candidate: unknown): candidate is Record<string, unknown> {

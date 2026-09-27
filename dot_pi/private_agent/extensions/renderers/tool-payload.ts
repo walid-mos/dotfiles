@@ -1,7 +1,7 @@
 /** Decode untrusted streamed/replayed tool payloads once at the presentation boundary. */
 import { stripVTControlCharacters } from 'node:util'
 
-import { reflectMember } from '../ui/pi-members.ts'
+import { reflectMember } from '#lib/ui/pi-members.ts'
 
 export function payloadText(host: unknown, key: string): string {
 	const field = reflectMember(host, key)
@@ -43,7 +43,8 @@ export function toolOutput(toolResult: unknown): ToolOutput | undefined {
 }
 
 export function outputLineCount(text: string): number {
-	return text.trimEnd() ? text.trimEnd().split('\n').length : 0
+	const trimmed = text.trimEnd()
+	return trimmed ? trimmed.split('\n').length : 0
 }
 
 const COUNT_UNITS = { line: 'l', image: 'img', file: 'f' } as const

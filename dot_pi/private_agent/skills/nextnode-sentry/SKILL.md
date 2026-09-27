@@ -9,7 +9,7 @@ One request ("intègre Sentry ici") = one full run of this checklist in the cwd'
 repo. Execute it top to bottom without asking for scope; every step auto-detects its
 inputs and picks a defensible default. Ask a question only on a real blocker (no
 `SENTRY_AUTH_TOKEN`, no git remote, Sentry API unreachable), via `ask_user_question`.
-Declare a `goal` checklist mirroring steps 0–6 before starting; tick each with evidence.
+Execute steps 0–6 in order and close each with its evidence before moving on.
 
 ## Facts (do not re-derive)
 

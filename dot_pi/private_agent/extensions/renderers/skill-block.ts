@@ -3,15 +3,15 @@
  * and casts the light: the rose is painted per column under the text and per row,
  * easing monotonically to the background on both axes, so the band has no flat
  * block, no seam and no hard end. Static paint: no timer, no IO. */
-import { backgroundHex } from '../ui/design-system/terminal-color.ts'
-import { skillBandHex, uiTheme } from '../ui/design-system/theme.ts'
-import { ResponseMarkdown } from '../ui/response-markdown.ts'
+import { backgroundHex } from '#lib/ui/design-system/terminal-color.ts'
+import { skillBandHex, uiTheme } from '#lib/ui/design-system/theme.ts'
+import { ResponseMarkdown } from '#lib/ui/response-markdown.ts'
 import {
 	columnWidth,
 	sliceTerminalColumns,
 	terminalLineWidth,
 	wrapTerminalLine,
-} from '../ui/terminal-text.ts'
+} from '#lib/ui/terminal-text.ts'
 
 import type { Component, MarkdownTheme } from '@earendil-works/pi-tui'
 

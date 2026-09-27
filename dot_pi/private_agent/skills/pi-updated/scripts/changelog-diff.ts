@@ -8,7 +8,7 @@ import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
-import { AUDITED_PI_VERSION } from '../../../extensions/ui/pi-runtime.ts'
+import { AUDITED_PI_VERSION } from '#lib/ui/pi-runtime.ts'
 
 const PACKAGE_NAME = '@earendil-works/pi-coding-agent'
 

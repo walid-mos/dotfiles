@@ -1,5 +1,5 @@
 /** Pi mouse coordinates: a click toggles either view; drag/release are not clicks. */
-import { invokePiMethod, reflectMember } from '../ui/pi-members.ts'
+import { invokePiMethod, reflectMember } from '#lib/ui/pi-members.ts'
 
 import { payloadNumber, payloadText } from './tool-payload.ts'
 

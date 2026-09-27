@@ -6,8 +6,11 @@
  * one shape and one height at any width.
  */
 
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { terminalLineWidth, truncateTerminalLine } from '../ui/terminal-text.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import {
+	terminalLineWidth,
+	truncateTerminalLine,
+} from '#lib/ui/terminal-text.ts'
 
 import type { Input } from '@earendil-works/pi-tui'
 import type { PickerLine } from './model-picker-view.ts'

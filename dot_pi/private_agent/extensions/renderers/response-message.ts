@@ -1,7 +1,7 @@
 /** Decode Pi's response blocks into display-only sections; never infer finality from prose. */
-import { reflectMember } from '../ui/pi-members.ts'
+import { reflectMember } from '#lib/ui/pi-members.ts'
 
-import type { ResponseEmphasis } from '../ui/response-divider.ts'
+import type { ResponseEmphasis } from '#lib/ui/response-divider.ts'
 
 export interface ResponseSection {
 	kind: ResponseEmphasis | 'thinking'
@@ -64,7 +64,9 @@ function sectionsOf(
 			block,
 			type === 'text' ? 'text' : 'thinking',
 		)
-		if (typeof source !== 'string' || !source.trim()) continue
+		if (typeof source !== 'string') continue
+		const text = source.trim()
+		if (!text) continue
 		const kind =
 			disposition.isInterrupted && type === 'text'
 				? 'intermediate'
@@ -74,8 +76,8 @@ function sectionsOf(
 			previous?.kind === kind &&
 			(kind !== 'thinking' || !hasThinkingBoundary)
 		)
-			previous.text += `\n\n${source.trim()}`
-		else sections.push({ kind, text: source.trim() })
+			previous.text += `\n\n${text}`
+		else sections.push({ kind, text })
 		hasThinkingBoundary = kind !== 'thinking'
 	}
 	return sections
@@ -99,8 +101,7 @@ function responseNotice(
 			text: `Error: ${description || 'Unknown error'}`,
 			tone: 'danger',
 		}
-	if (!(reason === 'aborted'))
-		return undefined
+	if (!(reason === 'aborted')) return undefined
 	return { text: description || 'Response interrupted.', tone: 'warning' }
 }
 

@@ -7,9 +7,9 @@
  * wrapped, so the panel holds one shape at any width. Nothing here touches IO.
  */
 
-import { UI_COLOR, uiTheme } from '../ui/design-system/theme.ts'
-import { GLYPH } from '../ui/selection-marker.ts'
-import { truncateTerminalLine } from '../ui/terminal-text.ts'
+import { UI_COLOR, uiTheme } from '#lib/ui/design-system/theme.ts'
+import { GLYPH } from '#lib/ui/selection-marker.ts'
+import { truncateTerminalLine } from '#lib/ui/terminal-text.ts'
 
 import { dividerLine } from './model-picker-groups.ts'
 import {

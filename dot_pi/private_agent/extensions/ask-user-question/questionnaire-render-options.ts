@@ -1,8 +1,8 @@
-import { DETAIL_INDENT, INSET } from '../ui/align.ts'
-import { uiTheme as theme } from '../ui/design-system/theme.ts'
-import { highlightRow } from '../ui/frame.ts'
-import { GLYPH, selectionMarker } from '../ui/selection-marker.ts'
-import { pushWrapped } from '../ui/terminal-text.ts'
+import { DETAIL_INDENT, INSET } from '#lib/ui/align.ts'
+import { uiTheme as theme } from '#lib/ui/design-system/theme.ts'
+import { highlightRow } from '#lib/ui/frame.ts'
+import { GLYPH, selectionMarker } from '#lib/ui/selection-marker.ts'
+import { pushWrapped } from '#lib/ui/terminal-text.ts'
 
 import {
 	renderOpenEndedEditor as renderOpenEnded,

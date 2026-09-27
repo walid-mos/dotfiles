@@ -1,6 +1,6 @@
 /** Download media bytes from tweet-related CDN hosts; everything else is blocked. */
 
-import { readBoundedBytes } from '../http/bounded-response.ts'
+import { readBoundedBytes } from '#lib/http/bounded-response.ts'
 
 export type MediaBytesResult =
 	| {
@@ -139,9 +139,9 @@ function redirectTarget(
 			return nextUrl
 		}
 		return {
-				error: `blocked redirect host ${nextUrl.hostname}`,
-				isSuccess: false,
-			}
+			error: `blocked redirect host ${nextUrl.hostname}`,
+			isSuccess: false,
+		}
 	} catch {
 		return { error: 'invalid redirect URL', isSuccess: false }
 	}
