@@ -1,5 +1,5 @@
 /** Row-local execution timing. Replay has no fabricated duration; settled clocks never restart. */
-import type { ActivityPhase } from '../ui/activity-line.ts'
+import type { ActivityPhase } from '#lib/ui/activity-line.ts'
 
 export interface ToolProgress {
 	isStarted: boolean

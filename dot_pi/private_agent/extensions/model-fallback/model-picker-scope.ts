@@ -14,8 +14,8 @@
  * claims the running session changed.
  */
 
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { highlightRow } from '../ui/frame.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { highlightRow } from '#lib/ui/frame.ts'
 
 import { groupWindow, groupedRows } from './model-picker-groups.ts'
 import { INDENT, cursorMarker, line, twoColumn } from './model-picker-line.ts'
@@ -91,10 +91,7 @@ function sessionMeta(entry: ScopeEntry, pattern: string | undefined): string {
 	const level = entry.level ?? 'inherit'
 	if (!pattern)
 		return uiTheme.fg('dim', `not in ${CTRL_P_LIST} \u00b7 ${level}`)
-	return uiTheme.fg(
-			'dim',
-			`in ${CTRL_P_LIST} via ${pattern} \u00b7 ${level}`,
-		)
+	return uiTheme.fg('dim', `in ${CTRL_P_LIST} via ${pattern} \u00b7 ${level}`)
 }
 
 function scopeRowText(input: {

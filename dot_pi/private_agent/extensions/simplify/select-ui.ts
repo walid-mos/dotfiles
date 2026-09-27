@@ -8,9 +8,9 @@
 
 import { Key, matchesKey } from '@earendil-works/pi-tui'
 
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { blockTitle, frameContentWidth, framedBlock } from '../ui/frame.ts'
-import { columnWidth } from '../ui/terminal-text.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { blockTitle, frameContentWidth, framedBlock } from '#lib/ui/frame.ts'
+import { columnWidth } from '#lib/ui/terminal-text.ts'
 
 import {
 	bodyBudget,

@@ -7,7 +7,7 @@
 
 import { Type } from 'typebox'
 
-import { CaptureRecordSchema } from '../attachments/capture-record.ts'
+import { CaptureRecordSchema } from '#lib/attachments/capture-record.ts'
 
 // ── LLM tool input (validated by pi before the tool runs) ──────────────
 

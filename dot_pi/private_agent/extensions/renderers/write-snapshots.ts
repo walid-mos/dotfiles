@@ -5,7 +5,7 @@ import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { buffer as readBuffer } from 'node:stream/consumers'
 
-import { reflectMember } from '../ui/pi-members.ts'
+import { reflectMember } from '#lib/ui/pi-members.ts'
 
 import {
 	comparedChangeDocument,
@@ -15,10 +15,9 @@ import {
 import { payloadText } from './tool-payload.ts'
 
 import type { FileHandle } from 'node:fs/promises'
-import type { ChangeDocument } from '../ui/change-block.ts'
+import type { ChangeDocument } from '#lib/ui/change-block.ts'
 
 type BeforeImage = { kind: 'known'; content: string } | { kind: 'unavailable' }
-type ReadBefore = (path: string, cwd: string) => Promise<BeforeImage>
 interface PendingWrite {
 	input: unknown
 	path: string
@@ -94,12 +93,7 @@ async function readBoundedText(file: FileHandle): Promise<BeforeImage> {
 
 export class WriteSnapshots {
 	private readonly pending = new Map<string, PendingWrite>()
-	private readonly read: ReadBefore
 	private generation = 0
-
-	constructor(read: ReadBefore = readBefore) {
-		this.read = read
-	}
 
 	async capture(
 		toolCallId: string,
@@ -116,7 +110,7 @@ export class WriteSnapshots {
 		)
 			return
 		const { generation } = this
-		const before = await this.read(path, cwd)
+		const before = await readBefore(path, cwd)
 		if (generation === this.generation)
 			this.pending.set(toolCallId, { input, path, content, before })
 	}

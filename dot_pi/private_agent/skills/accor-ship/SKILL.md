@@ -1,6 +1,6 @@
 ---
 name: accor-ship
-argument-hint: "<feature description> [ticket ref] [--base <ref>] [--no-worktree] [--max-files <n>] [--max-lines <n>] [--no-stack] [--stop-before-pr] [--dry-run]"
+argument-hint: "<feature description> [ticket ref] [--base <ref>] [--max-files <n>] [--max-lines <n>] [--no-stack] [--stop-before-pr] [--dry-run]"
 description: >-
     Deliver a Menu Compliance feature (front @astore/menu-compliance + API
     @astore/api) in the Accor monorepo product-data-apps as a stack of readable

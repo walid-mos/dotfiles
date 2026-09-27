@@ -9,8 +9,8 @@
  * mounts them. Shared activity layout, response dividers/Markdown and clocks live in ui/.
  * No tool registrations or execution wrappers: current, late-loaded and replayed tools
  * all cross the same display adapter. DESIGN.md records scope and upgrade checks. */
-import { detectPiDrift, loadPiRuntime } from '../ui/pi-runtime.ts'
-import { showRendererDrift } from '../ui/renderer-drift.ts'
+import { detectPiDrift, loadPiRuntime } from '#lib/ui/pi-runtime.ts'
+import { showRendererDrift } from '#lib/ui/renderer-drift.ts'
 
 import { installRenderers } from './install-renderers.ts'
 import { installPromptSurfaces } from './prompt-surfaces.ts'

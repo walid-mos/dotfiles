@@ -1,7 +1,7 @@
 /** Live questionnaire content inside the shared house frame. */
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { blockTitle, framedBlock, frameContentWidth } from '../ui/frame.ts'
-import { GLYPH } from '../ui/selection-marker.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { blockTitle, framedBlock, frameContentWidth } from '#lib/ui/frame.ts'
+import { GLYPH } from '#lib/ui/selection-marker.ts'
 
 import {
 	renderQuestionBody,
@@ -56,6 +56,8 @@ function footerLabel(state: QuestionnaireState): string {
 	if (!(state.isOnSubmitTab() && state.allAnswered())) {
 		return uiTheme.fg('dim', helpText(state))
 	}
-	return uiTheme.fg('success', `${GLYPH.enter} submit`) +
-			uiTheme.fg('dim', '  ·  esc cancel')
+	return (
+		uiTheme.fg('success', `${GLYPH.enter} submit`) +
+		uiTheme.fg('dim', '  ·  esc cancel')
+	)
 }

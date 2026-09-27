@@ -1,6 +1,6 @@
 /** Pi user-content boundary. Leave native prompt zones and transcript selection intact. */
-import { patchPiComponent } from '../ui/pi-component-patch.ts'
-import { invokePiMethod, reflectMember } from '../ui/pi-members.ts'
+import { patchPiComponent } from '#lib/ui/pi-component-patch.ts'
+import { invokePiMethod, reflectMember } from '#lib/ui/pi-members.ts'
 
 import { PromptBlock } from './prompt-block.ts'
 

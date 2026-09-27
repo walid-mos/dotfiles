@@ -4,7 +4,8 @@ import { singleLine } from './tool-payload.ts'
 import type { ToolOutput } from './tool-payload.ts'
 
 function terminalStatus(output: ToolOutput): string {
-	return singleLine(output.text.trimEnd().split('\n').at(-1) ?? '')
+	const text = output.text.trimEnd()
+	return singleLine(text.slice(text.lastIndexOf('\n') + 1))
 }
 
 export function isCancelledOutput(output: ToolOutput | undefined): boolean {

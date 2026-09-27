@@ -3,14 +3,14 @@
  * result/image conversion stay untouched. This is the sole owner of tool mouse geometry. */
 import { Container } from '@earendil-works/pi-tui'
 
-import { closeActivityRail } from '../ui/activity-line.ts'
-import { patchPiComponent } from '../ui/pi-component-patch.ts'
+import { closeActivityRail } from '#lib/ui/activity-line.ts'
+import { patchPiComponent } from '#lib/ui/pi-component-patch.ts'
 import {
 	invokePiMethod,
 	reflectMember,
 	renderPiComponent,
 	typedHost,
-} from '../ui/pi-members.ts'
+} from '#lib/ui/pi-members.ts'
 
 import { readResponseMessage } from './response-message.ts'
 import { toolMouseSurface } from './tool-mouse-surface.ts'
@@ -18,7 +18,7 @@ import { payloadText } from './tool-payload.ts'
 import { ToolRow } from './tool-row.ts'
 
 import type { Theme } from '@earendil-works/pi-coding-agent'
-import type { ActivityClock } from '../ui/activity-clock.ts'
+import type { ActivityClock } from '#lib/ui/activity-clock.ts'
 import type { RenderContext } from './tool-details.ts'
 
 const NATIVE_DEFINITION = Symbol.for('pi.renderers.native-definition')

@@ -9,8 +9,8 @@
  * terminal drops them before it drops the row under the cursor.
  */
 
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { terminalLineWidth } from '../ui/terminal-text.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { terminalLineWidth } from '#lib/ui/terminal-text.ts'
 
 import { INDENT, line } from './model-picker-line.ts'
 

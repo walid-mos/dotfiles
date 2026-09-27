@@ -3,9 +3,9 @@ import { stripVTControlCharacters } from 'node:util'
 
 import { Container, isFocusable, Text } from '@earendil-works/pi-tui'
 
-import { ActivityDetails } from '../ui/activity-details.ts'
-import { uiTheme } from '../ui/design-system/theme.ts'
-import { reflectMember, renderPiComponent } from '../ui/pi-members.ts'
+import { ActivityDetails } from '#lib/ui/activity-details.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
+import { reflectMember, renderPiComponent } from '#lib/ui/pi-members.ts'
 
 import { payloadText } from './tool-payload.ts'
 

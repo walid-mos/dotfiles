@@ -14,7 +14,7 @@
 import {
 	createDefaultEditor,
 	registerEditorDecorator,
-} from '../ui/editor-decorator.ts'
+} from '#lib/ui/editor-decorator.ts'
 
 import { attachDoubleEscapeClear } from './escape-editor.ts'
 

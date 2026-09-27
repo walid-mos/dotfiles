@@ -8,8 +8,11 @@
  * by hand instead of guessed. Nothing here touches IO.
  */
 
-import { blendHex, foregroundHex } from '../ui/design-system/terminal-color.ts'
-import { UI_COLOR } from '../ui/design-system/theme.ts'
+import {
+	blendHex,
+	foregroundHex,
+} from '#lib/ui/design-system/terminal-color.ts'
+import { UI_COLOR } from '#lib/ui/design-system/theme.ts'
 
 import { PRICE_UNIT } from './model-price.ts'
 

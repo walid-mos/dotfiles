@@ -7,7 +7,7 @@
 
 import { Editor } from '@earendil-works/pi-tui'
 
-import { uiTheme } from '../ui/design-system/theme.ts'
+import { uiTheme } from '#lib/ui/design-system/theme.ts'
 
 import { answerReferenceTexts } from './questionnaire-captures.ts'
 import { QuestionnaireInputController } from './questionnaire-input.ts'
@@ -21,7 +21,7 @@ import type {
 	Focusable,
 	TUI,
 } from '@earendil-works/pi-tui'
-import type { UiTheme } from '../ui/design-system/theme.ts'
+import type { UiTheme } from '#lib/ui/design-system/theme.ts'
 import type { QuestionnaireCaptures } from './questionnaire-captures.ts'
 import type { SelectionKeybindings } from './questionnaire-input.ts'
 import type {

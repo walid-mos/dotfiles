@@ -9,11 +9,11 @@ import { readdirSync, readFileSync, realpathSync, existsSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
-import { typedHost } from '../../../extensions/ui/pi-members.ts'
+import { typedHost } from '#lib/ui/pi-members.ts'
 
 const AGENT_ROOT = process.cwd()
 const ADAPTER_DIRS = [
-	'extensions/ui',
+	'extensions/lib/ui',
 	'extensions/renderers',
 	'extensions/raw-transcript',
 ]

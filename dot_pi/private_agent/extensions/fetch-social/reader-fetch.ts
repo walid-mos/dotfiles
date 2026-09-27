@@ -2,7 +2,7 @@
 
 import process from 'node:process'
 
-import { readBoundedText } from '../http/bounded-response.ts'
+import { readBoundedText } from '#lib/http/bounded-response.ts'
 
 import { rewriteSocialPageUrl } from './social-url.ts'
 

@@ -1,8 +1,8 @@
 /** Route a bare /simplify target: literal file areas stay deterministic; requests need an agent. */
 
-import { askChoice, isJevConfigured } from '../jev/client.ts'
+import { askChoice, isJevConfigured } from '#lib/jev/client.ts'
 
-import type { ChoiceQuestion } from '../jev/client.ts'
+import type { ChoiceQuestion } from '#lib/jev/client.ts'
 
 const ROUTING_TIMEOUT_MS = 4_000
 const SIMPLE_CONFIDENCE = 0.65

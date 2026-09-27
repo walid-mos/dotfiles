@@ -1,18 +1,18 @@
 /** Pi 0.85.1 entry boundary: move owned attachment entries into their preceding prompt. */
-import { patchPiComponent } from '../ui/pi-component-patch.ts'
+import { patchPiComponent } from '#lib/ui/pi-component-patch.ts'
 import {
 	invokePiMethod,
 	reflectMember,
 	renderPiComponent,
-} from '../ui/pi-members.ts'
+} from '#lib/ui/pi-members.ts'
 import {
 	isPromptAttachment,
 	PROMPT_ATTACHMENT,
-} from '../ui/prompt-attachment.ts'
+} from '#lib/ui/prompt-attachment.ts'
 
 import { PromptBlock } from './prompt-block.ts'
 
-import type { PromptAttachment } from '../ui/prompt-attachment.ts'
+import type { PromptAttachment } from '#lib/ui/prompt-attachment.ts'
 
 const ENTRY_SPACING_ROWS = 1
 

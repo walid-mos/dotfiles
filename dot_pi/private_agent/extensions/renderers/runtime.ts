@@ -1,6 +1,6 @@
 /** Select transcript classes from the shared runtime resolver. */
-import { reflectMember } from '../ui/pi-members.ts'
-import { loadPiRuntime } from '../ui/pi-runtime.ts'
+import { reflectMember } from '#lib/ui/pi-members.ts'
+import { loadPiRuntime } from '#lib/ui/pi-runtime.ts'
 
 export interface RawTranscriptRuntime {
 	userMessage: unknown
