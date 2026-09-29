@@ -1,0 +1,13 @@
+#!/bin/sh
+# open — machine-wide `open` rule, resolved via PATH by every zsh session
+# (.zshenv prepends this dir). Also the target of the delegating pi bin shim.
+# Forward `open` to the MacBook over SSH (`ssh macbook-pro`) when the session
+# runs remotely (`SSH_CONNECTION` set); local `/usr/bin/open` otherwise. Paths
+# name files as they exist on the MacBook (mirrored Desktop works today);
+# cloud-resident paths would need a serve-URL branch here later.
+if [ -n "$SSH_CONNECTION" ]; then
+	args=
+	[ "$#" -gt 0 ] && args=$(printf ' %q' "$@")
+	exec ssh macbook-pro "exec open$args"
+fi
+exec /usr/bin/open "$@"
