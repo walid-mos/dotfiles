@@ -1,8 +1,0 @@
-# open — routed `open`: over SSH it must land on the MacBook, not this machine.
-#
-# One rule, two callers: pi tool sessions exec the shim directly (pi prepends
-# ~/.pi/agent/bin in PATH); interactive shells reach the same shim through this
-# autoloaded function. Without SSH_CONNECTION the shim execs /usr/bin/open.
-open() {
-	"$HOME/.pi/agent/bin/open" "$@"
-}
