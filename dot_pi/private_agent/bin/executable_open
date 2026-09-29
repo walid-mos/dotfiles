@@ -1,7 +1,5 @@
 #!/bin/sh
-# Forward `open` to the MacBook when running over SSH; local open otherwise.
-if [ -n "$SSH_CONNECTION" ]; then
-  args=$(printf ' %q' "$@")
-  exec ssh macbook-pro "exec open$args"
-fi
-exec /usr/bin/open "$@"
+# Thin delegate to the machine-wide rule in ~/.config/shims/open; pi prepends
+# this dir first in PATH for the tools it spawns, so it keeps tool-session
+# coverage independent of how pi's parent shell assembled PATH.
+exec "$HOME/.config/shims/open" "$@"

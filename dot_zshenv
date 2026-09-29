@@ -18,6 +18,15 @@ export TURBO_TELEMETRY_DISABLED=1
 # same VM through the ~/.colima symlink, and COLIMA_HOME silences the legacy-root warnings.
 export COLIMA_HOME="$XDG_CONFIG_HOME/colima"
 
+# `open` routing shim - PREPENDED: every zsh session (interactive or not) must
+# resolve `open` to the SSH-aware rule in ~/.config/shims. Curated dir (only
+# files we manage), unlike ~/.local/bin below - installers can never pollute
+# it, which is what the never-prepend rule protects against.
+case ":$PATH:" in
+  *":$HOME/.config/shims:"*) ;;
+  *) export PATH="$HOME/.config/shims:$PATH" ;;
+esac
+
 # User-local binaries (herdr, cua-driver, ...) - APPENDED, never prepended.
 # Installers (Hermes Agent, cua) drop shims here (node, npm, npx, hermes) that
 # would otherwise shadow the real toolchain (pnpm's node, brew's hermes).
@@ -41,3 +50,11 @@ fpath=("$HOME/.config/zsh/functions" $fpath)
 # Scaffolding + permissions: bootstrap/configure.sh (configure_zsh_secrets).
 # =============================================================================
 [[ -f "$XDG_CONFIG_HOME/zsh/secrets" ]] && source "$XDG_CONFIG_HOME/zsh/secrets"
+
+# ASCII BOAT SHELL INTEGRATION START boat
+case ":$PATH:" in
+  *":/Users/walid-mos/.ascii/bin:"*) ;;
+  *) PATH="/Users/walid-mos/.ascii/bin:$PATH" ;;
+esac
+export PATH
+# ASCII BOAT SHELL INTEGRATION END boat
