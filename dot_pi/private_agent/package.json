@@ -15,9 +15,9 @@
 		"test": "node --input-type=module -e 'import {globSync} from \"node:fs\"; const n = globSync(\"tests/**/*.test.ts\").length; if (!n) { console.error(\"test: no files matched tests/**/*.test.ts - refusing to report success\"); process.exit(1); }' && node --experimental-transform-types --test 'tests/**/*.test.ts'"
 	},
 	"devDependencies": {
-		"@earendil-works/pi-ai": "0.85.1",
-		"@earendil-works/pi-coding-agent": "0.85.1",
-		"@earendil-works/pi-tui": "0.85.1",
+		"@earendil-works/pi-ai": "0.99.1",
+		"@earendil-works/pi-coding-agent": "0.99.1",
+		"@earendil-works/pi-tui": "0.99.1",
 		"@nextnode-solutions/standards": "^1.24.0",
 		"@types/node": "^24.13.6",
 		"oxfmt": "^0.67.0",
