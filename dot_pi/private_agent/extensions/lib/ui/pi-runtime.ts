@@ -7,7 +7,7 @@ import { reflectMember } from './pi-members.ts'
 
 /** Pi release the display adapters were last audited against (DESIGN.md §10);
  * bumped by the pi-updated skill, never silently. */
-export const AUDITED_PI_VERSION = '0.87.1'
+export const AUDITED_PI_VERSION = '0.99.1'
 const PACKAGE_NAME = '@earendil-works/pi-coding-agent'
 const BUNDLE_ENTRY = 'dist/bundle/index.js'
 
