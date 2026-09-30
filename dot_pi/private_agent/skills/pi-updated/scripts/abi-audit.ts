@@ -104,6 +104,7 @@ function findBundle(): string {
 }
 
 function listSources(directory: string): string[] {
+	if (!existsSync(directory)) return []
 	return readdirSync(directory, { recursive: true, withFileTypes: true })
 		.filter(entry => entry.isFile() && entry.name.endsWith('.ts'))
 		.map(entry => join(entry.parentPath ?? entry.path, entry.name))
