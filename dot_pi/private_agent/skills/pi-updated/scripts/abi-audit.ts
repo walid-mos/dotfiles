@@ -12,11 +12,7 @@ import { pathToFileURL } from 'node:url'
 import { typedHost } from '#lib/ui/pi-members.ts'
 
 const AGENT_ROOT = process.cwd()
-const ADAPTER_DIRS = [
-	'extensions/lib/ui',
-	'extensions/renderers',
-	'extensions/raw-transcript',
-]
+const ADAPTER_DIRS = ['extensions/lib/ui', 'extensions/ui/renderers']
 const PACKAGE_NAME = '@earendil-works/pi-coding-agent'
 const BUNDLE_ENTRY = 'dist/bundle/index.js'
 
