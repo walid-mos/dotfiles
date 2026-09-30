@@ -1,0 +1,13 @@
+# =============================================================================
+# infisical — export the always-needed secrets from Infisical at shell load
+# =============================================================================
+# Sourced by ~/.zshenv for EVERY zsh invocation (interactive and not), so agent
+# hooks and scripts see these exports too. No plaintext here: the universal-auth
+# credentials live in ~/.config/zsh/secrets (values only), this file is logic
+# only. The Infisical project is "core-vault", environment "Main" (slug "main").
+# =============================================================================
+if command -v infisical >/dev/null 2>&1 && [[ -n "$INFISICAL_UNIVERSAL_AUTH_CLIENT_ID" ]]; then
+  eval "$(infisical secrets get \
+    --projectId=ce69a081-6aec-472d-9ee8-edbb7ed2b72e --env=main --path=/ --output dotenv --silent \
+    TYPESAFE_API_KEY LINEAR_API_KEY SENTRY_AUTH_TOKEN OPENROUTER_MANAGEMENT_KEY 2>/dev/null)"
+fi

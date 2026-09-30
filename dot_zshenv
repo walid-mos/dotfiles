@@ -50,6 +50,8 @@ fpath=("$HOME/.config/zsh/functions" $fpath)
 # Scaffolding + permissions: bootstrap/configure.sh (configure_zsh_secrets).
 # =============================================================================
 [[ -f "$XDG_CONFIG_HOME/zsh/secrets" ]] && source "$XDG_CONFIG_HOME/zsh/secrets"
+# Infisical fetch logic, separated from the plaintext-only secrets file.
+[[ -f "$XDG_CONFIG_HOME/zsh/infisical" ]] && source "$XDG_CONFIG_HOME/zsh/infisical"
 
 # ASCII BOAT SHELL INTEGRATION START boat
 case ":$PATH:" in
