@@ -66,6 +66,10 @@ bootstrap/
 .config/zsh/local.zsh
 .config/zsh/secrets
 
+# infisical CLI state (sessions, cache) - never version
+.config/infisical/
+.pi/agent/.infisical.json
+
 # ssh: keys and credentials - never version
 .ssh
 
