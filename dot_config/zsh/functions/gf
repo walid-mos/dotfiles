@@ -1,24 +1,75 @@
 #!/bin/zsh
-# Git fetch with prune and cleanup of gone branches
+# Git fetch with prune and cleanup of branches gone from the remote.
+# A gone branch with a linked worktree is offered removal through that worktree.
 
-# Helper function to delete a branch (returns 2 if worktree detected, 1 if error, 0 if success)
-_delete_branch_with_worktree() {
+# Branch name checked out in the main worktree (first porcelain record).
+_main_wt_branch() {
+    git worktree list --porcelain |
+    awk '/^worktree /{ if (main++) exit } /^branch /{ sub("refs/heads/", "", $2); print $2; exit }'
+}
+
+# Path of the linked worktree holding that branch (empty when none).
+_wt_path_for_branch() {
     local branch="$1"
+    git worktree list --porcelain |
+    awk -v br="refs/heads/$branch" '
+        /^worktree /{ p = substr($0, 10) }
+        /^branch /  { b = $2 }
+        /^$/        { if (b == br) print p; b = "" }
+        END         { if (b == br) print p }
+    '
+}
 
-    # Check if branch has an associated worktree
-    local worktree_info=$(git worktree list --porcelain | grep -A2 "branch refs/heads/$branch")
-    if [ -n "$worktree_info" ]; then
-        # Worktree detected - don't attempt to delete, return special code
+# 0=deleted 1=failed 2=skipped 3=kept (declined, dirty or main worktree)
+_delete_branch() {
+    local branch="$1" wt_path
+    wt_path=$(_wt_path_for_branch "$branch")
+
+    if [ "$branch" = "$(_main_wt_branch)" ]; then
+        echo "Skipping '$branch' (checked out in the main worktree)"
         return 2
     fi
 
-    echo "Deleting branch: $branch"
-    if git branch -D "$branch" 2>/dev/null; then
-        return 0
-    else
+    if [ -z "$wt_path" ]; then
+        if git branch -D "$branch" >/dev/null 2>&1; then
+            echo "Deleted branch: $branch"
+            return 0
+        fi
         echo "Failed to delete branch: $branch"
         return 1
     fi
+
+    echo "Branch '$branch' is checked out in worktree: $wt_path"
+    echo "Removing it also deletes ignored files there (.env, cache dirs, ...)."
+    echo -n "Remove worktree and delete branch? (y/n): "
+    read -r wt_answer
+    case $wt_answer in
+        [Yy]|yes)
+            if [ -n "$(git -C "$wt_path" status --porcelain)" ]; then
+                echo "   '$wt_path' has uncommitted or untracked changes, kept."
+                echo "   Clean it up first, or force with:"
+                echo "   git worktree remove --force $wt_path && git branch -D $branch"
+                return 3
+            fi
+            git worktree remove "$wt_path"
+            if [ $? -ne 0 ]; then
+                echo "   Failed to remove worktree: $wt_path"
+                return 1
+            fi
+            git branch -D "$branch" >/dev/null 2>&1
+            if [ $? -ne 0 ]; then
+                echo "   Worktree removed, branch deletion failed: $branch"
+                return 1
+            fi
+            echo "Removed worktree and deleted branch: $branch"
+            return 0
+            ;;
+        *)
+            echo "   Kept. Manual cleanup later:"
+            echo "     git worktree remove $wt_path && git branch -D $branch"
+            return 3
+            ;;
+    esac
 }
 
 local interactive_mode=false
@@ -34,6 +85,9 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: gf [--interactive|-i]"
             echo "  --interactive, -i    Ask confirmation for each branch individually"
             echo "  --help, -h          Show this help message"
+            echo ""
+            echo "A gone branch still checked out in a worktree: gf offers to remove"
+            echo "the worktree first, then the branch. Ignored files (.env, ...) go too."
             return 0
             ;;
         *)
@@ -64,28 +118,15 @@ echo "Found $branch_count branch(es) to delete:"
 printf "  - %s\n" "${branch_array[@]}"
 echo
 
-# Track branches that are worktrees
-local -a worktree_branches=()
-
 if [ "$interactive_mode" = true ]; then
     # Interactive mode: ask for each branch
-    local skip_all=false
     for branch in "${branch_array[@]}"; do
-        if [ "$skip_all" = true ]; then
-            break
-        fi
-
         while true; do
             echo -n "Delete branch '$branch'? (y/n/a/q): "
             read -r response
             case $response in
                 [Yy]|yes)
-                    _delete_branch_with_worktree "$branch"
-                    local delete_status=$?
-                    if [ $delete_status -eq 2 ]; then
-                        worktree_branches+=("$branch")
-                        echo "Skipping '$branch' (worktree detected)"
-                    fi
+                    _delete_branch "$branch"
                     break
                     ;;
                 [Nn]|no)
@@ -95,18 +136,13 @@ if [ "$interactive_mode" = true ]; then
                 [Aa]|all)
                     echo "Deleting all remaining branches..."
                     for remaining_branch in "${branch_array[@]}"; do
-                        _delete_branch_with_worktree "$remaining_branch"
-                        local delete_status=$?
-                        if [ $delete_status -eq 2 ]; then
-                            worktree_branches+=("$remaining_branch")
-                            echo "Skipping '$remaining_branch' (worktree detected)"
-                        fi
+                        _delete_branch "$remaining_branch"
                     done
-                    break
+                    break 2
                     ;;
                 [Qq]|quit)
                     echo "Cancelled"
-                    break
+                    return 0
                     ;;
                 *)
                     echo "Please answer y(es), n(o), a(ll), or q(uit)"
@@ -126,23 +162,8 @@ else
         *)
             # Default to yes for empty input or 'y'/'yes'
             for branch in "${branch_array[@]}"; do
-                _delete_branch_with_worktree "$branch"
-                local delete_status=$?
-                if [ $delete_status -eq 2 ]; then
-                    worktree_branches+=("$branch")
-                    echo "Skipping '$branch' (worktree detected)"
-                fi
+                _delete_branch "$branch"
             done
             ;;
     esac
-fi
-
-# If worktrees were detected, list them and explain the manual way out
-if [ ${#worktree_branches[@]} -gt 0 ]; then
-    echo ""
-    echo "⚠️  ${#worktree_branches[@]} branch(es) with worktrees detected:"
-    printf "  - %s\n" "${worktree_branches[@]}"
-    echo ""
-    echo "💡 These branches cannot be deleted with 'git branch -D' because they have active worktrees."
-    echo "   Remove them manually with: git worktree remove <path> && git branch -D <branch>"
 fi
