@@ -20,7 +20,7 @@ _wt_path_for_branch() {
     '
 }
 
-# 0=deleted 1=failed 2=skipped 3=kept (declined, dirty or main worktree)
+# 0=deleted 1=failed 2=skipped 3=kept (declined or main worktree)
 _delete_branch() {
     local branch="$1" wt_path
     wt_path=$(_wt_path_for_branch "$branch")
@@ -46,12 +46,9 @@ _delete_branch() {
     case $wt_answer in
         [Yy]|yes)
             if [ -n "$(git -C "$wt_path" status --porcelain)" ]; then
-                echo "   '$wt_path' has uncommitted or untracked changes, kept."
-                echo "   Clean it up first, or force with:"
-                echo "   git worktree remove --force $wt_path && git branch -D $branch"
-                return 3
+                echo "   Forcing: '$wt_path' has uncommitted or untracked changes."
             fi
-            git worktree remove "$wt_path"
+            git worktree remove --force "$wt_path"
             if [ $? -ne 0 ]; then
                 echo "   Failed to remove worktree: $wt_path"
                 return 1
@@ -87,7 +84,7 @@ while [[ $# -gt 0 ]]; do
             echo "  --help, -h          Show this help message"
             echo ""
             echo "A gone branch still checked out in a worktree: gf offers to remove"
-            echo "the worktree first, then the branch. Ignored files (.env, ...) go too."
+            echo "the worktree first, then the branch. Uncommitted and ignored files go too."
             return 0
             ;;
         *)
