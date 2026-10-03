@@ -18,15 +18,25 @@
             "xhigh": null,
             "max": "max"
           },
-          "input": ["text", "image"],
-          "cost": { "input": 0.15, "output": 0.5, "cacheRead": 0.03, "cacheWrite": 0 },
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0.15,
+            "output": 0.5,
+            "cacheRead": 0.03,
+            "cacheWrite": 0
+          },
           "contextWindow": 1048576,
-          "maxTokens": 131072,
+          "maxTokens": 32768,
           "compat": {
-            "supportsDeveloperRole": false
+            "supportsDeveloperRole": false,
+            "supportsReasoningEffort": false
           }
         }
-      ]
+      ],
+      "apiKey": "${INCO_API_KEY}"
     },
     "openai": {
       "models": [
@@ -40,7 +50,10 @@
             "xhigh": "xhigh",
             "max": "max"
           },
-          "input": ["text", "image"],
+          "input": [
+            "text",
+            "image"
+          ],
           "contextWindow": 272000,
           "maxTokens": 128000,
           "cost": {
@@ -73,7 +86,10 @@
             "xhigh": "xhigh",
             "max": "max"
           },
-          "input": ["text", "image"],
+          "input": [
+            "text",
+            "image"
+          ],
           "contextWindow": 272000,
           "maxTokens": 128000,
           "cost": {
@@ -109,7 +125,10 @@
             "xhigh": "xhigh",
             "max": "max"
           },
-          "input": ["text", "image"],
+          "input": [
+            "text",
+            "image"
+          ],
           "contextWindow": 272000,
           "maxTokens": 128000,
           "cost": {
@@ -137,7 +156,10 @@
             "xhigh": "xhigh",
             "max": "max"
           },
-          "input": ["text", "image"],
+          "input": [
+            "text",
+            "image"
+          ],
           "contextWindow": 272000,
           "maxTokens": 128000,
           "cost": {
@@ -176,8 +198,16 @@
             "high": "high",
             "max": "max"
           },
-          "input": ["text", "image"],
-          "cost": { "input": 0.15, "output": 0.6, "cacheRead": 0.003, "cacheWrite": 0 },
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0.15,
+            "output": 0.6,
+            "cacheRead": 0.003,
+            "cacheWrite": 0
+          },
           "contextWindow": 1000000,
           "maxTokens": 384000,
           "compat": {
@@ -199,8 +229,16 @@
             "high": "high",
             "max": "max"
           },
-          "input": ["text", "image"],
-          "cost": { "input": 0.22, "output": 0.66, "cacheRead": 0.007, "cacheWrite": 0 },
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0.22,
+            "output": 0.66,
+            "cacheRead": 0.007,
+            "cacheWrite": 0
+          },
           "contextWindow": 1000000,
           "maxTokens": 384000,
           "compat": {
@@ -218,8 +256,16 @@
         {
           "id": "stealth/union-alpha",
           "name": "Union Alpha (stealth)",
-          "input": ["text", "image"],
-          "cost": { "input": 0, "output": 0, "cacheRead": 0, "cacheWrite": 0 },
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
           "contextWindow": 262144,
           "maxTokens": 131072
         }
@@ -254,6 +300,101 @@
           }
         }
       }
+    },
+    "runinfra": {
+      "baseUrl": "https://api.runinfra.ai/v1",
+      "api": "openai-completions",
+      "apiKey": "!cd \"$HOME/.pi/agent\" && infisical secrets get RUNINFRA_API_KEY --env main --plain 2>/dev/null",
+      "models": [
+        {
+          "id": "deepseek-v4-1-flash",
+          "name": "DeepSeek V4.1 Flash",
+          "api": "openai-completions",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0.14,
+            "output": 0.58,
+            "cacheRead": 0.03,
+            "cacheWrite": 0.14
+          },
+          "contextWindow": 1048576,
+          "maxTokens": 1048576
+        },
+        {
+          "id": "glm-5-3-flash",
+          "name": "GLM 5.3 Flash",
+          "api": "openai-completions",
+          "reasoning": true,
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0.11,
+            "output": 0.45,
+            "cacheRead": 0.03,
+            "cacheWrite": 0.11
+          },
+          "contextWindow": 1048576,
+          "maxTokens": 1048576
+        },
+        {
+          "id": "nemotron-3-5-lightning-30b",
+          "name": "Nemotron 3.5 Lightning 30B",
+          "api": "openai-completions",
+          "reasoning": false,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0.05,
+            "output": 0.15,
+            "cacheRead": 0.01,
+            "cacheWrite": 0.05
+          },
+          "contextWindow": 262144,
+          "maxTokens": 262144
+        },
+        {
+          "id": "ornith-1-5-35b",
+          "name": "Ornith 1.5 35B",
+          "api": "openai-completions",
+          "reasoning": false,
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0.1,
+            "output": 0.4,
+            "cacheRead": 0.01,
+            "cacheWrite": 0.1
+          },
+          "contextWindow": 262144,
+          "maxTokens": 262144
+        },
+        {
+          "id": "qwen3-8-27b",
+          "name": "Qwen3.8 27B",
+          "api": "openai-completions",
+          "reasoning": true,
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0.1,
+            "output": 0.4,
+            "cacheRead": 0.01,
+            "cacheWrite": 0.1
+          },
+          "contextWindow": 262144,
+          "maxTokens": 262144
+        }
+      ]
     }
   }
 }

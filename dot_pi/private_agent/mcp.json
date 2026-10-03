@@ -1,28 +1,32 @@
 {
-  "settings": {
-    "mcpFooterStatus": "off"
-  },
-  "mcpServers": {
-    "cloudflare-docs": {
-      "url": "https://docs.mcp.cloudflare.com/mcp"
-    },
-    "cloudflare-builds": {
-      "url": "https://builds.mcp.cloudflare.com/mcp"
-    },
-    "cloudflare": {
-      "url": "https://mcp.cloudflare.com/mcp"
-    },
-    "cloudflare-bindings": {
-      "url": "https://bindings.mcp.cloudflare.com/mcp"
-    },
-    "cloudflare-observability": {
-      "url": "https://observability.mcp.cloudflare.com/mcp"
-    },
-    "mcp": {
-      "url": "https://mcp.linear.app/mcp"
-    },
-    "jira": {
-      "url": "https://mcp.atlassian.com/v2/mcp"
-    }
-  }
+	"mcpServers": {
+		"infisical-docs": {
+			"url": "https://infisical.com/docs/mcp"
+		},
+		"cloudflare-docs": {
+			"url": "https://docs.mcp.cloudflare.com/mcp"
+		},
+		"cloudflare-builds": {
+			"url": "https://builds.mcp.cloudflare.com/mcp"
+		},
+		"cloudflare": {
+			"url": "https://mcp.cloudflare.com/mcp"
+		},
+		"cloudflare-bindings": {
+			"url": "https://bindings.mcp.cloudflare.com/mcp"
+		},
+		"cloudflare-observability": {
+			"url": "https://observability.mcp.cloudflare.com/mcp"
+		},
+		"mcp": {
+			"url": "https://mcp.linear.app/mcp"
+		},
+		"jira": {
+			"url": "https://mcp.atlassian.com/v2/mcp"
+		},
+		"infisical": {
+			"command": "npx",
+			"args": ["-y", "@infisical/mcp"]
+		}
+	}
 }
