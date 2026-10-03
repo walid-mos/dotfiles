@@ -7,6 +7,16 @@
 pinned=$(jq -s 'if length == 0 then $pinned else .[0] * $pinned end' --argjson pinned '{
   "theme": "catppuccin-latte/catppuccin-macchiato",
   "npmCommand": ["pnpm", "--config.strict-dep-builds=false"],
+  "extensions": [
+    "extensions/prompt",
+    "extensions/model",
+    "extensions/tools",
+    "extensions/fetch",
+    "extensions/herdr",
+    "extensions/ui",
+    "extensions/commands",
+    "-builtin:mcp"
+  ],
   "hideThinkingBlock": true,
   "editorPaddingX": 0,
   "outputPad": 0,
