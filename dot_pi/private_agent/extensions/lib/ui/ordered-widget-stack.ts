@@ -1,7 +1,11 @@
 import { subscribeSurfaceChanges, surfaceRegistry } from './surface.ts'
 
 import type { ExtensionUIContext, Theme } from '@earendil-works/pi-coding-agent'
-import type { TUI } from '@earendil-works/pi-tui'
+import type {
+	TUI,
+	TuiMouseEvent,
+	TuiMouseEventResult,
+} from '@earendil-works/pi-tui'
 import type { SurfacePlacement } from './surface.ts'
 
 const HOST_WIDGET_IDS: Record<SurfacePlacement, string> = {
@@ -14,6 +18,10 @@ export const ABOVE_EDITOR_PRIORITY = {
 	contextLine: 0,
 	/** The pi version-drift warning sits under the context line, above everything else. */
 	driftWarning: 10,
+	/** The last /dump result stays above the prompt without entering the transcript. */
+	dump: 50,
+	/** Startup Jev failures must remain visible above the checklist. */
+	goalWarning: 90,
 	goal: 100,
 	backgroundTasks: 200,
 	activity: 300,
@@ -23,6 +31,8 @@ export const ABOVE_EDITOR_PRIORITY = {
 export type OrderedWidgetEntry = {
 	priority: number
 	render: (width: number, theme: Theme) => string[]
+	/** Consume a TUI mouse event landing inside the entry's rendered block; y is entry-local. */
+	mouse?: (event: TuiMouseEvent, line: number) => boolean
 }
 
 type WidgetPlacement = SurfacePlacement
@@ -54,18 +64,53 @@ class OrderedWidgetHost {
 	private readonly tui: TUI
 	private readonly readTheme: () => Theme
 	private readonly placement: WidgetPlacement
+	/** Segment map of the most recent render, for routing mouse events back to their entry. */
+	private segments: {
+		mouse: NonNullable<OrderedWidgetEntry['mouse']>
+		start: number
+		count: number
+	}[] = []
 
 	constructor(tui: TUI, readTheme: () => Theme, placement: WidgetPlacement) {
 		this.tui = tui
 		this.readTheme = readTheme
 		this.placement = placement
+		this.segments = []
 		this.unsubscribe = subscribeSurfaceChanges(() =>
 			this.tui.requestRender(),
 		)
 	}
 
 	render(width: number): string[] {
-		return surfaceRegistry.render(this.placement, width, this.readTheme())
+		const segments = surfaceRegistry.renderSegments(
+			this.placement,
+			width,
+			this.readTheme(),
+		)
+		this.segments = segments.flatMap(segment =>
+			segment.entry.mouse
+				? [
+						{
+							mouse: segment.entry.mouse,
+							start: segment.start,
+							count: segment.count,
+						},
+					]
+				: [],
+		)
+		return segments.flatMap(segment => segment.lines)
+	}
+
+	/** Coordinates are host-local, matching the block map captured by the last render. */
+	handleMouse(event: TuiMouseEvent): TuiMouseEventResult | undefined {
+		const segment = this.segments.find(
+			candidate =>
+				event.y >= candidate.start &&
+				event.y < candidate.start + candidate.count,
+		)
+		if (!segment?.mouse || !segment.mouse(event, event.y - segment.start))
+			return undefined
+		return { handled: true }
 	}
 
 	/** Called by pi-tui on theme changes and other global invalidations: re-render with live theme. */
@@ -106,6 +151,7 @@ export function setOrderedSurfaceWidget(
 		placement,
 		priority: entry.priority,
 		render: ({ width, theme }) => (theme ? entry.render(width, theme) : []),
+		...(entry.mouse && { mouse: entry.mouse }),
 	})
 	mountHost(ui, placement)
 }

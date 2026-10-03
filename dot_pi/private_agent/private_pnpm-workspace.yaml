@@ -47,3 +47,11 @@ minimumReleaseAgeExclude:
     - '@oxlint/binding-win32-x64-msvc@1.82.0'
     - oxfmt@0.67.0
     - oxlint@1.82.0
+    - '@earendil-works/chord@0.99.1'
+    - '@earendil-works/pi-agent-core@0.99.1'
+    - '@earendil-works/pi-ai@0.99.1'
+    - '@earendil-works/pi-codemode@0.99.1'
+    - '@earendil-works/pi-coding-agent@0.99.1'
+    - '@earendil-works/pi-mcp@0.99.1'
+    - '@earendil-works/pi-telemetry@0.99.1'
+    - '@earendil-works/pi-tui@0.99.1'

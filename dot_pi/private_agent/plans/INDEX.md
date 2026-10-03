@@ -10,5 +10,8 @@ plan dirs move whole (`active/` → `done/<year>/`) — see `README.md` before r
 | wt/apple-container-hermeticity | wt | active | 2026-09-18 | active/wt/apple-container-hermeticity.md |
 | galley/state-wire-trimming | galley | done | 2026-09-18 | done/2026/galley/state-wire-trimming.md |
 | galley/desk-auto-boot-presence | galley | done | 2026-09-18 | done/2026/galley/desk-auto-boot-presence.md |
+| harness-maintenance/daily-engineer | harness-maintenance | done | 2026-10-02 | done/2026/harness-maintenance/daily-engineer.md |
 | harness/jev-decision-layer | harness | done | 2026-09-18 | done/2026/harness/jev-decision-layer.md |
+| harness/goal-and-context-budget-rebuild | harness | active | 2026-09-28 | active/harness/goal-and-context-budget-rebuild.md |
 | syneva/test-suite-rebuild | syneva | done | 2026-09-18 | done/2026/syneva/test-suite-rebuild.md |
+| pi-subagents/vendor-into-pi-config | pi-subagents | review | 2026-10-03 | active/pi-subagents/vendor-into-pi-config.md |

@@ -1,0 +1,108 @@
+import assert from "node:assert/strict";
+import { describe, it } from "node:test";
+import type { AgentConfig } from "../../src/agents/agents.ts";
+import {
+	intersectSubagentCapabilityCeilings,
+	parseSubagentCapabilityCeiling,
+} from "../../src/runs/shared/capability-ceiling.ts";
+import { runSync } from "../../src/runs/foreground/execution.ts";
+import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
+import { buildRunnerChildLaunch } from "../../src/runs/background/runner-child-launch.ts";
+
+function agent(name: string): AgentConfig {
+	return {
+		name,
+		description: `${name} agent`,
+		systemPrompt: `${name} prompt`,
+		systemPromptMode: "replace",
+		inheritProjectContext: false,
+		inheritSkills: false,
+		source: "project",
+		filePath: `/tmp/${name}.md`,
+	};
+}
+
+describe("capability ceiling agent allowlist", () => {
+	it("parses and intersects allowedAgents", () => {
+		const parsed = parseSubagentCapabilityCeiling({ version: 1, allowedAgents: ["worker", "reviewer", "worker"], denyExtensions: false, sources: ["plan"] });
+		assert.deepEqual(parsed.allowedAgents, ["reviewer", "worker"]);
+
+		assert.deepEqual(intersectSubagentCapabilityCeilings(
+			{ version: 1, allowedAgents: ["worker", "reviewer"], denyExtensions: false, sources: ["outer"] },
+			{ version: 1, allowedAgents: ["reviewer", "scout"], denyExtensions: true, sources: ["inner"] },
+		), {
+			version: 1,
+			allowedAgents: ["reviewer"],
+			denyExtensions: true,
+			sources: ["inner", "outer"],
+		});
+
+		assert.deepEqual(intersectSubagentCapabilityCeilings(
+			{ version: 1, allowedTools: ["read"], denyExtensions: false, sources: ["tools-only"] },
+			{ version: 1, allowedAgents: [], denyExtensions: false, sources: ["none"] },
+		)?.allowedAgents, []);
+	});
+
+	it("rejects a non-allowlisted foreground launch before spawning", async () => {
+		const result = await runSync(process.cwd(), [agent("worker"), agent("reviewer")], "worker", "Do work", {
+			capabilityCeiling: { version: 1, allowedAgents: ["reviewer"], denyExtensions: false, sources: ["plan-mode"] },
+		});
+		assert.equal(result.exitCode, 1);
+		assert.match(result.error ?? "", /does not allow agent 'worker'/);
+		assert.deepEqual(result.capabilityCeiling?.allowedAgents, ["reviewer"]);
+	});
+
+	it("includes allowedAgents in the child runtime config and audit metadata", () => {
+		const { config, capabilityAudit } = buildInProcessChildLaunch({
+			host: "parent",
+			cwd: process.cwd(),
+			sessionEnabled: false,
+			inheritProjectContext: false,
+			inheritGlobalContext: false,
+			inheritSkills: false,
+			childAgentName: "reviewer",
+			childIndex: 0,
+			capabilityCeiling: { version: 1, allowedAgents: ["reviewer"], allowedTools: ["read"], denyExtensions: true, sources: ["plan-mode"] },
+		});
+		assert.equal(capabilityAudit?.agentAllowed, true);
+		assert.deepEqual(capabilityAudit?.agentRestrictionSources, ["plan-mode"]);
+		assert.deepEqual(config.capabilityCeiling?.allowedAgents, ["reviewer"]);
+	});
+
+	it("applies the selected agent's descendant ceiling only after its parent-authorized launch", () => {
+		const base = {
+			host: "parent" as const,
+			cwd: process.cwd(),
+			sessionEnabled: false,
+			inheritProjectContext: false,
+			inheritGlobalContext: false,
+			inheritSkills: false,
+			childAgentName: "coordinator",
+			childIndex: 0,
+			capabilityCeiling: { version: 1 as const, allowedAgents: ["coordinator", "scout"], denyExtensions: false, sources: ["parent"] },
+		};
+		const launch = buildInProcessChildLaunch({ ...base, descendantAllowedAgents: ["scout", "worker"] });
+		assert.equal(launch.capabilityAudit?.agentAllowed, true);
+		assert.deepEqual(launch.config.capabilityCeiling?.allowedAgents, ["scout"]);
+		assert.deepEqual(launch.capabilityAudit?.ceiling, launch.config.capabilityCeiling);
+		assert.deepEqual(launch.config.capabilityCeiling?.sources, ["agent:coordinator", "parent"]);
+		assert.deepEqual(buildInProcessChildLaunch({ ...base, descendantAllowedAgents: [] }).config.capabilityCeiling?.allowedAgents, []);
+		const configuredOnly = buildInProcessChildLaunch({ ...base, capabilityCeiling: undefined, descendantAllowedAgents: [] });
+		assert.deepEqual(configuredOnly.capabilityAudit?.ceiling, configuredOnly.config.capabilityCeiling);
+		assert.deepEqual(configuredOnly.capabilityAudit?.ceiling.allowedAgents, []);
+	});
+
+	it("propagates the detached runner step snapshot through the common launch seam", () => {
+		const launch = buildRunnerChildLaunch({
+			agent: "coordinator",
+			task: "Coordinate",
+			inheritProjectContext: false,
+			inheritGlobalContext: false,
+			inheritSkills: false,
+			allowedAgents: ["scout", "worker"],
+			capabilityCeiling: { version: 1, allowedAgents: ["coordinator", "scout"], denyExtensions: false, sources: ["parent"] },
+		}, { cwd: process.cwd(), id: "allowed-agents-runner", flatIndex: 0 }, { sessionEnabled: false });
+		assert.deepEqual(launch.config.capabilityCeiling?.allowedAgents, ["scout"]);
+		assert.deepEqual(launch.capabilityAudit?.ceiling, launch.config.capabilityCeiling);
+	});
+});

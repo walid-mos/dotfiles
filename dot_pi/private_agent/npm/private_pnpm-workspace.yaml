@@ -18,4 +18,5 @@ allowBuilds:
     protobufjs: true
 minimumReleaseAgeExclude:
   - pi-mcp-adapter@2.35.0
+  - pi-web-access@0.34.0
 nodeLinker: hoisted

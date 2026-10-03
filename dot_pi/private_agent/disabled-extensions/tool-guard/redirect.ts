@@ -40,8 +40,7 @@ function headRedirect(args: string[]): Redirect | undefined {
 function readRedirect(name: string, args: string[]): Redirect | undefined {
 	if (name === 'head') return headRedirect(args)
 	const [path, ...rest] = args
-	if (!(name === 'cat' && isPath(path) && !rest.length))
-		return undefined
+	if (!(name === 'cat' && isPath(path) && !rest.length)) return undefined
 	return { toolName: 'read', input: { path } }
 }
 
@@ -104,6 +103,7 @@ export function redirectCommand(
 	if (name === 'ls') redirect = lsRedirect(args)
 	else if (name === 'find') redirect = findRedirect(args)
 	else redirect = readRedirect(name, args) ?? grepRedirect(name, args)
-	if (!(!redirect || !activeTools.includes(redirect.toolName))) return redirect
+	if (!(!redirect || !activeTools.includes(redirect.toolName)))
+		return redirect
 	return undefined
 }

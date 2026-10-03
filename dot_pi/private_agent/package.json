@@ -7,8 +7,8 @@
 	},
 	"description": "Tooling manifest for the Pi agent extensions: oxlint + oxfmt driven by @nextnode-solutions/standards",
 	"scripts": {
-		"lint": "oxlint",
-		"lint:types": "oxlint --type-aware",
+		"lint": "oxlint --disable-nested-config",
+		"lint:types": "oxlint --disable-nested-config --type-aware",
 		"type-check": "tsc --noEmit",
 		"format": "oxfmt --write .",
 		"format:check": "oxfmt --check .",

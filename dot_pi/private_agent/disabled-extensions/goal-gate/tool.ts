@@ -128,8 +128,8 @@ function checklistState(status: LedgerStatus): string {
 	if (!status.items.length)
 		return ' The checklist has no items yet - declare them first.'
 	return status.open.length
-			? openSuffix(status)
-			: ' Every declared item is already checked - declare the new work first.'
+		? openSuffix(status)
+		: ' Every declared item is already checked - declare the new work first.'
 }
 
 function checkRequestCompletion(

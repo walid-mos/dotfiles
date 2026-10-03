@@ -1,6 +1,6 @@
 ---
 name: pi-updated
-description: Re-establish that house display adapters and extensions work on a new pi release - changelog breakage review between the audited and installed version, extension-API audit, display-ABI audit, glyph/format re-diff, and re-application of audited dist patches. Use when the drift widget appears ("run /skill:pi-updated"), after upgrading pi, or when an adapter or extension fails with a "missing; re-audit" error.
+description: Re-establish that house display adapters and extensions work on a new pi release - changelog breakage review between the audited and installed version, extension-API audit, display-ABI audit, extension package hygiene (host-provided deps, builtin shadowing) as a live loader pass, glyph/format re-diff, and re-application of audited dist patches. Use when the drift widget appears ("run /skill:pi-updated"), after upgrading pi, when an adapter or extension fails with a "missing; re-audit" error, or when pi reports a package-shape or builtin-collision warning from a settings-loaded extension.
 ---
 
 # Pi update re-audit
@@ -10,13 +10,16 @@ This user-requested Pi harness maintenance is the narrow exception in `~/.pi/age
 Goal: make the running pi release the audited one (`AUDITED_PI_VERSION` in
 `~/.pi/agent/extensions/lib/ui/pi-runtime.ts`) and prove nothing else broke. There is no hard pin — the
 adapters always load; this skill re-establishes that they and the other extensions actually work.
-Three audits, in order of information value:
+Four checks, in order of information value:
 
 1. **Changelog breakage review** — what the release says it changed, read against what the
    extensions rely on.
 2. **Extension-API audit** — every `pi.on`, registration call and `ctx.ui` call the extensions make
    still exists in the installed package.
-3. **Display ABI audit** — the reflected runtime members and patched prototype methods the display
+3. **Extension package hygiene** — what every settings-loaded package ships in its manifest and
+   which extension names collide with a replaceable builtin (new `hygiene-audit.ts`, with a live
+   loader pass over the real settings).
+4. **Display ABI audit** — the reflected runtime members and patched prototype methods the display
    adapters use (existing `abi-audit.ts`).
 
 ## Procedure
@@ -53,7 +56,28 @@ The decision to change pi or herdr source at all is governed by `~/.pi/agent/ski
    `ExtensionAPI` and `ExtensionUIContext` declarations (`dist/core/extensions/types.d.ts`).
    Every `✗` line is an extension call the new release dropped or renamed. Fix the affected
    extension against the new API.
-4. **Class-level display ABI audit.** From `~/.pi/agent` run:
+4. **Extension package hygiene.** From `~/.pi/agent` run:
+
+   ```bash
+   node --experimental-transform-types skills/pi-updated/scripts/hygiene-audit.ts
+   ```
+
+   It mirrors the loader's own rules from `dist/core/resource-loader.js` and
+   `dist/extensions/index.js`. Two checks against every package the settings
+   load: its manifest must keep the host-provided set (`typebox` and the pi
+   `@earendil-works/*`/`@mariozechner/*` packages) out of `dependencies` —
+   declare them as peer dependencies, pi supplies them at runtime; and a
+   loaded extension must not register a command or tool name owned by a
+   replaceable builtin (`mcp`, `codemode`, `tool-search`) — disable that
+   builtin in settings (`"extensions": ["-builtin:<name>"]`) or rename the
+   registration. Settings-excluded builtins drop out of scope, so the
+   `-builtin:` exclusions in the house settings stay legal. The script ends
+   with a live loader pass over the real settings (the same path a session
+   start runs) and treats any loader warning or error as a finding; a new
+   replaceable builtin missing from its table fails loudly. Every `✗` line
+   names the fix. Record the findings and the fixes applied in DESIGN.md §10
+   like the other audits.
+5. **Class-level display ABI audit.** From `~/.pi/agent` run:
 
    ```bash
    node --experimental-transform-types skills/pi-updated/scripts/abi-audit.ts
@@ -64,22 +88,22 @@ The decision to change pi or herdr source at all is governed by `~/.pi/agent/ski
    method against the running bundle. Every `✗` line is a broken member.
    If the adapters gained or lost a patch since the last audit, update the
    `COMPONENT_METHODS` table in the script to match the `*-surface.ts` files first.
-5. **Fix the failures.** Fix the failing `*-surface.ts` adapter against the new
+6. **Fix the failures.** Fix the failing `*-surface.ts` adapter against the new
    dist sources — never the callers. The display contract lives in
    `~/.pi/agent/extensions/DESIGN.md` §2–§4; do not redesign it as a side effect.
-6. **Re-apply dist patches.** A release replaces `@earendil-works/pi-tui/dist/components/editor.js`, wiping the per-repo prompt-history patch (↑/↓ history persisted per working directory, not per session — `scripts/SOURCE.md` is the registry of all audited patches; reapply every one of them here, not just prompt-history). From `~/.pi/agent` run:
+7. **Re-apply dist patches.** A release replaces `@earendil-works/pi-tui/dist/components/editor.js`, wiping the per-repo prompt-history patch (↑/↓ history persisted per working directory, not per session — `scripts/SOURCE.md` is the registry of all audited patches; reapply every one of them here, not just prompt-history). From `~/.pi/agent` run:
 
    ```bash
    python3 skills/pi-updated/scripts/pi-patch-prompt-history.py
    ```
 
    Every line must end `patched (…)` or `already patched`; `introuvable` means the glob patterns in the script no longer match the installed layout — update them. During a user-requested Pi harness update, do this after the upgrade even when the rest of this skill was not invoked.
-7. **Glyph/format re-diff.** Per DESIGN.md §10, `rg` the new dist sources for
+8. **Glyph/format re-diff.** Per DESIGN.md §10, `rg` the new dist sources for
    drift: `dist/core/tools/renderers/*.js`, `dist/modes/interactive/components/*.js`,
    `@earendil-works/pi-tui/dist/components/markdown.js`. Record decisions in DESIGN.md.
-8. **Visual pass.** Only for the surfaces that changed, per DESIGN.md §9
+9. **Visual pass.** Only for the surfaces that changed, per DESIGN.md §9
    (pending/streaming/settled/failed, narrow viewport, mouse + Ctrl+O expansion).
-9. **Close out.** Bump `AUDITED_PI_VERSION` to the running version, update the DESIGN.md header and
+10. **Close out.** Bump `AUDITED_PI_VERSION` to the running version, update the DESIGN.md header and
    §10, then from `~/.pi/agent`:
 
    ```bash
@@ -90,9 +114,11 @@ The decision to change pi or herdr source at all is governed by `~/.pi/agent/ski
 
 ## Limits
 
-- All three scripts check names and signatures only. Semantic drift — dispatch order, event-bus
+- All four scripts check names and signatures only. Semantic drift — dispatch order, event-bus
   listener timing, result-shape contracts, instance-level fields (`host.text`, `contentContainer`,
   message shapes) — is caught by the changelog review and the §9 visual pass, never by the scripts.
+- `hygiene-audit.ts` also runs pi's real loader over the current settings; it covers the loader's
+  own warnings, not render-time or display-time breakage, which stay with the §9 visual pass.
 - `patchPiComponent` and `invokePiMethod` throw their own "re-audit" errors at
   install/render time; a fresh error line in the session is an audit finding too.
 - `extension-audit.ts` trusts the installed `.d.ts` declarations; if a release changes behavior

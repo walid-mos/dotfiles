@@ -1,6 +1,7 @@
 import { columnWidth, truncateTerminalLine } from './terminal-text.ts'
 
 import type { Theme } from '@earendil-works/pi-coding-agent'
+import type { TuiMouseEvent } from '@earendil-works/pi-tui'
 
 export type SurfacePlacement = 'aboveEditor' | 'belowEditor'
 
@@ -9,6 +10,9 @@ export type SurfaceRenderContext = {
 	theme: Theme | undefined
 }
 
+/** Mouse surface: TUI events whose coordinates fall inside the rendered block; y is entry-local. */
+export type SurfaceMouse = (event: TuiMouseEvent, line: number) => boolean
+
 export type SurfaceEntry = {
 	id: string
 	placement: SurfacePlacement
@@ -16,6 +20,18 @@ export type SurfaceEntry = {
 	/** Maximum rendered lines kept for this entry; extra lines collapse into a truncation marker. */
 	maxLines?: number
 	render: (context: SurfaceRenderContext) => readonly string[]
+	/** Consume a mouse event landing on this entry's visible lines; returning false leaves it to the renderer. */
+	mouse?: SurfaceMouse
+}
+
+/** One entry's rendered block within a placement, so hosts can route mouse coordinates back to it. */
+export type SurfaceSegment = {
+	entry: SurfaceEntry
+	/** Flattened index of the entry's first visible line within the placement block. */
+	start: number
+	/** Visible line count after maxLines clipping. */
+	count: number
+	lines: string[]
 }
 
 // Widget surface library shared across extensions - intentionally NOT an
@@ -37,6 +53,12 @@ export type SurfaceRegistry = {
 		width: number,
 		theme?: Theme,
 	) => string[]
+	/** Same rendering, but keeping each entry's block addressable by mouse coordinates. */
+	renderSegments: (
+		placement: SurfacePlacement,
+		width: number,
+		theme?: Theme,
+	) => SurfaceSegment[]
 	subscribe: (listener: () => void) => () => void
 }
 
@@ -84,17 +106,25 @@ function hasPlacementEntries(
 	)
 }
 
-function renderPlacement(
+function renderPlacementSegments(
 	state: RegistryState,
 	placement: SurfacePlacement,
 	safeWidth: number,
 	theme: Theme | undefined,
-): string[] {
+): SurfaceSegment[] {
 	if (safeWidth === 0) return []
-	return [...state.entries.values()]
+	const segments: SurfaceSegment[] = []
+	let start = 0
+	const layered = [...state.entries.values()]
 		.filter(entry => entry.placement === placement)
 		.toSorted(compareSurfaceEntries)
-		.flatMap(entry => renderSurfaceEntry(entry, safeWidth, theme))
+	for (const entry of layered) {
+		const lines = renderSurfaceEntry(entry, safeWidth, theme)
+		if (!lines.length) continue
+		segments.push({ entry, start, count: lines.length, lines })
+		start += lines.length
+	}
+	return segments
 }
 
 export function createSurfaceRegistry(): SurfaceRegistry {
@@ -105,10 +135,24 @@ export function createSurfaceRegistry(): SurfaceRegistry {
 		clear: () => clearEntries(state),
 		hasEntries: (placement?: SurfacePlacement) =>
 			hasPlacementEntries(state, placement),
-		render: (placement: SurfacePlacement, width: number, theme?: Theme) => {
-			const safeWidth = columnWidth(width)
-			return renderPlacement(state, placement, safeWidth, theme)
-		},
+		render: (placement: SurfacePlacement, width: number, theme?: Theme) =>
+			renderPlacementSegments(
+				state,
+				placement,
+				columnWidth(width),
+				theme,
+			).flatMap(segment => segment.lines),
+		renderSegments: (
+			placement: SurfacePlacement,
+			width: number,
+			theme?: Theme,
+		) =>
+			renderPlacementSegments(
+				state,
+				placement,
+				columnWidth(width),
+				theme,
+			),
 		subscribe: (listener: () => void) => {
 			state.listeners.add(listener)
 			return () => state.listeners.delete(listener)
@@ -120,16 +164,18 @@ export function createSurfaceRegistry(): SurfaceRegistry {
 // singleton would give each extension a private surface list and silently split
 // the ordered stack. One process, one realm, one versioned key - the same idiom
 // other extensions use to share state.
-const REGISTRY_KEY = Symbol.for('pi.ui.surface-registry.v1')
+const REGISTRY_KEY = Symbol.for('pi.ui.surface-registry.v2')
 
 function isSurfaceRegistry(candidate: unknown): candidate is SurfaceRegistry {
 	if (typeof candidate !== 'object' || candidate === null) return false
 	const register = Reflect.get(candidate, 'register')
 	const render = Reflect.get(candidate, 'render')
+	const renderSegments = Reflect.get(candidate, 'renderSegments')
 	const unregister = Reflect.get(candidate, 'unregister')
 	return (
 		typeof register === 'function' &&
 		typeof render === 'function' &&
+		typeof renderSegments === 'function' &&
 		typeof unregister === 'function'
 	)
 }

@@ -1,0 +1,17 @@
+.pi/todos/
+.pi/subagents/
+.pi-subagents/
+.DS_Store
+node_modules/
+*.tgz
+.fallow/
+tmp/
+
+# Fallback ignores for local ad-hoc agent and lane reports.
+/memory.md
+/todo.md
+/reports/
+/*-report*.json
+/perf-*.md
+/pr-*-gate*.json
+/pr-*-review*.md

@@ -24,10 +24,10 @@ interface SelectionMarker {
 export function selectionMarker(selection: SelectionMarker): string {
 	if (!(selection.kind === 'multi')) {
 		return selection.isChecked
-		? uiTheme.fg('success', uiTheme.bold(GLYPH.radioOn))
-		: uiTheme.fg('dim', GLYPH.radioOff)
+			? uiTheme.fg('success', uiTheme.bold(GLYPH.radioOn))
+			: uiTheme.fg('dim', GLYPH.radioOff)
 	}
 	return selection.isChecked
-			? uiTheme.fg('success', uiTheme.bold(GLYPH.checkOn))
-			: uiTheme.fg('muted', GLYPH.checkOff)
+		? uiTheme.fg('success', uiTheme.bold(GLYPH.checkOn))
+		: uiTheme.fg('muted', GLYPH.checkOff)
 }

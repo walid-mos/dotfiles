@@ -9,8 +9,9 @@ Most of an AI coding bill pays for context that never gets used; reading
   or file; `read` only once you know which file and roughly which lines.
 - **Read targeted slices.** File > 500 lines and the area is known: pass
   `offset`/`limit`. Never default to whole files.
-- **One file at a time, on demand.** Never pre-load files "in case they're
-  related"; open the next file only when the current one points to it.
+- **Batch known independent reads.** Fetch the bounded slices already needed
+  together; keep discovery sequential only when one result determines the next
+  path. Do not pre-load files merely because they might be related.
 - **Don't re-read after editing.** `edit`/`write` are tracked and error on
   failure; re-reading to "verify" is pure waste.
 
