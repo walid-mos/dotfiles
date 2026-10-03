@@ -44,9 +44,12 @@ its git naming (§1), perimeter (§2), baseline & commands (§4), and REST recip
 
 - Read the repo's local agent docs for the apps touched (`apps/api/`,
   `apps/menu-compliance/` — AGENTS.md / CLAUDE.md).
-- Ticket via the REST recipes (accor-conventions §5). **Every spec link the
-  ticket cites is read through the Confluence REST API** with the `accor`
-  profile; an unreadable link is an explicit blocker, never a reason to skip.
+- Ticket via le MCP Atlassian officiel (`accor-conventions` §5). **Every spec
+  link the ticket cites still requires a full read through the Confluence REST
+  API** with the `accor` profile, as required by the local `AGENTS.md`; the
+  current Brave-cookie decryption failure blocks that read. A truncated MCP
+  page is not a substitute, and an unreadable link is an explicit blocker,
+  never a reason to skip.
 - Inventory the repo with `git ls-files`: modules touched, existing patterns,
   test setup.
 - Prototype: clone/inspect per `proto-authority.md` — before any implementation.

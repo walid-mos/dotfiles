@@ -177,8 +177,7 @@ function stageVerdict(stage: string, downstream: readonly string[]): Verdict {
 			name,
 			reason: 'piped into a count or the clipboard',
 		}
-	if (!downstreamIsMutator(downstream))
-		return { kind: 'owned', name, tool }
+	if (!downstreamIsMutator(downstream)) return { kind: 'owned', name, tool }
 	return { kind: 'exempt', name, reason: 'piped into a mutating stage' }
 }
 

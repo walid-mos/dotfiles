@@ -5,7 +5,8 @@ description: >-
     menu-compliance, ui; apps/portail, product-benchmark): git naming,
     untouchable perimeter (Terraform, product-benchmark), Clean Architecture +
     CQRS on the api, Feature-Sliced Design on the fronts, Snowflake data-mart
-    auth, Jira/Confluence REST via the authFetch "accor" profile, quality
+    auth, Jira ticket lookup via the official Atlassian MCP; Confluence specs
+    require REST (currently blocked by the stale authFetch profile), quality
     baseline. Load when any file of product-data-apps or a product-data-apps*
     worktree is touched (branch, commit, PR, code) or before creating a
     branch/PR there. Also load for fastpocing-worker or astore-ui-sidebar when
@@ -30,8 +31,7 @@ for Jira/Confluence.
 **Branches**: `<type>/<TICKET?>-<kebab-desc>`.
 - `<type>` ∈ `feat` `fix` `chore` `docs` `refactor` `test` (the dominant type of the diff).
 - `<TICKET>` = the Jira id when the work has one (`DA-178`); **omitted** otherwise
-  (e.g. `feat/pre-push-ai-review`). `DA-*` ids are **Jira** tickets, never
-  Plane.
+  (e.g. `feat/pre-push-ai-review`). `DA-*` ids are **Jira** tickets.
 - Valid: `feat/DA-178-partners-api`, `refactor/auth-context-identity`, `fix/invoice-upload-timeout`.
 - **Forbidden**: stack indexes in the name (`-01-`, `-02-`), unprefixed free names
   (`auth-rewire-02-server-authority`), `mc-partners-05-...`.
@@ -128,42 +128,56 @@ here. Delivery order: `dev → per-link self-review → global self-review → s
   cannot express. Never paraphrase the code or address the reviewer.
 - No `as` (except `as const`); validate and narrow instead.
 
-## 5. Jira / Confluence via REST
+## 5. Jira via MCP ; spécifications Confluence via REST
 
-**Precondition**: an `authFetch` profile named `accor` is configured for
-`accor-eprocurement-support.atlassian.net` (browser-cookie digest from the
-local Chrome session). It is an auth profile — **never seek an MCP tool for
-Jira/Confluence**. Verify the profile exists before the first REST call; if it
-is missing, say so and stop the read — never fetch these pages as HTML
-instead: they are SPAs whose useful content is loaded dynamically in JS. The
-API REST is the only path.
+Le serveur MCP `jira` dans `~/.pi/agent/mcp.json` dispose d'une autorisation
+Atlassian. Il permet de lire les **tickets Jira** sans mot de passe navigateur.
+L'ancien profil `fetch_content(auth: "accor")` importe des cookies Brave
+impossibles à déchiffrer ici : ne le réessaie pas et ne copie pas le profil
+Brave personnel. Le coffre web Pi–Hermes ne fournit **ni cookie REST ni token
+API**. Le projet `core-vault` du MCP `infisical` est distinct du coffre web
+commun ; n'y cherche pas de mot de passe Atlassian. Voir
+`/Users/walid-mos/Development/tools/pi-frontend-check/skills/shared-web-logins/SKILL.md`
+pour les connexions navigateur.
 
-### Read a Jira ticket
+### Lire un ticket Jira
 
-    URL example : https://accor-eprocurement-support.atlassian.net/browse/DA-176
-    API         : GET /rest/api/3/issue/{TICKET_KEY}
+Extrais la clé de l'URL, par exemple `DA-176` dans
+`https://accor-eprocurement-support.atlassian.net/browse/DA-176`.
+Avec l'outil `mcp`, découvre les outils du serveur `jira`, puis appelle
+`jira_getAccessibleAtlassianResources` pour trouver **ce site précis** et
+`jira_getJiraIssue` avec son identifiant de ressource et la clé du ticket.
+Vérifie le ticket retourné ; si l'OAuth est expiré ou l'accès refusé, arrête-toi
+et demande à l'utilisateur de renouveler l'autorisation. Si le MCP échoue sur
+`Failed to write OAuth credentials to OS secure credential store`, **ne teste
+pas le trousseau avec `security add-generic-password` ou `find-generic-password`**,
+ne relance pas `auth-start` en boucle et ne cherche pas de secrets dans
+Infisical : ferme cette session Pi, vérifie une lecture Jira seule dans un
+nouveau processus Pi et signale séparément l'échec du stockage OAuth si elle
+échoue encore. Ne remplace pas une réponse structurée absente par le HTML
+d'une SPA.
 
-Extract the ticket key (e.g. `DA-176`) from the URL into the REST endpoint:
+### Lire une page Confluence
 
-    fetch_content(auth: "accor", url: "https://accor-eprocurement-support.atlassian.net/rest/api/3/issue/DA-176")
-
-### Read a Confluence page
-
-    URL example : https://accor-eprocurement-support.atlassian.net/wiki/spaces/MID/pages/2043871247/...
-    API         : GET /wiki/api/v2/pages/{PAGE_ID}?body-format=atlas_doc_format
-
-Extract the `PAGE_ID` (integer) from the Confluence URL (segment after `/pages/`):
-
-    fetch_content(auth: "accor", url: "https://accor-eprocurement-support.atlassian.net/wiki/api/v2/pages/2043871247?body-format=atlas_doc_format")
-
-`atlas_doc_format` returns structured ADF JSON. If the fetch is truncated
-(30k-character limit), use `get_search_content` with the `responseId` and
-`offset` to retrieve the rest.
+Dans `accor-hotels/product-data-apps`, la règle locale
+`/Users/walid-mos/Development/clients/accor/AGENTS.md` et la Phase 0 de
+`accor-ship` exigent que **chaque page de spécification liée au ticket soit
+entièrement lue via l'API REST Confluence avec le profil `accor`**. Le MCP
+Atlassian peut confirmer qu'une page existe, mais son corps peut être tronqué ;
+il ne remplace pas la lecture REST faisant autorité. Extrais l'identifiant
+numérique après `/pages/` et lis
+`/wiki/api/v2/pages/{PAGE_ID}?body-format=atlas_doc_format` lorsque le profil
+REST aura été réauthentifié par une méthode indépendante de Brave. Pour
+l'instant, l'erreur de déchiffrement des cookies **bloque la lecture des specs
+et donc la livraison** : signale-la, n'invente pas le contenu et ne substitue
+ni ticket, ni MCP tronqué, ni HTML de SPA. Un accès REST de remplacement
+nécessite une autorisation valide encore à mettre en place.
 
 ### Ticket screenshots / media
 
-Jira attachment downloads are redirect-gated and **fail through `authFetch`** —
-never burn time retrying them. Go to **FastPOC** (the team's task dashboard,
+Les pièces jointes Jira peuvent être protégées par une redirection : si le
+serveur Atlassian ne fournit pas le média, **ne relance pas** l'ancien
+`authFetch`. Va plutôt sur **FastPOC** (dashboard des tâches de l'équipe,
 `https://fast-po-cing-dashboard.vercel.app`) instead: its widget API
 `GET /api/my-requests?email=<author>&project=<project key>` (e.g. project key
 `iaft_pk_041dc2c0c07aa05c8a11efb6348e01bb`, author

@@ -1,8 +1,7 @@
-// Jev (TypeSafe System One) boundary: the only module that speaks the HTTP API.
-// Fetch-based on purpose - extensions carry no runtime dependency, and one client
-// serves both the eval scripts and the future shadow collector.
-//
+// Jev HTTP boundary and request API. response.ts validates the untrusted reply.
+// Extensions carry no runtime dependency.
 // API: POST /v1/systemone, body {state, questions, model} → {model, answers, usage}.
+import { readAnswers, readChoice, readMeta } from './response.ts'
 
 /** Pinned: `jev-latest` moves, and thresholds tuned against one version must not drift. */
 export const JEV_MODEL = 'jev-1.13.0'
@@ -12,7 +11,7 @@ const TOKENS_PER_MTOK = 1_000_000
 export const JEV_USD_PER_INPUT_TOKEN = USD_PER_MTOK / TOKENS_PER_MTOK
 const DEFAULT_TIMEOUT_MS = 15_000
 const ERROR_BODY_CHARS = 300
-const API_URL = 'https://api.typesafe.ai/v1/systemone'
+export const JEV_API_URL = 'https://api.typesafe.ai/v1/systemone'
 
 export type NoulAnswers = Readonly<Record<string, number>>
 
@@ -44,6 +43,7 @@ export type JevOptions = {
 	apiKey?: string
 	model?: string
 	timeoutMs?: number
+	signal?: AbortSignal | undefined
 	fetchImpl?: typeof fetch
 }
 
@@ -96,7 +96,10 @@ export async function askChoice(
 
 export type ChoiceAnswers = {
 	meta: { model: string; inputTokens: number; latencyMs: number }
-	answers: Record<string, Omit<ChoiceResult, 'model' | 'inputTokens' | 'latencyMs'>>
+	answers: Record<
+		string,
+		Omit<ChoiceResult, 'model' | 'inputTokens' | 'latencyMs'>
+	>
 }
 
 /**
@@ -129,7 +132,10 @@ export async function askChoices(
 			latencyMs: post.latencyMs,
 		},
 		answers: Object.fromEntries(
-			Object.keys(questions).map(name => [name, readChoice(post.body, name)]),
+			Object.keys(questions).map(name => [
+				name,
+				readChoice(post.body, name),
+			]),
 		),
 	}
 }
@@ -149,7 +155,13 @@ async function postJev(
 	const apiKey = options.apiKey ?? process.env.TYPESAFE_API_KEY?.trim()
 	if (!apiKey) throw missingKeyError()
 	const started = Date.now()
-	const response = await (options.fetchImpl ?? fetch)(API_URL, {
+	const timeoutSignal = AbortSignal.timeout(
+		options.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+	)
+	const signal = options.signal
+		? AbortSignal.any([options.signal, timeoutSignal])
+		: timeoutSignal
+	const response = await (options.fetchImpl ?? fetch)(JEV_API_URL, {
 		method: 'POST',
 		headers: {
 			authorization: `Bearer ${apiKey}`,
@@ -160,7 +172,7 @@ async function postJev(
 			questions,
 			model: options.model ?? JEV_MODEL,
 		}),
-		signal: AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS),
+		signal,
 	})
 	if (!response.ok) {
 		const detail = (await response.text()).slice(0, ERROR_BODY_CHARS)
@@ -168,74 +180,4 @@ async function postJev(
 	}
 	const body: unknown = await response.json()
 	return { body, ...readMeta(body), latencyMs: Date.now() - started }
-}
-
-function readMeta(body: unknown): { model: string; inputTokens: number } {
-	const model = prop(body, 'model')
-	const usage = prop(body, 'usage')
-	return {
-		model: typeof model === 'string' ? model : 'unknown',
-		inputTokens: readNumber(prop(usage, 'input_tokens')),
-	}
-}
-
-function readAnswers(body: unknown, names: string[]): NoulAnswers {
-	const raw = prop(body, 'answers')
-	const answers: Record<string, number> = {}
-	for (const name of names) {
-		const probability = readNumber(prop(prop(raw, name), 'noul'))
-		if (
-			!Number.isFinite(probability) ||
-			probability < 0 ||
-			probability > 1
-		) {
-			throw new Error(`jev returned no usable answer for "${name}"`)
-		}
-		answers[name] = probability
-	}
-	return answers
-}
-
-function readChoice(
-	body: unknown,
-	name: string,
-): {
-	choice: string
-	confidence: number
-	probabilities: Record<string, number>
-} {
-	const answer = prop(prop(body, 'answers'), name)
-	const choice = prop(answer, 'choice')
-	const confidence = readNumber(prop(answer, 'confidence'))
-	if (typeof choice !== 'string' || !choice) {
-		throw new Error(`jev returned no choice for "${name}"`)
-	}
-	if (!Number.isFinite(confidence)) {
-		throw new Error(`jev returned no confidence for "${name}"`)
-	}
-	return {
-		choice,
-		confidence,
-		probabilities: readProbabilities(prop(answer, 'probabilities')),
-	}
-}
-
-function readProbabilities(raw: unknown): Record<string, number> {
-	if (typeof raw !== 'object' || raw === null) return {}
-	const probabilities: Record<string, number> = {}
-	for (const [option, rawProbability] of Object.entries(raw)) {
-		const probability = readNumber(rawProbability)
-		if (Number.isFinite(probability)) probabilities[option] = probability
-	}
-	return probabilities
-}
-
-/** Safe property read: the API response is untrusted shape until validated here. */
-function prop(source: unknown, key: string): unknown {
-	if (typeof source !== 'object' || source === null) return undefined
-	return Reflect.get(source, key)
-}
-
-function readNumber(raw: unknown): number {
-	return typeof raw === 'number' && Number.isFinite(raw) ? raw : Number.NaN
 }

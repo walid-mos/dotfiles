@@ -21,6 +21,8 @@ export default defineConfig({
 		'skills/impeccable/**',
 		// Disabled code kept for reference: frozen, not maintained here.
 		'disabled-extensions/**',
+		// Vendored pi-subagents package: own tsconfig, tests and gates (see its FORK.md).
+		'packages/**',
 	],
 	overrides: [
 		{

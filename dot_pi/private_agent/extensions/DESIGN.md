@@ -3,7 +3,7 @@
 Single source of truth for restyling pi's TUI. Read this before migrating ANY render surface
 (tool rows, chrome, transcript surfaces) to the house design system.
 
-- Verified against installed `@earendil-works/pi-coding-agent@0.87.1` + `@earendil-works/pi-tui@0.87.1` dist sources.
+- Verified against installed `@earendil-works/pi-coding-agent@1.0.1` + `@earendil-works/pi-tui@1.0.1` dist sources.
 - Re-diff this matrix after every pi upgrade; glyph/format details can shift between versions.
 - Ownership rules live in `~/.pi/agent/ARCHITECTURE.md`. This file tracks *what renders*, not *who owns which module*.
 
@@ -106,7 +106,7 @@ those remain separate migrations below. Do not claim the entire TUI is migrated.
 | `find` / `glob` | `glob` display label, pattern/root, file count | Args and complete returned paths |
 | `bash` | Conservative command preview, inline count, observed duration + explicit timeout/failure status | Complete original script and returned output; full-output path |
 | `subagent` | Action/agent/workflow identity and topic/task, output count | Original package renderer, including guides and execution detail |
-| `galley_agent` | `galley` display label, action + desk session, repository name, `live`/`idle` connection state | Original arguments and attachment description |
+| `syneva_agent` | `syneva` display label, action + desk session, repository name, `live`/`idle` connection state | Original arguments and attachment description |
 | `frontend_open` | `open` display label; capture panel headed by the page, scheme-less host/path and optional wait selector | Original arguments, page summary, native images |
 | `frontend_act` | `act` display label; capture panel headed by action + target/key, `new tab` and post-action wait note | Original arguments, action result, native images |
 | `frontend_screenshot` | `shot` display label; capture panel headed by selector or `full page`/`viewport`, viewport size | Original arguments, caption and captured image |
@@ -130,7 +130,7 @@ its execution details remain authoritative.
 
 - [x] Dedicated one-line read/grep/glob/bash and subagent identity.
 - [x] One content column for rows, detail gutters and panels; capture panels reuse the file-panel frame.
-- [x] Package vocabulary for `galley_agent`, the five browser tools and the supervisor/wait tools.
+- [x] Package vocabulary for `syneva_agent`, the five browser tools and the supervisor/wait tools.
 - [x] Generic shell for write/edit/ls/powershell, web-access tools and unknown tools; an unknown tool's name is humanized rather than printed as a raw identifier.
 - [x] Separate compaction-summary component adapter.
 - [x] Edit/write share an inline and expanded mutation-code view; no separate tool registration or execution wrapper.
@@ -220,7 +220,7 @@ its execution details remain authoritative.
 
 ## 5. Chrome (editor + footer + status)
 
-- [x] hud-footer (own implementation; vector quota gauges, `lib/ui/ordered-widget-stack` mounting).
+- [x] hud-footer (own implementation; vector quota gauges, `lib/ui/ordered-widget-stack` mounting). Line 2's context gauge merges the Context Budget limit into one window-spanning meter bar on a shared sqrt-warped cell axis: usage fill on the left, the budget wall as one bright cell at the budget's warped cell with fade-to-horizon cells from there to the bar's end bounded at 4 - solid diamonds blending the budget hue toward the base, so the territory dissolves ahead and never wears the usage ramp - a quiet band-hued limit token in the full lane, announced on the `context-budget:saved.v1` bus for immediate repaint.
 - [x] Working indicator (word rotation/shuffle-bag), embedded in the prompt's top border — never a standalone row above it.
 - [x] Editor top border: `ui/hud-telemetry/activity-border.ts` right-aligns its activity block after the
   loader reserve (`EMBEDDED_LOADER_FIELD_WIDTH`), never over the loader or pi's `↑ N more` scroll label.
@@ -307,7 +307,14 @@ audited and installed versions (read every Breaking Changes entry against the su
 extensions use); `skills/pi-updated/scripts/extension-audit.ts` verifies every `pi.on` event,
 registration call and `ctx.ui` call under `extensions/` against the installed
 `ExtensionAPI`/`ExtensionUIContext` declarations; `skills/pi-updated/scripts/abi-audit.ts` checks
-class-level ABI (runtime exports + patched prototype methods against the running bundle). Then
+class-level ABI (runtime exports + patched prototype methods against the running
+bundle); `skills/pi-updated/scripts/hygiene-audit.ts` re-establishes extension
+package hygiene — the loader's host-provided set must stay out of every
+settings-loaded package's `dependencies`, no loaded extension may shadow a
+replaceable builtin, and it closes with a live loader pass over the real
+settings — whenever the loading side changes (a pi upgrade adding builtins or
+host-provided packages, or a package changing its manifest or registrations).
+Then
 `rg` the new `dist/core/tools/renderers/*.js`, `dist/modes/interactive/components/*.js`, and
 `@earendil-works/pi-tui/dist/components/markdown.js` for glyph/format/token drift (line counts,
 strings, token names), fix the adapters, and bump `AUDITED_PI_VERSION` plus this file before
@@ -345,3 +352,82 @@ renderers are unaffected; uncovered tools (extension-declared, MCP) may render d
 (`truncated`/`full_output_path`) — house bash preview caps; no template changes. Build switched to
 TS 7.0 / ES2024 and tsx→Node type-stripping: extension TS still loads via type stripping, no
 change needed. Visual pass (§9) pending the user's `/reload`.
+
+Re-audit 0.99.1 → 0.99.1 (2026-09-30, same day, `pi-updated`): nothing to migrate — installed and
+audited versions equal (widget would not flag it). Evidence trail: changelog-diff empty range,
+extension-audit 18/18 ✓, abi-audit 26/26 ✓, prompt-history patch intact ('already patched'),
+and sha256 of display dist (53 renderer/interactive files + pi-tui markdown.js) identical across
+the two independent 0.99.1 installs — glyph re-diff and §9 visual pass therefore have an empty
+surface set for this run. Executed §9-class render sweep (disposable spike, no files kept): with
+the real adapters installed against the running bundle and initTheme('dark'), tool
+pending/settled/failed states at widths 80/50, keyboard expansion (setExpanded 1→5 lines), mouse
+click-toggle through the adapter-patched handleMouse ({handled:true}, 1↔5 lines both ways),
+assistant markdown (✦ Answer heading/bold/code) and the compaction card all render with zero
+adapter throws; light-vs-dark executed programmatically — identical stripped structure under both
+initTheme appearances with appearance-specific 24-bit SGR codes (e.g. bg rgb(37,65,49) dark vs
+rgb(222,233,225) light). Only the human eye-on-terminal judgment of accent comfort stays open
+whenever that /reload diff is exercisable.
+
+Extension hygiene record 0.99.1 (2026-09-30, same-day `pi-updated` step 4): the
+0.99.1 loader enforces two package-shape rules — the host-provided set (`typebox`,
+`@earendil-works/pi-*`, legacy `@mariozechner/pi-*`) must stay out of a loaded
+package's `dependencies` (declare peer dependencies; pi supplies them at
+runtime), and a loaded extension registering `command:mcp` / `tool:codemode` /
+`tool:tool_search` shadows pi's new replaceable builtins (loader keeps the
+extension and warns about the builtin it hid). House decisions: pi-mcp-adapter
+keeps `command:mcp`, so global settings carries `-builtin:mcp` — the adapter
+stays the owner until a deliberate migration. Recording the parity delta for
+that migration: what pi-mcp-adapter uniquely keeps over `builtin:mcp` is
+install-by-URL on the `mcp` gateway tool, the `mcpScript` multi-call surface,
+and the claude-plugin/app-bridge loaders; what the builtin uniquely adds is the
+`pi mcp` CLI and OAuth flows. Both read `~/.pi/agent/mcp.json`, so profiles
+stay compatible. pi-web-access fixed its own manifest upstream (0.34.0) —
+refresh with `pi update npm:pi-web-access`, never vendor a copy; pi-subagents
+and syneva moved `typebox` to peer/devDependencies in their repos, with installs
+refreshed per repo toolchain. Instrumentation lives in
+`skills/pi-updated/scripts/hygiene-audit.ts` (static manifest/name mirror plus
+the live loader pass); same-day evidence: five settings packages clean,
+codemode and tool-search unshadowed, live pass 27 extensions / 0 errors /
+0 warnings.
+
+Widget-registry crash investigation (2026-09-30, pi 0.99.1): `OrderedWidgetHost.render`
+called `renderSegments` on a process-global registry whose shape guard checked only
+`register`, `render` and `unregister`. `/reload` could therefore reuse a registry
+created before segment rendering existed. `lib/ui/surface.ts` now versions that
+changed contract under a new global key and requires `renderSegments` in its guard.
+No Pi dependency patch or display-contract change. Verification: lint, type-check
+and formatting pass; two real-loader passes from `/tmp` each load 27 extensions
+with zero errors or warnings and retain one shared registry; both placements render
+without throwing. A real interactive child completes `/reload` without the TypeError.
+The current session still needs `/reload` to load the corrected module.
+
+Drift record 0.99.1 → 1.0.1 (2026-10-03, `pi-updated`; covers 0.99.2, 1.0.0, 1.0.1): changelog has no
+Breaking Changes sections. 1.0.0 makes fullscreen the default TUI mode — settings already pin
+`tuiMode: "fullscreen"`, no behavior change. 1.0.1 adds `pi.registerToolRenderer()` (draws calls for
+not-yet-registered tools, e.g. MCP in resumed sessions) — unused by the house renderers, no action.
+Codemode scripts probing tools with `typeof tools.name` must switch to `"name" in tools` (codemode
+scripts only, no extension impact). extension-audit 52/52 ✓, hygiene-audit clean (28 extensions,
+0 errors / 0 warnings, run before and after the adapter bump), abi-audit 26/26 ✓, all four dist
+patches reapplied on the 1.0.1 tree (prompt-history into the hoisted `.pnpm/node_modules` pi-tui
+editor.js, mermaid never-drop into mermaid.js + inlined chunk-5OEJBNHG.js, clipboard OSC 52,
+remove `/copy`). Glyph re-diff against an `npm pack`ed 0.99.1 baseline (old pnpm store dir is
+gone): `dist/core/tools/renderers/` drift is `bash.js` only — upstream dropped its per-instance
+cache component for a `VisualLinePreview`/`Spacer` flow; the house bash row keeps its own
+`ui/renderers/bash-preview.ts` presentation, no adapter change. Interactive drift outside
+login/oauth/easter-egg files: `tool-execution.js` moves Kitty image conversion to pi-tui's
+`setImageTranscoder`/`ensurePngTranscoder` with `imageSources` reuse (removed
+`maybeConvertImagesForKitty`/`convertedImages` — no adapter references them), and `user-message.js`
+wraps Markdown directly instead of in a `Box` (identical output; adapters patch
+`rebuild`/`clear`/`addChild` only). pi-tui 0.99.1 → 1.0.1: `markdown.js` holds parsed tokens in a
+`WeakRef` and flattens lines, `box.js`/`text.js` flatten lines, `image.js` gains the PNG
+transcoder + LRU png cache (1.0.1 fixes JPEG/GIF/WebP via `Image` not appearing in Ghostty/Kitty)
+— memory/normalization, no glyph/token drift. No adapter changes; §9 visual pass pending the
+user's `/reload`.
+
+Package record 1.0.1 (2026-10-03): pi-web-access 0.34.0 → 0.35.0 via `pi update --extensions`;
+pi-mcp-adapter 2.35.0 → 5.0.0 (`pi install npm:pi-mcp-adapter@5.0.0`). v4 made `mcpScript` opt-in
+and v5 ignores top-level `settings` in Pi's `mcp.json`, so the adapter got its own
+`~/.pi/agent/mcp-adapter.json` with `settings.scriptMode: true` (keeps the `mcpScript` tool) and
+`mcpFooterStatus: "off"` migrated out of `mcp.json`. v5 also owns writing `-builtin:mcp` — already
+in house settings. `pi-mcp-adapter doctor`: 10/10 servers ok. syneva and pi-frontend-check
+checkouts sit at their `origin/main`; `packages/subagents` is vendored (no remote).

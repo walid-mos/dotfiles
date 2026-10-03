@@ -1,0 +1,24 @@
+# Marks this checkout as its own pnpm workspace root.
+#
+# Why this file exists: pi installs pinned git packages by cloning them into
+# ~/.pi/agent/git/<host>/<path> and running `pnpm install` there. Without this
+# file, pnpm walks up and finds ~/.pi/agent/pnpm-workspace.yaml, treats that
+# directory as the workspace root, and installs ITS dependencies there — leaving
+# this clone with no node_modules and the extension unable to load its runtime
+# dependencies (undici, yaml, acorn, jiti, @earendil-works/pi-server).
+#
+# allowBuilds records, explicitly, the approval pnpm 12 requires for packages
+# that ship install scripts. An undecided entry fails the install with
+# ERR_PNPM_IGNORED_BUILDS.
+allowBuilds:
+    # Required: downloads and links the platform-specific binary.
+    esbuild: true
+    # Transitive through @google/genai. Its postinstall only prints
+    # version-scheme warnings to stderr; it writes nothing.
+    protobufjs: true
+    # Transitive through @earendil-works/pi-ai (Pi's model layer). Publishes no
+    # scripts/ directory, so there is no install-time script to run.
+    '@google/genai': false
+
+# Record exact dependency versions (no ^ or ~ range prefix) when adding packages.
+savePrefix: ""

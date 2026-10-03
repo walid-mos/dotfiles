@@ -75,8 +75,7 @@ export function renderActivityRail(kind: keyof typeof RAIL_PREFIXES): string {
 }
 
 export function closeActivityRail(line: string): string {
-	if (!line.startsWith(BRANCH))
-		return line
+	if (!line.startsWith(BRANCH)) return line
 	return CLOSED_BRANCH + line.slice(BRANCH.length)
 }
 

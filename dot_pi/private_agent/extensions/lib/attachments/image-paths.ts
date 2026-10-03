@@ -94,11 +94,13 @@ function detectImageMimeType(bytes: Uint8Array): string | undefined {
 	if (hasSignature(bytes, IMAGE_SIGNATURES.jpeg)) return 'image/jpeg'
 	if (hasSignature(bytes, IMAGE_SIGNATURES.gif)) return 'image/gif'
 	if (
-		!(hasSignature(bytes, IMAGE_SIGNATURES.webpContainer) &&
-		hasSignature(
-			bytes.slice(WEBP_TAG_OFFSET),
-			IMAGE_SIGNATURES.webpFormatTag,
-		))
+		!(
+			hasSignature(bytes, IMAGE_SIGNATURES.webpContainer) &&
+			hasSignature(
+				bytes.slice(WEBP_TAG_OFFSET),
+				IMAGE_SIGNATURES.webpFormatTag,
+			)
+		)
 	)
 		return undefined
 	return 'image/webp'
