@@ -150,3 +150,10 @@ Public
 **/.DS_Store
 .infisical
 infisical-keyring
+# pi: runtime state files pi regenerates - never version
+.pi/agent/crashes.json
+.pi/agent/goal-widget.json
+.pi/agent/herdr-task-names.json
+.pi/agent/mcp-adapter.json
+.pi/agent/mcp-onboarding.json
+.pi/agent/packages
