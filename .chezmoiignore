@@ -155,4 +155,5 @@ infisical-keyring
 .pi/agent/herdr-task-names.json
 .pi/agent/mcp-adapter.json
 .pi/agent/mcp-onboarding.json
-.pi/agent/packages
+# pi: vendored extension packages are synced; their dependency trees are not
+.pi/agent/packages/**/node_modules
