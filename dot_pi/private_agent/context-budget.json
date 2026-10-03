@@ -1,4 +1,5 @@
 {
-	"ceilingTokens": 160000,
-	"summaryModel": "deepseek/deepseek-v4-flash"
+	"summaryModel": "openai-codex/gpt-6-luna",
+	"maxContextTokens": 184000,
+	"keepRecentTokens": 20000
 }

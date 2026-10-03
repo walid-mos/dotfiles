@@ -57,7 +57,7 @@ import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
 import { isSettleClaimActive } from '#lib/settle-handshake/handshake.ts'
 
-import { QUESTIONNAIRE_MODE_EVENT } from '../../extensions/ask-user-question/questionnaire-events.ts'
+import { QUESTIONNAIRE_MODE_EVENT } from '../../extensions/ui/ask-user-question/questionnaire-events.ts'
 
 import { AgentAbortPause, watchAgentAborts } from './agent-abort-pause.ts'
 import { askText, continueText } from './directive.ts'

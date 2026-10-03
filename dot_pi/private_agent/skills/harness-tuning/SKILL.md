@@ -12,7 +12,7 @@ Placement discipline for agent instructions: where a rule lives decides whether 
 Each artifact kind has its own artifact spec — read it before authoring that kind:
 
 - Skills: `~/.pi/agent/skills/AGENTS.md`
-- Extensions: `~/.pi/agent/extensions/AGENTS.md`
+- Extensions: `~/.pi/agent/extensions/AGENTS.md` — domain-folder layout (`extensions/<domain>/<name>/`) and the mandatory step-by-step for adding or moving an extension; read it before creating, moving, or renaming anything under `extensions/`.
 
 ## Decision matrix: where does an instruction go?
 

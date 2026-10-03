@@ -137,7 +137,16 @@ Public
 
 # pi: regenerated MCP tool cache and runtime state (caches, deps, git, packages)
 .pi/agent/mcp-cache.json
+.pi/agent/mcp-npx-cache.json
 .pi/generated
+
+# cups: printer daemon state, machine-local
+.cups
+
+# pi: prototypes are throwaway working data
+.pi/agent/prototypes
 
 # macOS metadata files at any depth
 **/.DS_Store
+.infisical
+infisical-keyring
