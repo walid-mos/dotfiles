@@ -16,9 +16,12 @@ eval "$(/opt/homebrew/bin/brew shellenv)"
 # that must never shadow the real toolchain.
 launchctl setenv PATH "$HOME/Library/pnpm/bin:/opt/homebrew/bin:/opt/homebrew/opt/python@3.13/libexec/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$HOME/.local/bin"
 
-# Same precedence for this shell. Deliberately HERE and not in .zshenv:
-# /etc/zprofile runs path_helper, which prepends /usr/bin before this file —
-# anything set earlier is pushed behind it and /usr/bin/python3 wins.
+# Same precedence for this shell, except pnpm/bin and the brew bins are also
+# guard-appended in .zshenv: sshd exec (non-login zsh) skips this file, so
+# node/pnpm/gh/infisical must resolve even without it. Only the python@3.13
+# precedence is set HERE: /etc/zprofile runs path_helper, which prepends
+# /usr/bin before this file — anything set in .zshenv is pushed behind it and
+# /usr/bin/python3 wins.
 # The nested ${...:#...} filters drop any earlier occurrence, so re-running
 # this file never grows PATH (a missing entry would return the whole array).
 path=(
