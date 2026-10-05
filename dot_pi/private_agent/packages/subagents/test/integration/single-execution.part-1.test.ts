@@ -3447,9 +3447,10 @@ Answer only from the supplied synthetic text.
 		const configuredBase = path.join(tempDir, "configured-outputs");
 		const workflowOutput = "shared.md";
 
-		const resolvedSharedOutput = path.join(configuredBase, workflowOutput);
+		const workflowRunId = "scripted-workflow-configured-agent-default-output-collision";
+		const resolvedSharedOutput = path.join(configuredBase, workflowRunId, workflowOutput);
 		const agentDefaultResult = await makeExecutor([makeAgent("echo", { output: workflowOutput })], { singleRunOutputBaseDir: configuredBase }).execute(
-			"scripted-workflow-configured-agent-default-output-collision",
+			workflowRunId,
 			{
 				async: false,
 				workflowScript: `return await runs.all([

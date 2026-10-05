@@ -15,10 +15,10 @@ import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
 // ── Provider quotas ─────────────────────────────────
 
 /** One refresh pass; also runs on demand via the latte-quota command. */
-export async function refreshQuotas(ctx: ExtensionContext): Promise<void> {
+export async function refreshQuotas(): Promise<void> {
 	const lifecycle = footerState.lifecycleGeneration
 	try {
-		const quotas = await pollQuotas(ctx.modelRegistry)
+		const quotas = await pollQuotas()
 		if (lifecycle !== footerState.lifecycleGeneration) return
 		footerState.quotaCache = quotas
 		requestRenderSafely()
@@ -27,11 +27,11 @@ export async function refreshQuotas(ctx: ExtensionContext): Promise<void> {
 	}
 }
 
-export function startQuotaPolling(ctx: ExtensionContext): void {
+export function startQuotaPolling(): void {
 	if (footerState.quotaTimer) return
-	void refreshQuotas(ctx)
+	void refreshQuotas()
 	footerState.quotaTimer = setInterval(
-		() => void refreshQuotas(ctx),
+		() => void refreshQuotas(),
 		QUOTA_POLL_MS,
 	)
 	footerState.quotaTimer.unref()

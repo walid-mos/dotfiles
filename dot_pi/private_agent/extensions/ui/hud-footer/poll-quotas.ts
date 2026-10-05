@@ -6,7 +6,6 @@ import { pollIncoQuotas } from './inco-session.ts'
 import { isRecord } from './json.ts'
 import { pollDeepseekQuotas } from './quota-deepseek.ts'
 import { parseOpenAIUsage, chatgptAccountIdFromToken } from './quota-openai.ts'
-import { pollRuninfraQuotas } from './quota-runinfra.ts'
 import { pollXaiQuotas } from './quota-xai.ts'
 import { pollZaiQuotas } from './quota-zai.ts'
 import {
@@ -17,7 +16,6 @@ import {
 } from './quotas.ts'
 import { readAuthField } from './quotas.ts'
 
-import type { ModelRegistry } from '@earendil-works/pi-coding-agent'
 import type {
 	KimiQuota,
 	OpenAIQuota,
@@ -158,7 +156,7 @@ async function pollOpenaiQuotas(): Promise<OpenAIQuota | undefined> {
 }
 
 /** Poll every known billing backend in the classic footer request order. */
-export async function pollQuotas(registry: ModelRegistry): Promise<QuotaCache> {
+export async function pollQuotas(): Promise<QuotaCache> {
 	const cache: QuotaCache = {}
 	const kimi = await pollKimiQuotas()
 	if (kimi) cache.kimi = kimi
@@ -174,7 +172,5 @@ export async function pollQuotas(registry: ModelRegistry): Promise<QuotaCache> {
 	if (inco) cache.inco = inco
 	const zai = await pollZaiQuotas()
 	if (zai) cache.zai = zai
-	const runinfra = await pollRuninfraQuotas(registry)
-	if (runinfra) cache.runinfra = runinfra
 	return cache
 }

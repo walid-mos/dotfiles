@@ -14,6 +14,21 @@ Edit text to remove AI patterns and add human voice.
 3. Add soul (see next section).
 4. Self-audit: "What makes this obviously AI generated?" Fix remaining tells.
 
+## Bug explanations
+
+When presenting bugs, risks, or review findings for a decision, use a short title and this compact Markdown table per issue. Translate labels into the response language.
+
+| | Explanation |
+|---|---|
+| Problem | What fails → concrete consequence. |
+| Fix | The smallest specific action that addresses it. |
+| When it bites | The situation that triggers the failure or makes it matter. |
+| Constraint | A dependency, trade-off, or blocker that changes the decision. |
+
+Keep each cell to one short sentence. Omit the constraint row when it adds nothing; write "None" only if checked. Mark an unconfirmed cause or proposed fix as such instead of inventing certainty to fill a cell.
+
+Optimize for understanding and choosing, not just fewer words. Keep evidence to the exact reference needed to support the claim; leave investigation history and implementation detail out unless they change the decision or the user asks. For a trivial issue, use a sentence instead of forcing a table. For several issues, preserve the same row order so they are easy to compare. Functional labels here are not the redundant inline headers banned below.
+
 ## Adding soul
 
 Removing patterns is half the job. Sterile, voiceless writing is just as obvious.

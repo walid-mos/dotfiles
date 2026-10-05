@@ -3146,27 +3146,35 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 		assert.equal(fs.existsSync(path.join(tempDir, "context.md")), false);
 	});
 
-	it("routes foreground single relative outputs to configured singleRunOutputBaseDir", { skip: !createSubagentExecutor ? "executor not importable" : undefined }, async () => {
-		mockPi.onCall({ output: "configured report" });
+	it("routes foreground single relative outputs to a per-run directory under singleRunOutputBaseDir", { skip: !createSubagentExecutor ? "executor not importable" : undefined }, async () => {
 		const configuredBase = path.join(tempDir, "configured-outputs");
 		const executor = makeExecutor(
 			[makeAgent("researcher", { output: "context.md" })],
 			{ singleRunOutputBaseDir: configuredBase },
 		);
 
-		const result = await executor.execute(
-			"single-configured-output-base",
-			{ agent: "researcher", task: "Write report" },
-			new AbortController().signal,
-			undefined,
-			makeMinimalCtx(tempDir),
-		);
+		const reports = ["first report", "second report"];
+		const outputPaths: string[] = [];
+		for (const [index, report] of reports.entries()) {
+			mockPi.onCall({ output: report });
+			const result = await executor.execute(
+				`single-configured-output-base-${index}`,
+				{ agent: "researcher", task: "Write report" },
+				new AbortController().signal,
+				undefined,
+				makeMinimalCtx(tempDir),
+			);
+			assert.equal(result.isError, undefined);
+			const taskArg = readCallArgs().at(-1) ?? "";
+			outputPaths.push(taskArg.match(/Write your findings to exactly this path: (.+)/)?.[1] ?? "");
+		}
 
-		const expectedOutputPath = path.join(configuredBase, "context.md");
-		const taskArg = readCallArgs().at(-1) ?? "";
-		assert.equal(result.isError, undefined);
-		assert.match(taskArg, new RegExp(`Write your findings to exactly this path: ${escapeRegExp(expectedOutputPath)}`));
-		assert.equal(fs.readFileSync(expectedOutputPath, "utf-8"), "configured report");
+		assert.notEqual(outputPaths[0], outputPaths[1]);
+		for (const [index, outputPath] of outputPaths.entries()) {
+			assert.equal(path.basename(outputPath), "context.md");
+			assert.equal(path.dirname(path.dirname(outputPath)), configuredBase);
+			assert.equal(fs.readFileSync(outputPath, "utf-8"), reports[index]);
+		}
 		assert.equal(fs.existsSync(path.join(tempDir, "context.md")), false);
 	});
 

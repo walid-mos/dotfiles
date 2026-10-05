@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto'
 import { statSync } from 'node:fs'
 import { resolve } from 'node:path'
 
+import { checkpointReadResults } from '#lib/context-budget/retained-reads.ts'
+
 /** Durable metadata only: no file contents or secrets enter this entry. */
 export const READ_LEDGER_ENTRY = 'pi-read-ledger-v2'
 const MAX_READS = 128
@@ -50,10 +52,16 @@ export class ReadLedger {
 			toolCallId?: string
 			toolName?: string
 			content?: unknown
+			summary?: unknown
 			isError?: boolean
 		}[],
 	): void {
 		this.visible.clear()
+		const retained = messages
+			.filter(message => message.role === 'compactionSummary')
+			.flatMap(message => checkpointReadResults(message.summary))
+		for (const read of retained)
+			this.visible.set(read.toolCallId, contentHash(read.content))
 		for (const message of messages) {
 			if (
 				message.role !== 'toolResult' ||

@@ -26,12 +26,25 @@ Four checks, in order of information value:
 
 The decision to change pi or herdr source at all is governed by `~/.pi/agent/skills/harness-tuning/SKILL.md` § Modifying pi or herdr; this skill owns the mechanics: the `scripts/SOURCE.md` patch registry and the `pi-patch-*.py` reapply scripts.
 
-1. **Scope.** Read the installed pi version (`node -e "import('<pi bundle>/dist/bundle/index.js').then(m => console.log(m.VERSION))"`)
-   and `AUDITED_PI_VERSION`. Equal → nothing to do, report it.
+1. **Scope.** Run the stale-session check first:
+
+   ```bash
+   node skills/pi-updated/scripts/stale-session-check.ts
+   ```
+
+   Every `✗` line is a running pi process started before the installed release.
+   Such a session keeps its pre-update modules in memory (jiti loader, docs
+   paths, adapters); once an update removes the old pnpm store those paths
+   dangle and extensions fail with `Cannot find module` on the next uncached
+   load — a breakage no disk-side audit can see. Tell the user to restart
+   those sessions (exit and relaunch); `/reload` cannot swap in-memory
+   modules. The disk audits below stay valid either way. Then read the
+   installed pi version (`node -e "import('<pi bundle>/dist/bundle/index.js').then(m => console.log(m.VERSION))"`)
+   and `AUDITED_PI_VERSION`. Equal → nothing more to do, report it.
 2. **Changelog breakage review.** From `~/.pi/agent` run:
 
    ```bash
-   node --experimental-transform-types skills/pi-updated/scripts/changelog-diff.ts
+   node skills/pi-updated/scripts/changelog-diff.ts
    ```
 
    It prints the installed package's `CHANGELOG.md` sections between `AUDITED_PI_VERSION`
@@ -48,7 +61,7 @@ The decision to change pi or herdr source at all is governed by `~/.pi/agent/ski
 3. **Extension-API audit.** From `~/.pi/agent` run:
 
    ```bash
-   node --experimental-transform-types skills/pi-updated/scripts/extension-audit.ts
+   node skills/pi-updated/scripts/extension-audit.ts
    ```
 
    It scans `extensions/**` for every `pi.on('…')` event, every `pi.<method>(…)` registration call
@@ -59,7 +72,7 @@ The decision to change pi or herdr source at all is governed by `~/.pi/agent/ski
 4. **Extension package hygiene.** From `~/.pi/agent` run:
 
    ```bash
-   node --experimental-transform-types skills/pi-updated/scripts/hygiene-audit.ts
+   node skills/pi-updated/scripts/hygiene-audit.ts
    ```
 
    It mirrors the loader's own rules from `dist/core/resource-loader.js` and
@@ -80,7 +93,7 @@ The decision to change pi or herdr source at all is governed by `~/.pi/agent/ski
 5. **Class-level display ABI audit.** From `~/.pi/agent` run:
 
    ```bash
-   node --experimental-transform-types skills/pi-updated/scripts/abi-audit.ts
+   node skills/pi-updated/scripts/abi-audit.ts
    ```
 
    It locates the installed bundle, greps the adapter sources for every
@@ -110,7 +123,8 @@ The decision to change pi or herdr source at all is governed by `~/.pi/agent/ski
    pnpm run lint && pnpm run type-check && pnpm exec oxfmt --write <touched .ts files>
    ```
 
-   End by telling the user to `/reload`; the widget disappears on the next session.
+   End by telling the user to `/reload` — or to fully restart any session the
+   stale-session check flagged; the widget disappears on the next session.
 
 ## Limits
 
@@ -123,3 +137,7 @@ The decision to change pi or herdr source at all is governed by `~/.pi/agent/ski
   install/render time; a fresh error line in the session is an audit finding too.
 - `extension-audit.ts` trusts the installed `.d.ts` declarations; if a release changes behavior
   without renaming anything, only the changelog review and the visual pass catch it.
+- `stale-session-check.ts` judges by process start time only (pi hides its argv behind
+  `process.title`): any command named `pi` counts as a session, and a same-version store
+  re-install can flag healthy sessions. Restarting on its advice is always safe; it never
+  replaces the disk audits.

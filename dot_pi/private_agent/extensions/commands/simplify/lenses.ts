@@ -1,7 +1,8 @@
 /**
  * The analysis contracts: the four lens tasks, the findings schema handed to
  * the children (and reused to validate what they return), the workflow script
- * that runs them within budgets, and the message asking the parent to launch it.
+ * that runs them, and the message asking the parent to launch it. Tool limits live on the
+ * simplifier agent definition, not here.
  */
 
 import { Type } from 'typebox'
@@ -16,13 +17,6 @@ export const ANALYSIS_PHASE = 'Simplify'
 export const MAX_FINDINGS = 40
 
 const JSON_INDENT = 2
-const ANALYSIS_TOOL_BUDGET = {
-	soft: 24,
-	hard: 40,
-	block: ['read', 'grep', 'find', 'ls', 'bash'],
-} as const
-const ANALYSIS_USAGE_BUDGET = { costUsd: { soft: 0.15, hard: 0.25 } }
-
 const LENS_TASKS: Record<Lens, string> = {
 	reuse: [
 		'Find code in scope that already exists elsewhere in this repository.',
@@ -145,11 +139,11 @@ export function lensTask(lens: Lens, input: LensTaskInput): string {
 			: 'This is a direct-file scope with no Git diff: every file in the manifest is fully in scope.',
 		input.focus ? `Extra emphasis for this run: ${input.focus}` : undefined,
 		'',
-		`Use at most ${ANALYSIS_TOOL_BUDGET.hard} tool calls. Read changed regions and their direct dependencies, then finalize from that evidence; report incomplete coverage in notes. Report only findings anchored inside the review scope, at most ${MAX_FINDINGS}, most important first. Include their necessary supporting edits in evidence. End with exactly one structured_output call matching the schema: an honest empty list is a valid answer and beats speculation.`,
+		`Read changed regions and their direct dependencies, then finalize from that evidence; report incomplete coverage in notes. Report only findings anchored inside the review scope, at most ${MAX_FINDINGS}, most important first. Include their necessary supporting edits in evidence. End with exactly one structured_output call matching the schema: an honest empty list is a valid answer and beats speculation.`,
 	])
 }
 
-/** The budgeted script the parent launches; a file, so it cannot be mistyped. */
+/** The script the parent launches; a file, so it cannot be mistyped. */
 export function buildWorkflowScript(input: LensTaskInput): string {
 	const children = LENSES.map(lens => ({
 		key: lens,
@@ -159,7 +153,6 @@ export function buildWorkflowScript(input: LensTaskInput): string {
 		task: lensTask(lens, input),
 		output: false,
 		progress: false,
-		toolBudget: ANALYSIS_TOOL_BUDGET,
 		...LENS_OUTPUT_CONTRACT,
 	}))
 	return joinLines([
@@ -191,7 +184,6 @@ export function buildDispatchMessage(scriptPath: string): string {
 				mission: false,
 				globalConcurrencyLimit: 1,
 				maxSubagentSpawnsPerRun: LENSES.length,
-				usageBudget: ANALYSIS_USAGE_BUDGET,
 				workflow: scriptPath,
 			},
 			null,

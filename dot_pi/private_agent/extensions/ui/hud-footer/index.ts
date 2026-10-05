@@ -148,7 +148,7 @@ function footerLines(
 
 function installFooter(ctx: ExtensionContext): void {
 	if (!footerState.isEnabled || ctx.mode !== 'tui') return
-	startQuotaPolling(ctx)
+	startQuotaPolling()
 	void refreshTariff()
 	startGitTracking(ctx.cwd, refreshPrForBranchChange)
 	startPrPolling()
@@ -210,7 +210,7 @@ function toggleFooter(ctx: ExtensionContext): void {
 }
 
 async function refreshQuotaCommand(ctx: ExtensionContext): Promise<void> {
-	await refreshQuotas(ctx)
+	await refreshQuotas()
 	ctx.ui.notify('Quotas refreshed', 'info')
 }
 

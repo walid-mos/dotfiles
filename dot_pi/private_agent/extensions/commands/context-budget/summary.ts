@@ -6,9 +6,11 @@ import {
 	CHECKPOINT_FINISHED_EVENT,
 } from '#lib/context-budget/events.ts'
 import { readCheckpointModel } from '#lib/context-budget/model.ts'
+import { retainedSkillReads } from '#lib/context-budget/retained-reads.ts'
 import { runTimedHook } from '#lib/telemetry/hook-timing.ts'
 
 import { currentCheckpointState } from './current-state.ts'
+import { checkpointDecisions } from './decisions.ts'
 import { prepareCheckpoint } from './preparation.ts'
 import { summaryPrompt } from './prompt.ts'
 
@@ -82,17 +84,26 @@ async function checkpoint(
 		throw new Error(
 			`Checkpoint ${model.provider}/${model.id} failed: ${response.stopReason}; no complete summary was returned.`,
 		)
-	return { compaction: checkpointResult(event, summary, response.usage) }
+	return {
+		compaction: checkpointResult(event, summary, response.usage, ctx.cwd),
+	}
 }
 
 function checkpointResult(
 	event: SessionBeforeCompactEvent,
 	summary: string,
 	usage: NonNullable<CompactionResult['usage']>,
+	cwd: string,
 ): CompactionResult<CheckpointDetails> {
 	const { preparation } = event
 	return {
-		summary: `Scope: summarized prefix before ${preparation.firstKeptEntryId}, plus a bounded current-evidence snapshot. Newer retained messages override this checkpoint; unobserved work is not evidence it never happened.\n\n${summary}`,
+		summary: [
+			`Scope: summarized prefix before ${preparation.firstKeptEntryId}, plus a bounded current-evidence snapshot. Newer retained messages override this checkpoint; unobserved work is not evidence it never happened.\n\n${summary}`,
+			checkpointDecisions(event.branchEntries),
+			retainedSkillReads(event.branchEntries, cwd),
+		]
+			.filter(Boolean)
+			.join('\n\n'),
 		firstKeptEntryId: preparation.firstKeptEntryId,
 		tokensBefore: preparation.tokensBefore,
 		usage,

@@ -1,5 +1,6 @@
 /** renderers - assistant responses, every Pi tool output, compaction cards,
- * framed user prompts and skill callouts.
+ * framed user prompts, skill callouts and the package transcript cards
+ * (message-cards.ts) whose minting packages cannot import the house libraries.
  * install-renderers.ts owns the runtime lifecycle; *-surface.ts isolate the Pi ABI.
  * prompt-surfaces.ts composes the user-side patches (prompt-block.ts,
  * skill-block.ts, surfaces.ts, attachment-surface.ts, runtime.ts).
@@ -13,12 +14,18 @@ import { detectPiDrift, loadPiRuntime } from '#lib/ui/pi-runtime.ts'
 import { showRendererDrift } from '#lib/ui/renderer-drift.ts'
 
 import { installRenderers } from './install-renderers.ts'
+import {
+	registerFrontendStopCard,
+	registerNoticeCards,
+} from './message-cards.ts'
 import { installPromptSurfaces } from './prompt-surfaces.ts'
 import { WriteSnapshots } from './write-snapshots.ts'
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 export default async function renderers(pi: ExtensionAPI): Promise<void> {
+	registerFrontendStopCard(pi)
+	registerNoticeCards(pi)
 	const runtime = await loadPiRuntime()
 	const drift = detectPiDrift(runtime)
 	let dispose = installRenderers(runtime)

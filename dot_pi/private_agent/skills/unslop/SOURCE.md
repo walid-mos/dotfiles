@@ -7,6 +7,7 @@
 - **Revision**: 74dd2291e8e37b12fd6dc49b2acbd655c6bdaf12
 - **Vendored**: 2026-09-26
 - **License**: MIT (see `LICENSE`, © 2026 Lauren Tan)
-- **Update procedure**: re-fetch the upstream file at the path above, diff against this copy, replace, and update this revision line.
+- **Update procedure**: re-fetch the upstream file at the path above, diff against this copy, merge while preserving local customizations, and update this revision line.
+- **Local customization**: keep the "Bug explanations" section in `SKILL.md`; it defines the user's compact decision format.
 
 Note: frequently misattributed to Matt Pocock's skills repo (mattpocock/skills); it is part of the pstack skill collection. The two collections are compared in https://daily.dev/posts/so-i-tried-matt-s-skills--0f5yy5jlx.

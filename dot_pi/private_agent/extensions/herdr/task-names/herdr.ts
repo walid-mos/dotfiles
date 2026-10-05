@@ -4,15 +4,13 @@ import { promisify } from 'node:util'
 
 import { Value } from 'typebox/value'
 
-import { METADATA_TTL_MS, SnapshotResponse, SOURCE } from './contracts.ts'
+import { SnapshotResponse, SOURCE } from './contracts.ts'
 
 import type { PaneTask, Snapshot } from './contracts.ts'
 
 const exec = promisify(execFile)
 const CLI_TIMEOUT_MS = 5_000
 const CLI_BUFFER_BYTES = 8_388_608
-const SEQUENCE_SCALE = 1_000
-let sequence = Date.now() * SEQUENCE_SCALE
 
 export async function herdr(args: string[]): Promise<unknown> {
 	try {
@@ -47,7 +45,8 @@ export async function publishTask(
 	task: PaneTask,
 	title: string,
 ): Promise<void> {
-	sequence += 1
+	// The elected writer serializes refreshes. A process-start sequence would
+	// reject reports when an older Pi process takes over from a newer one.
 	await herdr([
 		'pane',
 		'report-metadata',
@@ -56,10 +55,6 @@ export async function publishTask(
 		SOURCE,
 		'--agent',
 		'pi',
-		'--seq',
-		String(sequence),
-		'--ttl-ms',
-		String(METADATA_TTL_MS),
 		'--token',
 		`task=${title}`,
 		'--token',

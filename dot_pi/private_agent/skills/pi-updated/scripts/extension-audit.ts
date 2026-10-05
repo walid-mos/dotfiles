@@ -1,7 +1,7 @@
 /** Extension-API audit: verify every pi.on event, registration call and
  * ctx.ui call used under extensions/ still exists in the installed pi
  * package's declarations. Run from ~/.pi/agent:
- *   node --experimental-transform-types skills/pi-updated/scripts/extension-audit.ts
+ *   node skills/pi-updated/scripts/extension-audit.ts
  * Name-level only - semantic drift (dispatch order, listener timing) is the
  * changelog review's job (see SKILL.md). */
 import { execFileSync } from 'node:child_process'

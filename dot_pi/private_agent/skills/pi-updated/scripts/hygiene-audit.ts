@@ -5,7 +5,7 @@
  * settings `extensions` array (`-builtin:<name>`) are excluded from the
  * collision check, matching what the running loader actually loads. Run
  * from ~/.pi/agent:
- *   node --experimental-transform-types skills/pi-updated/scripts/hygiene-audit.ts
+ *   node skills/pi-updated/scripts/hygiene-audit.ts
  * Exit 1 when a finding exists; every finding line names the fix.
  * Limits: name-level static checks like the other pi-updated scripts; the
  * live loader pass covers the loader's own runtime warnings. */

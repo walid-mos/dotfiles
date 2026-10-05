@@ -1,7 +1,7 @@
 /** Print the installed pi package's CHANGELOG.md sections between two versions
  * (default: AUDITED_PI_VERSION exclusive → installed version inclusive). Run
  * from ~/.pi/agent:
- *   node --experimental-transform-types skills/pi-updated/scripts/changelog-diff.ts
+ *   node skills/pi-updated/scripts/changelog-diff.ts
  * Optional args: <fromVersion> <toVersion>. Exit 1 when a wanted section is
  * missing from the installed changelog (fetch the older tarball then). */
 import { execFileSync } from 'node:child_process'

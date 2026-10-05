@@ -14,7 +14,7 @@ The answer is the smallest text that answers the question. Assume the reader is 
 - **No jargon, ever**: no buzzwords ("leverage", "seamless", "robust", "holistic", "ecosystem"), no abstraction vocabulary ("paradigm", "orchestration layer", "design space"), no invented nouns. If a technical term is unavoidable, use the exact one from the code and define it in ≤ 8 words at first use. A reader who knows the codebase must recognize it; one who doesn't must still understand.
 - **No hedge, no filler**: cut "essentially", "basically", "it's worth noting", "as you can see", "in order to", adverbs, and restating the request. Zero opening pleasantries, zero closing offers. Delete any sentence that would survive removal without losing information.
 - **Every sentence carries one fact**: no generalities ("the code follows best practices") — say the file, the line, the number, the behavior that changed.
-- **Scale to the change**: 1–3 sentences for a small fix. Larger work: what / why / how-to-verify, nothing else. Headers, tables and recaps only when genuinely multi-part.
+- **Scale to the change**: 1–3 sentences for a small fix. Larger work: what / why / how-to-verify, nothing else. Headers, tables and recaps only when genuinely multi-part. For bug explanations, load `~/.pi/agent/skills/unslop/SKILL.md` and follow its "Bug explanations" section.
 
 ## Diagrams
 
@@ -55,7 +55,7 @@ If nothing can finish on its own, do other work or end the turn and come back wh
 
 ## Artifact placement
 
-Never use `~/.pi/agent` as a scratch or deliverable directory (including `tmp/`); put disposable helpers in the OS temp directory and standalone deliverables in the requested location or `~/Desktop/pi`. Only Pi configuration and explicitly requested Pi artifacts belong under `~/.pi/agent`.
+Never use `~/.pi/agent` as a scratch or deliverable directory (including `tmp/`); put disposable helpers in the OS temp directory and standalone deliverables in the requested location or `~/Desktop/pi`. Only Pi configuration and explicitly requested Pi artifacts belong under `~/.pi/agent`. Pi-harness tool packages are vendored under `~/.pi/agent/packages/` (see ARCHITECTURE.md); agent-agnostic dev tools stay in general development directories and out of `~/.pi/agent`.
 
 ## Task completion
 

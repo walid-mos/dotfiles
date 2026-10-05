@@ -11,7 +11,6 @@ import {
 	xaiSegment,
 	zaiSegment,
 } from './quota-segments.ts'
-import { runinfraSegment } from './render-runinfra.ts'
 import { quietText as QUIET, thinSep } from './text.ts'
 import { ICONS } from './theme.ts'
 
@@ -43,8 +42,7 @@ function activeProviderParts(
 	activeProvider: string,
 	options: QuotaRenderOptions,
 ): string[] {
-	const { kimi, openrouter, openai, xai, deepseek, inco, zai, runinfra } =
-		quotas
+	const { kimi, openrouter, openai, xai, deepseek, inco, zai } = quotas
 	const segments = {
 		kimi: () => (kimi ? kimiSegment(kimi, options) : ''),
 		openrouter: () => (openrouter ? openRouterSegment(openrouter) : ''),
@@ -53,7 +51,6 @@ function activeProviderParts(
 		deepseek: () => (deepseek ? deepseekSegment(deepseek, options) : ''),
 		inco: () => (inco ? incoSegment(inco) : ''),
 		zai: () => (zai ? zaiSegment(zai, options) : ''),
-		runinfra: () => (runinfra ? runinfraSegment(runinfra) : ''),
 	}
 	return Object.entries(segments)
 		.filter(([provider]) => activeProvider.includes(provider))

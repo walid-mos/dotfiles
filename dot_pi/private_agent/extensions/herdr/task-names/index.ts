@@ -106,7 +106,7 @@ export default function taskNames(pi: ExtensionAPI): void {
 		if (ctx.mode !== 'tui') return
 		clearInterval(timer)
 		await stopNaming?.()
-		await publishBranch(ctx)
+		await publishInBackground(publishBranch, ctx)
 		stopNaming = startNaming(ctx.modelRegistry, message =>
 			ctx.ui.notify(message, 'warning'),
 		)

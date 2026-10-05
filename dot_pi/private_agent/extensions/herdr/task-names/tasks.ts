@@ -20,21 +20,23 @@ export interface TitleInput {
 
 interface SessionIndex {
 	modified: number
+	size: number
 	entries: Map<string, SessionEntry>
 	leaf: string | null
 }
 const sessions = new Map<string, SessionIndex>()
 
 async function sessionIndex(file: string): Promise<SessionIndex> {
-	const { mtimeMs } = await stat(file)
+	const { mtimeMs, size } = await stat(file)
 	const cached = sessions.get(file)
-	if (cached?.modified === mtimeMs) return cached
+	if (cached?.modified === mtimeMs && cached.size === size) return cached
 	const parsed = parseSessionEntries(await readFile(file, 'utf8'))
 	const entries = parsed.filter(
 		(entry): entry is SessionEntry => entry.type !== 'session',
 	)
 	const index = {
 		modified: mtimeMs,
+		size,
 		entries: new Map(entries.map(entry => [entry.id, entry])),
 		leaf: entries.at(-1)?.id ?? null,
 	}
@@ -43,6 +45,8 @@ async function sessionIndex(file: string): Promise<SessionIndex> {
 }
 
 async function branch(file: string, paneId: string): Promise<SessionEntry[]> {
+	// Read the branch pointer first: it must not advance past the file we read.
+	const selection = await optionalJson(selectionPath(paneId))
 	let index: SessionIndex
 	try {
 		index = await sessionIndex(file)
@@ -56,7 +60,6 @@ async function branch(file: string, paneId: string): Promise<SessionEntry[]> {
 			return []
 		throw cause
 	}
-	const selection = await optionalJson(selectionPath(paneId))
 	const selectedLeaf =
 		Value.Check(BranchSelection, selection) && selection.session === file
 			? selection.leaf
@@ -76,35 +79,58 @@ async function branch(file: string, paneId: string): Promise<SessionEntry[]> {
 	return entries.toReversed()
 }
 
-async function paneTask(pane: Pane, snapshot: Snapshot): Promise<PaneTask[]> {
+async function paneTask(
+	pane: Pane,
+	snapshot: Snapshot,
+	onFailure: (message: string) => void,
+): Promise<PaneTask[]> {
 	const session = pane.agent_session
 	if (pane.agent !== 'pi') return []
 	const isNative = session?.source === 'herdr:pi' && session.kind === 'path'
-	const goal = isNative
-		? activeGoal(await branch(session.value, pane.pane_id))
-		: undefined
-	const items =
-		goal?.items.filter(goalItem => goalItem.kind !== 'request') ?? []
-	return [
-		{
-			id: pane.pane_id,
-			tabId: pane.tab_id,
-			session: isNative ? session.value : '',
-			project:
-				snapshot.workspaces.find(
-					workspace => workspace.workspace_id === pane.workspace_id,
-				)?.label ?? path.basename(pane.cwd ?? 'Pi'),
-			items: items.map(goalItem => goalItem.text),
-			isComplete:
-				!!goal?.items.length &&
-				goal.items.every(goalItem => goalItem.done),
-		},
-	]
+	const task: PaneTask = {
+		id: pane.pane_id,
+		tabId: pane.tab_id,
+		session: isNative ? session.value : '',
+		project:
+			snapshot.workspaces.find(
+				workspace => workspace.workspace_id === pane.workspace_id,
+			)?.label ||
+			path.basename(pane.cwd ?? 'Pi') ||
+			'Pi',
+		items: [],
+		isComplete: false,
+		isReadable: true,
+	}
+	if (!isNative) return [task]
+	try {
+		const goal = activeGoal(await branch(session.value, pane.pane_id))
+		return [
+			{
+				...task,
+				items: (
+					goal?.items.filter(
+						goalItem => goalItem.kind !== 'request',
+					) ?? []
+				).map(goalItem => goalItem.text),
+				isComplete:
+					!!goal?.items.length &&
+					goal.items.every(goalItem => goalItem.done),
+			},
+		]
+	} catch (cause) {
+		onFailure(`Cannot read ${pane.pane_id} task: ${String(cause)}`)
+		return [{ ...task, isReadable: false }]
+	}
 }
 
-export async function collectTasks(snapshot: Snapshot): Promise<PaneTask[]> {
+export async function collectTasks(
+	snapshot: Snapshot,
+	onFailure: (message: string) => void,
+): Promise<PaneTask[]> {
 	const tasks = (
-		await Promise.all(snapshot.panes.map(pane => paneTask(pane, snapshot)))
+		await Promise.all(
+			snapshot.panes.map(pane => paneTask(pane, snapshot, onFailure)),
+		)
 	).flat()
 	const liveFiles = new Set(tasks.map(task => task.session))
 	for (const file of sessions.keys())

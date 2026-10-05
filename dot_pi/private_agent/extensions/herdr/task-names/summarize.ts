@@ -1,6 +1,6 @@
 /** Bounded naming attempts over declared tasks, never terminal activity. */
 import { randomUUID } from 'node:crypto'
-import { appendFile } from 'node:fs/promises'
+import { appendFile, mkdir } from 'node:fs/promises'
 import path from 'node:path'
 
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
@@ -9,6 +9,7 @@ import { Value } from 'typebox/value'
 import { TITLE_LIMIT, Titles } from './contracts.ts'
 import { preserveTitles } from './stable-titles.ts'
 import { optionalJson, STATE_DIR } from './storage.ts'
+import { boundedTitles } from './title-text.ts'
 
 import type { Api, AssistantMessage, Model } from '@earendil-works/pi-ai'
 import type { ModelRegistry } from '@earendil-works/pi-coding-agent'
@@ -77,7 +78,7 @@ function parseTitles(input: TitleInput, response: AssistantMessage): Titles {
 		.filter(part => part.type === 'text')
 		.map(part => part.text)
 		.join('')
-	const titles: unknown = JSON.parse(text)
+	const titles: unknown = boundedTitles(JSON.parse(text))
 	if (!Value.Check(Titles, titles))
 		throw new Error(
 			`Task naming returned invalid titles: ${JSON.stringify([...Value.Errors(Titles, titles)])}`,
@@ -107,9 +108,11 @@ async function requestValidTitles(
 			deadline,
 		)
 		deadline.throwIfAborted()
-		if (response.stopReason !== 'stop')
-			throw new Error(`Task naming failed: ${response.stopReason}`)
 		try {
+			if (response.stopReason !== 'stop')
+				throw new Error(
+					`Task naming failed: ${response.stopReason}${response.errorMessage ? `: ${response.errorMessage}` : ''}`,
+				)
 			return { response, titles: parseTitles(input, response) }
 		} catch (cause) {
 			if (attempt >= MAX_NAMING_ATTEMPTS)
@@ -139,13 +142,26 @@ export async function summarize(
 		signal,
 	)
 	const normalized = singlePaneTitles(input, preserveTitles(titles, retained))
-	await appendFile(
-		path.join(STATE_DIR, 'naming.log'),
-		`${JSON.stringify({ event: 'named', model: `${response.provider}/${response.model}`, usage: response.usage, titles: normalized })}\n`,
-		{ mode: 0o600 },
-	)
+	await appendNamingLog({
+		event: 'named',
+		model: `${response.provider}/${response.model}`,
+		usage: response.usage,
+		titles: normalized,
+	})
 	return normalized
 }
+
+async function appendNamingLog(entry: object): Promise<void> {
+	await mkdir(STATE_DIR, { recursive: true, mode: 0o700 })
+	await appendFile(
+		path.join(STATE_DIR, 'naming.log'),
+		`${JSON.stringify({ at: new Date().toISOString(), ...entry })}\n`,
+		{ mode: 0o600 },
+	)
+}
+
+export const logNamingFailure = (message: string): Promise<void> =>
+	appendNamingLog({ event: 'failed', message })
 
 function validateIds(input: TitleInput, titles: Titles): void {
 	for (const kind of ['panes', 'tabs'] as const) {

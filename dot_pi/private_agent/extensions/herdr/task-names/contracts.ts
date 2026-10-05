@@ -4,7 +4,6 @@ import { Type } from 'typebox'
 import type { Static } from 'typebox'
 
 export const POLL_MS = 5_000
-export const METADATA_TTL_MS = 300_000
 export const TITLE_LIMIT = 48
 export const SOURCE = 'pi-task-names'
 export const Title = Type.String({
@@ -68,6 +67,7 @@ export interface PaneTask {
 	session: string
 	items: string[]
 	isComplete: boolean
+	isReadable: boolean
 }
 export const BranchSelection = Type.Object({
 	session: Type.String(),

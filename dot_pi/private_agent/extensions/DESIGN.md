@@ -3,7 +3,7 @@
 Single source of truth for restyling pi's TUI. Read this before migrating ANY render surface
 (tool rows, chrome, transcript surfaces) to the house design system.
 
-- Verified against installed `@earendil-works/pi-coding-agent@1.0.1` + `@earendil-works/pi-tui@1.0.1` dist sources.
+- Verified against installed `@earendil-works/pi-coding-agent@1.0.3` + `@earendil-works/pi-tui@1.0.3` dist sources.
 - Re-diff this matrix after every pi upgrade; glyph/format details can shift between versions.
 - Ownership rules live in `~/.pi/agent/ARCHITECTURE.md`. This file tracks *what renders*, not *who owns which module*.
 
@@ -174,7 +174,41 @@ its execution details remain authoritative.
 - [x] Submitted attachments: thumbnails and aliases sit inside the owning prompt frame, above its literal text, with one separating blank row. The native custom entry is relocated, not duplicated; its persisted position and payload are unchanged. Replay and native user rebuilds preserve the placement; unmatched/orphan entries retain their standalone fallback. Draft-editor strip placement is unchanged.
 - [x] Assistant: `ui/renderers/assistant-surface.ts` with centered response landmarks and house Markdown; no raw-source override remains in `renderers/`.
 - [x] Thinking: separate muted content, existing visibility setting and per-run mouse expansion retained; never styled as a final answer.
-- [ ] Custom message cards: `Box` + bold `[customType]` (`customMessageLabel`) + `customMessageText` (`registerMessageRenderer`).
+- [x] Custom message cards: registered per `customType` through `registerMessageRenderer`; the
+  house cards reuse the tool-panel geometry (square frame on the shared content column, status
+  glyph on the title edge, quiet details, dim footer) with the frame ink blended toward the
+  status role like the mutation panels, and expansion rides global Ctrl+O
+  (`CustomMessageComponent.setExpanded` re-runs the renderer). Producers own their wire ids and
+  payloads, and renderers never re-etch stored text: `tools/guard/bash-job-card.ts` renders
+  `pi-bash-job-complete` (the completion follow-up for owned background commands; the minted
+  snapshot line parses through the live `jobSnapshotSchema`, the card is titled by the
+  job's program identity derived from the minted command (`pnpm lint`, `grep`,
+  `node render-cards.mjs`) instead of the generic `job`, collapsed keeps a bounded output
+  preview of 6 rows with a `... N more lines` row, Ctrl+O reveals the verbatim command,
+  every output row plus `cwd`/`receipt`/`full output`, receipts and diagnostics
+  always visible, and the footer states `bash action=status <jobId>`), and `ui/renderers/message-cards.ts` renders
+  `frontend-progress-stop` (the vendored package cannot import the house libraries, so the
+  display owner keeps this card: stop glyph `frontend · stop` title, the minted statement
+  verbatim, `no pass · no release approval` footer). The card panel itself (content-column
+  geometry, settled activity glyphs, collapsed preview row, `messageBody`/`recordObject`
+  helpers) is one shared source in `lib/ui/message-card.ts`, consumed by the guard card and
+  `message-cards.ts` alike. The same file also cards the remaining minted notice family, all
+  of whose minters write the readable text themselves: the vendored subagents package's
+  `subagent-notify` (completed/failed/stopped tones parsed from the first line),
+  `subagent-incremental-child-notify` (`subagent · child`, danger), `subagent_control_notice`
+  (`subagent · wait` accent for supervisor requests, `subagent · stale` for stale children,
+  `subagent · attention` with the `!` glyph otherwise; the tone comes from
+  `details.event.type`/`reason` with a first-line fallback), `subagent_steering_notice`,
+  `subagent-slash-result`, `subagent-slash-text-result`, `subagents-admin`,
+  `subagent-wait-subscription` and `subagent-workflow-result-write-failed` (only the
+  supervisor-request dialog is rendered in-package), plus `syneva-event` — the one display
+  message minted outside the house tree (syneva's pi delivery in its backend). History-only
+  types whose minters no longer exist on disk (`galley-event`, `mcp-oauth-status`,
+  `web-search-content-ready`) keep pi's default box on purpose: no back-compat for dead
+  minters. A malformed or foreign payload returns
+  `undefined` so pi's native box keeps the stored text readable. Long minted bodies stay
+  capped at 6 collapsed rows until global Ctrl+O. Cards have no per-card click
+  toggle through the renderer path; the skill band's click lives on its patched native surface.
 - [ ] Custom entry cards: `customMessageBg` (`registerEntryRenderer`, TUI-only, not in LLM context).
 - Event order fact (pi 0.85.1): `agent_start` → `turn_start` → the prompt's `message_start`/`message_end`, and a
   session entry is written **at that `message_end`**. Anything that must land *after* a submitted prompt
@@ -239,7 +273,7 @@ its execution details remain authoritative.
 ## 6. Dialogs & overlays
 
 - [x] Questionnaire (select/multi/confirm-like flows inside the house questionnaire).
-- [x] Model picker (`/models`): owns its chrome in `ctx.ui.custom` - header (one labelled line each for the session model, the startup default and the ctrl+p count, then the agent pins; `model-picker-words.ts` owns those three names), tab strip for session/ctrl+p/fallbacks/agents, search, one shared reasoning column (`model-picker-effort.ts`: squares plus the level's own name, right-aligned, inherited/off/unavailable spelled out - a width-safe `!` marker stands in for `unsupported` below 72 columns - never an invented `auto`), price gauge with its formula disclosed, click-to-select and wheel over the list. Chain and toggle edits persist as they are made; a session model or reasoning choice is pending until enter, so escape changes nothing. The Ctrl+P list tab (labelled `ctrl+p`) lists the `enabledModels` entries once each, every row saying `Ctrl+P list`, `in Ctrl+P list via <pattern>` or `not in Ctrl+P list`: enter (or space) toggles membership - an exact entry leaves the list, a session-only model joins it as its own exact entry, a model a saved pattern already covers is added as one - backspace removes an entry whole (a wildcard included, which the footer labels it for), and alt+up/down saves their manual order as one list. The session catalogue's space toggles the highlighted model's membership in that same list (so the key that edits the list is the same one on both lists), one legend line above the catalogue says what the list and the startup default are, its ctrl+s saves the highlighted row as the startup default new sessions begin with (pi's own `defaultProvider`/`defaultModel`, and a save of the default already in place writes nothing), and enter still switches the session model; the session search field gives up the space character, which no model id contains. A wildcard moves whole, is never expanded, and a membership toggle never rewrites one. Since pi resolves the scope at session start (and `ctx.scopedModels` is read-only) the tab states that an edit applies from the next session start while the picker's own session list and agents tab follow it immediately: the catalogue re-reads the list on every keystroke, so a model the list names exactly leaves the `available` rest for the `in Ctrl+P list next session` group (between `in Ctrl+P list now` and `available`, tagged `not cycling now  in Ctrl+P list`) the moment it is added and drops back when it is removed - no relaunch needed to see it in the right list. It still names pi's own `/scoped-models` selector for the same list - a built-in command no extension can dispatch, so the tab states it rather than faking an action. A row the running session does not cycle is tagged `not cycling now`, never `out of Ctrl+P list`, so a model a saved pattern covers reads as two separate facts rather than a contradiction. The agents tab lists every agent the `subagents` package reports (its roster read over pi's event bus, `agent-roster.ts`) with the model it would run - named as a pin, the agent's own definition, `subagents.defaultModel` or an inherited session model - plus the same reasoning column, where left/right writes only that agent's thinking (clamped to the model's own levels) and enter or a click opens the inline model editor; a pin whose agent no longer exists stays listed, marked `no such agent`, so it can be repointed; the editor opens on the pinned model or on an explicit no-model-change row when the agent has no model row (a stored level alone, or a model the catalogue cannot resolve, which the header names as not in the catalogue), shows a stored level the pinned model does not accept, marked `unsupported`, and an untouched save writes nothing; a labeled divider below the agents separates `/context-budget`, which opens the same model catalogue but saves only `context-budget.json`; no duplicate `/subagents` launcher remains, and `/dump` stays deterministic.
+- [x] Model picker (`/models`): owns its chrome in `ctx.ui.custom` - header (one labelled line each for the session model, the startup default and the ctrl+p count, then the agent pins; `model-picker-words.ts` owns those three names), tab strip for session/ctrl+p/fallbacks/agents, search, one shared reasoning column (`model-picker-effort.ts`: squares plus the level's own name, right-aligned, inherited/off/unavailable spelled out - a width-safe `!` marker stands in for `unsupported` below 72 columns - never an invented `auto`), price gauge with its formula disclosed, click-to-select and wheel over the list. Chain and toggle edits persist as they are made; a session model or reasoning choice is pending until enter, so escape changes nothing. The Ctrl+P list tab (labelled `ctrl+p`) lists the `enabledModels` entries once each, every row saying `Ctrl+P list`, `in Ctrl+P list via <pattern>` or `not in Ctrl+P list`: enter toggles membership - an exact entry leaves the list, a session-only model joins it as its own exact entry, a model a saved pattern already covers is added as one - backspace removes an entry whole (a wildcard included, which the footer labels it for), and alt+up/down saves their manual order as one list. The session catalogue's enter adds the highlighted model to that same list as its own exact entry and ctrl+x removes that entry again; one legend line above the catalogue says what the list and the startup default are, its ctrl+s saves the highlighted row as the startup default new sessions begin with (pi's own `defaultProvider`/`defaultModel`, and a save of the default already in place writes nothing), and enter switches the session model instead when the row already runs here; the session search field owns every printable character - `space` and every letter stay text, so a model id is searchable to its last character. A wildcard moves whole, is never expanded, and a membership toggle never rewrites one. Since pi resolves the scope at session start (and `ctx.scopedModels` is read-only) the tab states that an edit applies from the next session start while the picker's own session list and agents tab follow it immediately: the catalogue re-reads the list on every keystroke, so a model the list names exactly leaves the `available` rest for the `in Ctrl+P list next session` group (between `in Ctrl+P list now` and `available`, tagged `not cycling now  in Ctrl+P list`) the moment it is added and drops back when it is removed - no relaunch needed to see it in the right list. It still names pi's own `/scoped-models` selector for the same list - a built-in command no extension can dispatch, so the tab states it rather than faking an action. A row the running session does not cycle is tagged `not cycling now`, never `out of Ctrl+P list`, so a model a saved pattern covers reads as two separate facts rather than a contradiction. The agents tab lists every agent the `subagents` package reports (its roster read over pi's event bus, `agent-roster.ts`) with the model it would run - named as a pin, the agent's own definition, `subagents.defaultModel` or an inherited session model - plus the same reasoning column, where left/right writes only that agent's thinking (clamped to the model's own levels) and enter or a click opens the inline model editor; a pin whose agent no longer exists stays listed, marked `no such agent`, so it can be repointed; the editor opens on the pinned model or on an explicit no-model-change row when the agent has no model row (a stored level alone, or a model the catalogue cannot resolve, which the header names as not in the catalogue), shows a stored level the pinned model does not accept, marked `unsupported`, and an untouched save writes nothing; a labeled divider below the agents separates `/context-budget`, which opens the same model catalogue but saves only `context-budget.json`; no duplicate `/subagents` launcher remains, and `/dump` stays deterministic.
 - [x] Context Budget limit picker (`/context-budget`): focused `ctx.ui.custom` overlay with house `framedBlock`, saved/in-use limits, Pi `Input` above `SelectList`, numeric search and paste, current-value marker, and the model-capped value on larger choices. Overlay focus keeps Home/End/Page keys out of transcript scrolling. Arrows/PageUp/PageDown/Home/End navigate; Enter saves asynchronously; Escape cancels silently. Focus reaches the input, list height follows the terminal, and there is no animation. It opens during generation without interrupting the model (`commands/context-budget/limit-picker.ts`).
 - [ ] `ctx.ui.select/confirm/input/editor` built-in dialogs — colors only (`text/accent/dim/muted`, keyHint `muted/dim`). Decide `- [~]` or replace with `ctx.ui.custom` house dialogs reusing `lib/ui/frame.ts`.
 - [ ] Transient overlays: BorderedLoader (spinner + `border` frame), countdown dialogs — colors only. `- [~]` unless UX says otherwise.
@@ -431,3 +465,45 @@ and v5 ignores top-level `settings` in Pi's `mcp.json`, so the adapter got its o
 `mcpFooterStatus: "off"` migrated out of `mcp.json`. v5 also owns writing `-builtin:mcp` — already
 in house settings. `pi-mcp-adapter doctor`: 10/10 servers ok. syneva and pi-frontend-check
 checkouts sit at their `origin/main`; `packages/subagents` is vendored (no remote).
+
+Drift record 1.0.1 → 1.0.2 (2026-10-04, `pi-updated` light pass after the update broke async
+subagent spawns): the 11:52 update replaced the pnpm store (11bd3 → 8d19/3e4f); sessions started
+around it resolved `piPackageRoot` into the deleted 1.0.1 store, so the subagents async runner
+refused to launch ("Background children require the host npm package…") — /simplify's lens fan-out
+died on it. Fresh sessions resolve all 12 host peer aliases cleanly. Changelog 1.0.1→1.0.2 adds
+only `samplingParamsByThinkingLevel`; no extension-surface change. Audits: hygiene ✓ (live loader
+29 extensions, 0 errors), ABI ✓, extension-audit clean after the 2026-10-04 Superset removal: the old 1 ✗ (`session_end` in
+superset-hooks.ts) went away with the extension — the user had Superset deleted everywhere; the
+root-level flat file and the Claude-settings Superset hooks were removed with it. All four dist patches reapplied.
+Verified: probe workflow through the async runner + `simplifier` agent returned structured output.
+§9 visual pass not needed (no display change in 1.0.2).
+
+Tooling record 1.0.2 (2026-10-04): added `stale-session-check.ts` + a Scope step to `pi-updated`.
+Motivation: a pre-update session (process started before the 11:52 store swap) failed extension
+loads with jiti "Cannot find module '../dist/babel.cjs'" on `ui/renderers/index.ts` — its
+in-memory jiti resolved into the deleted 11bd3 store; only extensions with a warm transform
+cache loaded. Disk-side audits (changelog/API/hygiene/ABI) resolve the installed tree and
+cannot see a running process's module paths, so the skill now compares each running pi
+process's ps lstart against the installed package dir's mtime and says restart, not /reload
+(argv is hidden by process.title, so detection is start-time based). Verified live: flagged
+the stale pid hosting the failing session, spared a post-install one.
+
+Drift record 1.0.2 → 1.0.3 (2026-10-05, `pi-updated`; store `8d19`/`3e4f` → `1296d`): changelog
+breaking change is one provider rename — `azure-openai-responses` → `azure` (auth.json/models.json/settings keys);
+no house config uses it and pi-ai@1.0.3 keeps the API name `azure-openai-responses` while new
+Foundry deployments (e.g. azure/deepseek-v4-pro) carry api `openai-completions` — both strings
+already in subagent-prompt-runtime's `PROMPT_CACHE_KEY_APIS`/`COMPOSITE_TOOL_ID_APIS`, so no house
+fix. extension-audit 50/50 ✓, hygiene-audit 28 extensions / 0 errors / 0 warnings, abi-audit ✓
+(6 exports + 12 prototype methods). All four dist patches reapplied on the 1.0.3 tree: the 19:58
+install had wiped them (first runs printed `patched`, reruns `already patched`; the printed
+`3e4f681e…` paths are body→alias spellings whose realpath lands in the single `1296d` tree —
+verified via realpath on every target). Glyph/format re-diff against npm-packed 1.0.2 baselines:
+`dist/core/tools/renderers/` and pi-tui `markdown.js` byte-identical; interactive components
+only `mermaid.js` (= the never-drop patch); rest of the tree is non-display work
+(`config.js` `detectInstallChange` restart hint, `output-accumulator.js` + new
+`utils/output-files.js` truncated-output files, `codemode` `image()` temp files, `mcp` binary
+resources, `model-resolver` azure rename, `interactive-mode.js` dead-terminal `ENOTTY` handling,
+pi-tui `keybindings.js` remap). Keybinding remap to verify on the next real session:
+`Home`/`End` now move the editor cursor to line start/end, transcript top/bottom moved to
+`Ctrl+Home`/`Ctrl+End` (1.0.2 previously bound both). §9 visual pass not needed — no render
+surface changed; stale sessions (2 pids) restart before any keyboard judgment.

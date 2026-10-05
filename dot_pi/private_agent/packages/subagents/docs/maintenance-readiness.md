@@ -192,3 +192,28 @@ The whole package directory except `node_modules`: `index.ts`, `src/`,
    and apply an outer wall-clock limit per command.
 3. Remove the old path from `deferred_roots`. These edits belong to the owner;
    this work did not modify the cron job or `maintenance.json`.
+
+## Addendum, 2026-10-04
+
+Two things changed after this report was written. Where the sections above
+disagree with this addendum, the addendum is right.
+
+- **No git history any more.** At the owner's request the package is
+  maintained in place in `~/.pi/agent/packages/subagents`. The local history
+  repository, its `wm/vendor/main` branch and its worktree are gone, so every
+  mention above of that branch, of a vendored commit, or of refreshing the copy
+  with `git archive` is obsolete. FORK.md describes the current arrangement.
+  For the daily maintenance this means the root to check is the package
+  directory itself, with `pnpm run typecheck`, `pnpm run test` and
+  `pnpm run test:integration`.
+- **Shared output file fixed.** With `singleRunOutputBaseDir` configured,
+  relative `output` paths resolved under that directory itself, so concurrent
+  runs of an agent with a default `output` (`scout` and its `context.md`)
+  wrote one file and each run could return a sibling's result. The behavior
+  came from upstream. Relative outputs now resolve under
+  `{singleRunOutputBaseDir}/{runId}/`, as they already did without the option
+  (`resolveSingleRunOutputBaseDir` in
+  `src/runs/foreground/subagent-executor.ts`). Two existing integration tests
+  that asserted the shared path were adapted; no test was added. Gates after
+  the change: type-check clean, unit 2,688 tests with 0 failures, integration
+  988 tests with 0 failures.

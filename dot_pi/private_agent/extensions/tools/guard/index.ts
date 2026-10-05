@@ -4,7 +4,8 @@
  * Shell lookups: give bash a matching model-facing description, then refuse
  * literal lookup-only shell stages when their Pi tool is active. Transformations
  * and unsupported syntax remain shell work; validation saves logs and exit evidence.
- * managed-bash.ts owns bounded foreground execution; bash-job*.ts own session jobs.
+ * managed-bash.ts owns bounded foreground execution; bash-job*.ts own session jobs;
+ * bash-job-card.ts renders that runtime's completion follow-up message.
  *
  * Read dedup: block an identical successful `read` of the same file and range
  * while unchanged and its exact source result remains in context. Bounded metadata survives checkpoints/reload;
@@ -16,6 +17,7 @@ import { isToolCallEventType } from '@earendil-works/pi-coding-agent'
 import { isHumanPrompt } from '#lib/human-prompt.ts'
 import { runTimedHook } from '#lib/telemetry/hook-timing.ts'
 
+import { registerJobDoneCard } from './bash-job-card.ts'
 import { registerManagedBash } from './managed-bash.ts'
 import { READ_LEDGER_ENTRY, ReadLedger } from './read-ledger.ts'
 import { shellLookupRefusal } from './shell-guard.ts'
@@ -27,6 +29,7 @@ import type {
 
 export default function toolGuard(pi: ExtensionAPI): void {
 	registerManagedBash(pi)
+	registerJobDoneCard(pi)
 	const ledger = new ReadLedger()
 	const restore = (ctx: ExtensionContext): void => {
 		const saved = ctx.sessionManager

@@ -8,7 +8,6 @@ import { homedir } from 'node:os'
 import { isRecord, finiteNumber, finiteOr, FIELD_NAN } from './json.ts'
 
 import type { IncoQuota } from './quota-inco.ts'
-import type { RuninfraQuota } from './quota-runinfra.ts'
 import type { ZaiQuota } from './quota-zai.ts'
 
 export const AUTH_PATH = `${homedir()}/.pi/agent/auth.json`
@@ -73,7 +72,6 @@ export type QuotaCache = {
 	deepseek?: DeepseekQuota
 	inco?: IncoQuota
 	zai?: ZaiQuota
-	runinfra?: RuninfraQuota
 	error?: boolean
 }
 

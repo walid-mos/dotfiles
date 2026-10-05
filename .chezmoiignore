@@ -157,3 +157,14 @@ infisical-keyring
 .pi/agent/mcp-onboarding.json
 # pi: vendored extension packages are synced; their dependency trees are not
 .pi/agent/packages/**/node_modules
+
+# shared-web-logins broker: python cache
+.pi/agent/packages/**/__pycache__
+
+# machine-local agent-tool state, synced on request only (2026-12)
+.claude
+.claude.json
+.config/herdr/herdr.sock.agent
+.config/herdr/session-snapshots
+.config/herdr/sessions
+.config/herdr/task-names

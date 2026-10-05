@@ -372,7 +372,7 @@ Session directory precedence is: `params.sessionDir`, then `config.defaultSessio
 { "singleRunOutputBaseDir": "~/.pi/subagent-outputs" }
 ```
 
-Routes relative `output` paths for single-agent `/run` calls under this directory. Absolute per-call or agent output paths are still used as-is. When unset, relative single-run outputs go under the run's output artifact directory instead of the project root.
+Moves the root of relative `output` paths out of the artifact directory. Each run still gets its own directory, `{singleRunOutputBaseDir}/{runId}/`, so two runs of an agent with a default `output` (for example `scout` and its `context.md`) never write the same file; the saved path is reported in the run result. Absolute per-call or agent output paths are still used as-is. When unset, the root is `{artifactsDir}/outputs/`.
 
 ## `maxSubagentDepth`
 

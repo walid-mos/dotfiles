@@ -6,27 +6,6 @@ vim.g.maplocalleader = "//"
 vim.g.loaded_netrw = 1
 vim.g.loaded_netrwPlugin = 1
 
--- Clipboard over OSC 52 inside herdr panes: the sequence is intercepted by
--- herdr and applied on the machine running the client, so yanks reach the
--- MacBook when attached with `herdr --remote` to the Studio. Outside herdr,
--- the default native providers (pbcopy) are used.
--- OSC 52 clipboard reads can time out in herdr. Keep plain y/p on Neovim's
--- registers there; use "+y to copy to the client and Cmd+V to paste from it.
-if vim.env.HERDR_ENV then
-	vim.g.clipboard = {
-		name = "OSC 52",
-		copy = {
-			["+"] = require("vim.ui.clipboard.osc52").copy("+"),
-			["*"] = require("vim.ui.clipboard.osc52").copy("*"),
-		},
-		paste = {
-			["+"] = require("vim.ui.clipboard.osc52").paste("+"),
-			["*"] = require("vim.ui.clipboard.osc52").paste("*"),
-		},
-	}
-end
-vim.opt.clipboard = vim.env.HERDR_ENV and "" or "unnamedplus"
-
 vim.opt.number = true
 vim.opt.relativenumber = true
 vim.opt.cursorline = true

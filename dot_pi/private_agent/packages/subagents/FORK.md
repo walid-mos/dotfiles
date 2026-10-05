@@ -7,30 +7,26 @@ surfaces the owner actually uses inside Pi.
 | | |
 | --- | --- |
 | Upstream | https://github.com/nicobailon/pi-subagents |
-| This fork | https://github.com/walid-mos/pi-subagents |
 | Base | upstream `v0.75.0`, commit `ad56bf92` |
-| Branch | `wm/vendor/main` (fork commits on top of the base) |
 | Package manager | pnpm only |
 | License | MIT, © 2026 Nico Bailon (see `LICENSE`) |
 
 ## Where it lives
 
-- **Loaded copy**: `~/.pi/agent/packages/subagents`, listed in the `packages`
-  setting of `~/.pi/agent/settings.json`. It is a plain copy of a commit of this
-  branch (no `.git`); its `SOURCE.md` names that commit and the upstream base.
-- **History**: this repository (`~/Development/tools/pi-subagents`), branch
-  `wm/vendor/main`. Change the code here, run the gates below, then replace the
-  loaded copy with `git archive` of the new commit and run `pnpm install` there.
-- **Remote Linux "Boat"**: `~/.local/bin/pi-boat` copies the loaded package and
-  runs `pnpm install --ignore-scripts` there.
+- **The package**: `~/.pi/agent/packages/subagents`, listed in the `packages`
+  setting of `~/.pi/agent/settings.json`. This directory is the only copy:
+  there is no separate repository, branch or worktree, and it is not under
+  version control. Change the code here, then run the gates below.
+- **Remote Linux "Boat"**: `~/.local/bin/pi-boat` copies this package and runs
+  `pnpm install --ignore-scripts` there.
 
 Nothing is published to npm: the package is `private`, has no `bin`, `files`
 or build step, and Pi runs `index.ts` directly. Upstream is no longer tracked.
 
 ## Deltas against upstream
 
-Every fork commit sits on top of `ad56bf92`; `git log ad56bf92..` is the
-authoritative list. Behavior changes:
+The base is upstream `ad56bf92`. There is no commit history to consult, so
+this list is the only record of what the fork changes. Behavior changes:
 
 1. **pnpm** — `pnpm-workspace.yaml` declares this checkout its own workspace
    root (so `pnpm install` here does not resolve `~/.pi/agent`) and records the
@@ -64,6 +60,11 @@ authoritative list. Behavior changes:
    join upstream's `review` and `run-ci`.
 10. **Missions are explicit** — a mission exists only when a launch passes
     `missionId` or a `mission` object, or `mission.create` makes one.
+11. **Per-run output directories** — `singleRunOutputBaseDir` only moves the
+    root: relative `output` paths resolve under `{root}/{runId}/`, as they do
+    without the option. Upstream resolved them under the root itself, so
+    concurrent runs of an agent with a default `output` shared one file and
+    read each other's result.
 
 ## Removed subsystems
 

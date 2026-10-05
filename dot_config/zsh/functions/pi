@@ -1,0 +1,10 @@
+# pi() for boat workspaces: any directory containing .boat-ws.json (an anchor
+# under ~/.herdr-boats/<task>, or a sparse git worktree) transparently runs pi
+# on the invisible boat. Everywhere else it is the plain local pi.
+function pi {
+  if [ -f "$PWD/.boat-ws.json" ]; then
+    "$HOME/.local/bin/pi-boat" . "$@"
+    return
+  fi
+  command pi "$@"
+}

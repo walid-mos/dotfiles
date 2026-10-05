@@ -1,0 +1,9 @@
+{
+  "default": "editorial-light",
+  "templates": {
+    "editorial-light": {
+      "css": "editorial-light/base.css",
+      "starter": "editorial-light/starter.html"
+    }
+  }
+}

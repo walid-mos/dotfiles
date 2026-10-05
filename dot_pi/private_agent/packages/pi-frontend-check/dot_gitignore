@@ -1,0 +1,3 @@
+node_modules/
+# Configuration is user state in Pi's agent directory, not package source.
+extensions/frontend-check.json
