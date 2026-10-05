@@ -59,11 +59,13 @@ sidebar_width = 30
 sidebar_min_width = 20
 sidebar_max_width = 48
 
-# One line per agent: status glyph, optional tree indent ($indent, reported
-# by the mother pane's children), project dir + git branch.
-# ('agent' token dropped: every row here is pi, it carried no information)
+# Task titles and project context are separate. The Pi task-name companion
+# owns $task/$project; generated integration metadata stays untouched.
 [ui.sidebar.agents]
-rows = [["state_icon", "$indent", "$proj"]]
+rows = [["state_icon", "pane"], ["agent"]]
+
+[ui.sidebar.agents.rows_by_agent]
+pi = [["state_icon", "$task"], ["$project"]]
 
 # One line per space instead of name row + branch/status row.
 [ui.sidebar.spaces]
