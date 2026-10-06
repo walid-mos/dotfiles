@@ -14,7 +14,8 @@ The answer is the smallest text that answers the question. Assume the reader is 
 - **No jargon, ever**: no buzzwords ("leverage", "seamless", "robust", "holistic", "ecosystem"), no abstraction vocabulary ("paradigm", "orchestration layer", "design space"), no invented nouns. If a technical term is unavoidable, use the exact one from the code and define it in ≤ 8 words at first use. A reader who knows the codebase must recognize it; one who doesn't must still understand.
 - **No hedge, no filler**: cut "essentially", "basically", "it's worth noting", "as you can see", "in order to", adverbs, and restating the request. Zero opening pleasantries, zero closing offers. Delete any sentence that would survive removal without losing information.
 - **Every sentence carries one fact**: no generalities ("the code follows best practices") — say the file, the line, the number, the behavior that changed.
-- **Scale to the change**: 1–3 sentences for a small fix. Larger work: what / why / how-to-verify, nothing else. Headers, tables and recaps only when genuinely multi-part. For bug explanations, load `~/.pi/agent/skills/unslop/SKILL.md` and follow its "Bug explanations" section.
+- **Scale to the change**: 1–3 sentences for a small fix. Larger work: what / why / how-to-verify, nothing else. Headers, tables and recaps only when genuinely multi-part.
+- **Bug, risk or review findings that need a decision**: a short title and one compact table per issue — Problem (what fails → consequence), Fix (smallest specific action), When it bites, Constraint (only when real) — one short sentence per cell; a trivial issue gets one sentence instead.
 
 ## Diagrams
 
@@ -22,18 +23,7 @@ Never hand-draw a diagram, schema, tree, or flow as ASCII/box-drawing art in a p
 
 ## Tool calls
 
-Always use the dedicated Pi tool for the job:
-
-| Need                     | Tool                            |
-| ------------------------ | ------------------------------- |
-| Read a file              | `read` (with `offset`/`limit`)  |
-| Search file contents     | `grep`                          |
-| Find files by name/glob  | `find`                          |
-| List a directory         | `ls`                            |
-| Make a targeted change   | `edit`                          |
-| Create or replace a file | `write`                         |
-
-**Batch only bounded, independent lookups**: group needed `read`, `grep`, `find`, or `ls` calls with the existing `multi_tool_use.parallel` when available. Use `frontend_batch` for known browser sequences and `mcpScript` for several MCP calls with logic. Never add a batch tool or a per-step routing call; never pack file lookups into a `bash` loop. Wait when one result determines the next target.
+Always use the dedicated Pi tool for the job: `read` (with `offset`/`limit`), `grep`, `find`, `ls` for lookups; `edit` for a targeted change; `write` to create or replace a file; `lookup` to run several independent lookups in one call; `codemode` when a batch needs logic (filter a large result inside the script so only the extract reaches context); `frontend_batch` for known browser sequences; `mcpScript` for several MCP calls with logic. Wait when one result determines the next target. A plain `cat`/`ls`/`grep`/`find`/`head`/`sed -n` typed into `bash` runs through its dedicated tool automatically; any other lookup-shaped shell command is refused.
 
 **Never use `bash`/`host` for that work** — reading, listing, searching and finding belong to the dedicated file tools, even through a pipe or redirect. Bash stays right for builds, tests, git and pipelines that transform or store (`jq`, `sed`, counts, redirects to a file).
 
@@ -67,6 +57,7 @@ Never use `~/.pi/agent` as a scratch or deliverable directory (including `tmp/`)
 
 ## Development
 
+- **Zero code comments**: never write or keep a code comment; the only allowed comment is an important functional choice the code cannot express (an invariant, a race/order constraint, an external requirement, a workaround with its reason) — one short sentence. Everything else lives in code, docs, or git history.
 - **Treat all code as greenfield**: never add a back-compat shim, migration, fallback, deprecated API, legacy path, or support for a historical state — unless the user explicitly asks for it.
 - **Single source of truth**: every fact — a constant, type, schema, threshold, default, or rule — has exactly one definition; everywhere else imports, derives, or links to it. Never fix a problem by editing a copy (a duplicated value, a restated rule) — change the source. The only allowed repeat: a critical trigger (name + one-line summary beside its single home).
 

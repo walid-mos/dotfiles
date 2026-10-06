@@ -1,7 +1,8 @@
 /**
  * Branch-local goal checklist with local evidence records, not remote completion gates.
- * route-events.ts records human input; edits.ts owns transitions; tool.ts and
- * commands.ts own entry points; manage.ts checks explicit re-evaluation authority.
+ * route-events.ts records human prompts and injects the open checklist per model
+ * request; edits.ts owns transitions; tool.ts owns the agent rules and the tool entry
+ * point, commands.ts the human one; manage.ts checks explicit re-evaluation authority.
  * lib/goal/state.ts owns branch entries; status.ts owns the existing display.
  */
 import { registerGoalCommands } from './commands.ts'

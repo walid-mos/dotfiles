@@ -18,6 +18,10 @@ const actions: Record<
 	ActOptions['action'],
 	(page: Page, options: ActOptions) => Promise<unknown>
 > = {
+	goto: (page, options) => {
+		if (!options.url) throw new Error('goto requires url.')
+		return page.goto(options.url, { waitUntil: 'domcontentloaded' })
+	},
 	click: (page, options) => target(page, options).click(),
 	type: async (page, options) => {
 		if (typeof options.text !== 'string')

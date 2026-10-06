@@ -4,9 +4,12 @@
 	"fastFailover": true,
 	"transientRetryLimit": 1,
 	"retryDelayMs": 2000,
+	"rateLimitRetryLimit": 2,
+	"rateLimitRetryDelayMs": 20000,
 	"exclusionTtlMs": 300000,
 	"chain": [
 		"inco/glm-5.3-flash:fast",
+		"deepseek/deepseek-v4-flash",
 		"openai-codex/gpt-6.1-sol"
 	]
 }

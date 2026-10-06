@@ -2,6 +2,9 @@
 # esbuild: postinstall installs its platform-specific binary (required).
 # protobufjs: postinstall only prints version-scheme warnings; writes nothing.
 # '@google/genai': publishes no scripts/ directory, so install-time is a no-op.
+# node_modules is a symlink into ~/.pi/generated; pnpm 12 refuses to create its
+# hoist directory through it, so hoisting stays off (extensions import declared deps only).
+hoist: false
 allowBuilds:
     '@google/genai': false
     esbuild: true
@@ -47,11 +50,11 @@ minimumReleaseAgeExclude:
     - '@oxlint/binding-win32-x64-msvc@1.82.0'
     - oxfmt@0.67.0
     - oxlint@1.82.0
-    - '@earendil-works/chord@0.99.1'
-    - '@earendil-works/pi-agent-core@0.99.1'
-    - '@earendil-works/pi-ai@0.99.1'
-    - '@earendil-works/pi-codemode@0.99.1'
-    - '@earendil-works/pi-coding-agent@0.99.1'
-    - '@earendil-works/pi-mcp@0.99.1'
-    - '@earendil-works/pi-telemetry@0.99.1'
-    - '@earendil-works/pi-tui@0.99.1'
+    - '@earendil-works/chord@1.0.3 || 1.0.4'
+    - '@earendil-works/pi-agent-core@1.0.3 || 1.0.4'
+    - '@earendil-works/pi-ai@1.0.3 || 1.0.4'
+    - '@earendil-works/pi-codemode@1.0.3 || 1.0.4'
+    - '@earendil-works/pi-coding-agent@1.0.3 || 1.0.4'
+    - '@earendil-works/pi-mcp@1.0.3 || 1.0.4'
+    - '@earendil-works/pi-telemetry@1.0.3 || 1.0.4'
+    - '@earendil-works/pi-tui@1.0.3 || 1.0.4'

@@ -13,17 +13,17 @@
 
 import { writeCheckpointModel } from '#lib/context-budget/model.ts'
 
+import { writeDefaultModel } from './model-picker-default-write.ts'
 import {
 	settingsPath,
 	writeAgentOverride,
-	writeDefaultModel,
 	writeEnabledModels,
 } from './model-picker-settings.ts'
 
 import type { ExtensionContext } from '@earendil-works/pi-coding-agent'
+import type { DefaultModelEdit } from './model-picker-default-write.ts'
 import type {
 	AgentOverrideEdit,
-	DefaultModelEdit,
 	ScopeListEdit,
 } from './model-picker-settings.ts'
 
@@ -114,9 +114,11 @@ export function persistScopeList(
 
 /**
  * The startup default: what a new session starts on, written to pi's own
- * `defaultProvider`/`defaultModel`. It deliberately says *new* sessions: the
- * running one keeps the model it is on (its choice is the session's, and the
- * picker's own enter is what changes that).
+ * `defaultProvider`/`defaultModel` and, when the edit carries the row's
+ * stepped reasoning level, pi's per-model thinking override beside it. It
+ * deliberately says *new* sessions: the running one keeps the model it is on
+ * (its choice is the session's, and the picker's own enter is what changes
+ * that).
  */
 export function persistDefaultModel(
 	edit: DefaultModelEdit,
@@ -124,10 +126,11 @@ export function persistDefaultModel(
 ): boolean {
 	try {
 		const changed = writeDefaultModel(settingsPath(), edit)
+		const level = edit.level ? ` at thinking ${edit.level}` : ''
 		ctx.ui.notify(
 			changed
-				? `${edit.reference} is now the startup default for new sessions.`
-				: `${edit.reference} already is the startup default.`,
+				? `${edit.reference}${level} is now the startup default for new sessions.`
+				: `${edit.reference}${level} already is the startup default.`,
 			'info',
 		)
 		return true

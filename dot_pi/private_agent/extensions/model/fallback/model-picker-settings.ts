@@ -8,7 +8,8 @@
  * one thing back: that agent's `model` and `thinking` in
  * `subagents.agentOverrides`. The scope tab edits pi's own `enabledModels`
  * setting - one entry's membership at a time or the whole list's order - and
- * owns exactly that key. Every write is a read-modify-write of the whole file
+ * owns exactly that key.
+ * Every write is a read-modify-write of the whole file
  * (every unrelated key survives, the file's own indentation and line ending
  * are kept) and lands atomically, because the subagents package reads this
  * file at launch. The scope is resolved at session start, so the writer only
@@ -16,7 +17,9 @@
  * session moved. A missing file cannot be written either: like a file or key
  * whose shape is not the one pi defines, it is reported as unknown and never
  * rewritten, so the picker still opens, it just does not edit what it cannot
- * read.
+ * read. The session tab's ctrl+s owns pi's startup default keys
+ * (`defaultProvider`/`defaultModel`) and, when the row carries a stepped
+ * reasoning level, that model's `modelThinkingLevels` entry.
  */
 
 import { join } from 'node:path'
@@ -126,7 +129,6 @@ function readAgentPins(
 export function settingsPath(): string {
 	return join(getAgentDir(), 'settings.json')
 }
-
 /**
  * The startup default as one catalogue reference: pi's `defaultModel`, prefixed
  * by `defaultProvider` when the file names one. A default pi cannot resolve to
@@ -239,9 +241,7 @@ export function writeAgentOverride(
 	if (!settings) throw new Error(`${path} is not a JSON object`)
 	const next = mergeAgentOverride(settings, edit)
 	writeSettingsAtomically(path, next, indentOf(text), newlineOf(text))
-}
-
-/** What one saved-list edit did, so the notice that reports it can name it. */
+} /** What one saved-list edit did, so the notice that reports it can name it. */
 export type ScopeListChange =
 	| { kind: 'reordered' }
 	| { kind: 'added'; entry: string }
@@ -258,52 +258,6 @@ export interface ScopeListEdit {
 function sameList(left: readonly string[], right: readonly string[]): boolean {
 	if (left.length !== right.length) return false
 	return left.every((entry, index) => entry === right[index])
-}
-
-/** One default-model save: the reference the highlighted row showed. */
-export interface DefaultModelEdit {
-	reference: string
-}
-
-/**
- * One catalogue reference as pi stores a startup default: `provider/modelId`
- * splits into `defaultProvider` and `defaultModel`, the two keys pi's own
- * `/model` picker writes with the same key. A bare id names no provider, so the
- * provider key is left exactly as the file had it.
- */
-function splitReference(reference: string): {
-	provider: string | undefined
-	model: string
-} {
-	const slash = reference.indexOf('/')
-	if (slash <= 0) return { provider: undefined, model: reference }
-	return {
-		provider: reference.slice(0, slash),
-		model: reference.slice(slash + 1),
-	}
-}
-
-/**
- * Persist the startup default: what the next session starts on, in pi's own
- * `defaultProvider`/`defaultModel`. Returns whether the file changed - a save
- * of the default already in place writes nothing and says so - and every other
- * settings key is preserved.
- */
-export function writeDefaultModel(
-	path: string,
-	edit: DefaultModelEdit,
-): boolean {
-	const text = readSettingsText(path)
-	if (!text) throw new Error(`${path} could not be read`)
-	const settings = parseSettingsObject(text)
-	if (!settings) throw new Error(`${path} is not a JSON object`)
-	const { provider, model } = splitReference(edit.reference)
-	const isProviderSaved = !provider || settings.defaultProvider === provider
-	if (settings.defaultModel === model && isProviderSaved) return false
-	const next: Record<string, unknown> = { ...settings, defaultModel: model }
-	if (provider) next.defaultProvider = provider
-	writeSettingsAtomically(path, next, indentOf(text), newlineOf(text))
-	return true
 }
 
 /**

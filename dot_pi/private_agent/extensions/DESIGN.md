@@ -3,7 +3,7 @@
 Single source of truth for restyling pi's TUI. Read this before migrating ANY render surface
 (tool rows, chrome, transcript surfaces) to the house design system.
 
-- Verified against installed `@earendil-works/pi-coding-agent@1.0.3` + `@earendil-works/pi-tui@1.0.3` dist sources.
+- Verified against installed `@earendil-works/pi-coding-agent@1.0.4` + `@earendil-works/pi-tui@1.0.4` dist sources.
 - Re-diff this matrix after every pi upgrade; glyph/format details can shift between versions.
 - Ownership rules live in `~/.pi/agent/ARCHITECTURE.md`. This file tracks *what renders*, not *who owns which module*.
 
@@ -105,10 +105,13 @@ those remain separate migrations below. Do not claim the entire TUI is migrated.
 | `grep` | Pattern, root/filter, result-line count (zero for no matches) | Args and complete returned search text |
 | `find` / `glob` | `glob` display label, pattern/root, file count | Args and complete returned paths |
 | `bash` | Conservative command preview, inline count, observed duration + explicit timeout/failure status | Complete original script and returned output; full-output path |
+| `codemode` | The `tools.<name>` calls the script makes (first-use order, repeat counts) or its first code line, script length, `@options` output budget and timeout; nested-call count, failures and printed line/image count | Complete script and returned output; full-output path (`truncated` warning) |
 | `subagent` | Action/agent/workflow identity and topic/task, output count | Original package renderer, including guides and execution detail |
 | `syneva_agent` | `syneva` display label, action + desk session, repository name, `live`/`idle` connection state | Original arguments and attachment description |
 | `frontend_open` | `open` display label; capture panel headed by the page, scheme-less host/path and optional wait selector | Original arguments, page summary, native images |
-| `frontend_act` | `act` display label; capture panel headed by action + target/key, `new tab` and post-action wait note | Original arguments, action result, native images |
+| `frontend_batch` | `batch` display label; capture panel headed by the step ids (first … last and count), eval count and capture name | Original arguments, batch result, native images |
+| `frontend_compare` | `compare` display label; mode plus specimen name, compared sides or spec file, scope annotation | Original arguments and diff/spec report |
+| `frontend_pixels` | `pixels` display label; mode plus capture name or compared pair, selector annotation | Original arguments and exact verdict |
 | `frontend_screenshot` | `shot` display label; capture panel headed by selector or `full page`/`viewport`, viewport size | Original arguments, caption and captured image |
 | `frontend_console` | `console` display label, level filter, `last N`, entry count | Original arguments and console text |
 | `frontend_eval` | `eval` display label, single-line expression preview, result count | Original arguments and evaluated result |
@@ -507,3 +510,31 @@ pi-tui `keybindings.js` remap). Keybinding remap to verify on the next real sess
 `Home`/`End` now move the editor cursor to line start/end, transcript top/bottom moved to
 `Ctrl+Home`/`Ctrl+End` (1.0.2 previously bound both). §9 visual pass not needed — no render
 surface changed; stale sessions (2 pids) restart before any keyboard judgment.
+
+Drift record 1.0.3 → 1.0.4 (2026-10-06, `pi-updated`; pnpm re-keyed the install to the
+`146ae-18dbfd…` store, the `3e4f681e…` dir keeps alias symlinks into it — the patch prints their
+`3e4f…` spellings, realpath resolves them into the single 1.0.4 tree): no Breaking Changes. The two
+extension-surface entries both miss the house: `ToolLoadout` gains `getPromptGuidelines()` (nothing
+under `extensions/` references `prepareLoadout`/`ToolLoadout`) and codemode built-ins are frozen
+before script runs (no house codemode script patches built-ins). extension-audit 51/51 ✓,
+hygiene-audit 5 packages clean / no builtin shadowing / live loader 31 extensions 0 errors 0
+warnings, abi-audit 7 exports + 16 prototype methods ✓. All four dist patches reapplied first-run
+`patched`; content verified in the running 1.0.4 tree by grep (prompt-history helpers +
+PROMPT_HISTORY_LIMIT in pi-tui editor.js, `HERDR_ENV` osc52-first in clipboard.js,
+truncateDanglingArrows + `Mermaid diagram warning` advisory in mermaid.js and chunk-H33F2TZD.js, no
+`/copy` registration). Glyph/format re-diff against npm-packed 1.0.3 baselines (no 1.0.3 tree
+survived — the install replaced it): renderers byte-identical; interactive components differ only
+in mermaid.js (= the never-drop patch); pi-tui dist differs only in editor.js (= the
+prompt-history patch). Display-adjacent upstream change is the #10143 highlight fix:
+utils/syntax-highlight.js applies the formatter per line, so colors survive past the first line of
+multiline strings/comments in fenced code (reaches house surfaces through the shared Markdown
+`theme.highlightCode` path), plus one additive syntax token mapping (`subst` → `text`) in the
+interactive theme. Rest of the tree is changelog-named non-display work (mcp OAuth native client
++ `--no-mcp`, codemode built-in freezing + image temp files, core/tools/read image blocks, cli
+args `--tools` patterns, resource-loader, system-prompt/loadout hints, agent-session/sdk).
+§9 visual pass pending the user's restart: render a fenced block containing a multiline string
+and a comment; the pre-update session (pid 6141) must fully restart before judging anything.
+Close-out also aligned the workspace pins (`~/.pi/agent/package.json` devDependencies pi-ai / pi-coding-agent / pi-tui 1.0.3 → 1.0.4, lockfile re-verified): the stale 1.0.3 pin was why
+`pnpm run drift` first ran the local `.bin` `pi` shim at 1.0.3 while `pi --version` (global bin)
+already reported 1.0.4; drift now prints `pi 1.0.4: audited version` and tsc type-checks against
+the same 1.0.4 declarations the extension-audit verified.

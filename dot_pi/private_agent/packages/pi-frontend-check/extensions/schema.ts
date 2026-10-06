@@ -1,14 +1,15 @@
 import { StringEnum } from '@earendil-works/pi-ai'
 import { Type } from 'typebox'
 
-import { actSchema } from './action-schema.ts'
+import { actSchema, checksSchema } from './action-schema.ts'
 import { height, width } from './config-schema.ts'
-import { pixelProbeSchema } from './pixel-progress.ts'
 
 import type { Static } from 'typebox'
 import type { configSchema } from './config-schema.ts'
 
 const selector = Type.String({ minLength: 1, maxLength: 4000 })
+const captureReference = Type.String({ minLength: 1, maxLength: 80 })
+const url = Type.String({ maxLength: 8000 })
 
 export type Config = Static<typeof configSchema>
 
@@ -19,7 +20,8 @@ export const defaults: Config = {
 	VIEWPORT_WIDTH: 1280,
 	VIEWPORT_HEIGHT: 900,
 	NAV_TIMEOUT_MS: 30000,
-	ACTION_TIMEOUT_MS: 10000,
+	/** A local dev app answers in well under this; a longer wait only delays a wrong selector's failure. */
+	ACTION_TIMEOUT_MS: 4000,
 	AUTO_SHOT: true,
 	FULL_PAGE: false,
 	SHOT_FORMAT: 'jpeg',
@@ -54,7 +56,15 @@ export const consoleSchema = Type.Object({
 })
 
 export const evalSchema = Type.Object({
-	expression: Type.String({ minLength: 1, maxLength: 50000 }),
+	expression: Type.Optional(
+		Type.String({
+			minLength: 1,
+			maxLength: 50000,
+			description:
+				'One JavaScript expression. For several facts about one page state, use checks instead.',
+		}),
+	),
+	checks: Type.Optional(checksSchema),
 })
 
 export const scenarioSchema = Type.Object({
@@ -123,89 +133,89 @@ export const specItemSchema = Type.Object({
 
 export const specFileSchema = Type.Object({
 	name: Type.Optional(Type.String({ minLength: 1, maxLength: 200 })),
-	url: Type.Optional(Type.String({ maxLength: 8000 })),
+	url: Type.Optional(url),
 	items: Type.Array(specItemSchema, { minItems: 1 }),
 })
 
-export const specCheckSchema = Type.Object({
-	file: Type.String({
-		minLength: 1,
-		maxLength: 4000,
-		description:
-			'Path to the spec JSON file ({name?, url?, items: [{id, requirement, source?}]}), absolute or relative to the cwd.',
-	}),
-	wait_for: Type.Optional(selector),
-})
-
-export const isoDiffSchema = Type.Object({
-	implementation_url: Type.Optional(
-		Type.String({
-			maxLength: 8000,
-			description:
-				'Cold URL for the implementation side, if not using captured_a.',
-		}),
-	),
-	baseline_url: Type.Optional(
-		Type.String({
-			maxLength: 8000,
-			description:
-				'Cold URL for the baseline side - a served prototype, not a mockup image - if not using captured_b.',
-		}),
-	),
+/** The diff inputs of frontend_compare; also the contract iso-diff.ts consumes. */
+const isoDiffFields = {
 	captured_a: Type.Optional(
 		Type.String({
 			maxLength: 4000,
 			description:
-				'Specimen captured with frontend_capture_specimen for the implementation side (name or absolute path). Use this when the page needs session state - login, impersonation, demo toggles - that a cold URL cannot reach.',
+				'diff: specimen name (or absolute path) captured with mode=capture for the implementation side - the way to reach pages behind login, impersonation or demo toggles.',
 		}),
 	),
 	captured_b: Type.Optional(
 		Type.String({
 			maxLength: 4000,
 			description:
-				'Captured specimen for the baseline side. Each side takes exactly one input: a capture or a URL.',
+				'diff: captured specimen for the baseline (prototype) side. Each side takes exactly one input: a capture or a URL.',
+		}),
+	),
+	implementation_url: Type.Optional(
+		Type.String({
+			...url,
+			description:
+				'diff: cold URL for the implementation side when it needs no session state.',
+		}),
+	),
+	baseline_url: Type.Optional(
+		Type.String({
+			...url,
+			description:
+				'diff: cold URL for the baseline side - a served prototype, not a mockup image.',
 		}),
 	),
 	scope: Type.Optional(
 		Type.String({
 			maxLength: 4000,
 			description:
-				"CSS selector restricting URL-side specimens to that element - an app region, so wrapper chrome (a prototype's demo panel, marketing headers) stays out of the diff.",
+				"capture/diff: CSS selector restricting the specimen to one region (the app's main element) so wrapper chrome stays out; capture the same region on both sides.",
 		}),
 	),
 	wait_for: Type.Optional(selector),
-})
+}
 
-export const capturePixelsSchema = Type.Object({
-	name: Type.String({ minLength: 1, maxLength: 80 }),
-	selector: Type.Optional(selector),
-	wait_for: selector,
-})
+export const isoDiffSchema = Type.Object(isoDiffFields)
 
-export const pixelDiffSchema = Type.Object({
-	captured_a: Type.String({ minLength: 1, maxLength: 80 }),
-	captured_b: Type.String({ minLength: 1, maxLength: 80 }),
-	probe: Type.Optional(pixelProbeSchema),
-})
-
-export const captureSpecimenSchema = Type.Object({
-	name: Type.String({
-		minLength: 1,
-		maxLength: 80,
+export const compareSchema = Type.Object({
+	mode: StringEnum(['capture', 'diff', 'spec'] as const, {
 		description:
-			'Slug file name for the capture; reusing it overwrites the previous specimen.',
+			'capture: freeze the open page (name, scope?) into a specimen file. diff: component-level styles/geometry/text comparison of two sides. spec: judge the open page against a spec file (file).',
 	}),
-	scope: Type.Optional(
+	name: Type.Optional(
 		Type.String({
-			maxLength: 4000,
+			minLength: 1,
+			maxLength: 80,
 			description:
-				'CSS selector restricting the capture to that element - capture the same region on both diff sides so they compare like for like.',
+				'capture: slug file name; reusing it overwrites the previous specimen.',
 		}),
 	),
-	wait_for: Type.Optional(selector),
+	file: Type.Optional(
+		Type.String({
+			minLength: 1,
+			maxLength: 4000,
+			description:
+				'spec: path to the spec JSON file ({name?, url?, items: [{id, requirement, source?}]}), absolute or relative to the cwd.',
+		}),
+	),
+	...isoDiffFields,
 })
 
-/** Shape of a captured specimen file as written by frontend_capture_specimen. */
+export const pixelsSchema = Type.Object({
+	mode: StringEnum(['capture', 'diff'] as const, {
+		description:
+			'capture: save an exact PNG of the open page state (name, wait_for, selector?). diff: compare two captures exactly (captured_a, captured_b).',
+	}),
+	name: Type.Optional(captureReference),
+	selector: Type.Optional(selector),
+	wait_for: Type.Optional(selector),
+	captured_a: Type.Optional(captureReference),
+	captured_b: Type.Optional(captureReference),
+})
+
+/** Shape of a captured specimen file as written by frontend_compare mode=capture. */
 export const specimenFileSchema = Type.Object({
 	url: Type.String(),
 	title: Type.String(),
@@ -231,12 +241,13 @@ export const specimenFileSchema = Type.Object({
 
 export type OpenOptions = Static<typeof openSchema>
 export type ScreenshotOptions = Static<typeof screenshotSchema>
+export type EvalOptions = Static<typeof evalSchema>
 export type ScenarioParams = Static<typeof scenarioSchema>
 export type ScenarioFile = Static<typeof scenarioFileSchema>
 export type ScenarioStep = Static<typeof scenarioStepSchema>
 export type SpecItem = Static<typeof specItemSchema>
 export type SpecFile = Static<typeof specFileSchema>
-export type SpecCheckParams = Static<typeof specCheckSchema>
 export type IsoDiffParams = Static<typeof isoDiffSchema>
-export type CaptureSpecimenParams = Static<typeof captureSpecimenSchema>
+export type CompareOptions = Static<typeof compareSchema>
+export type PixelsOptions = Static<typeof pixelsSchema>
 export type SpecimenFile = Static<typeof specimenFileSchema>

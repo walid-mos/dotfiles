@@ -10,16 +10,16 @@ Read `~/.pi/agent/extensions/DESIGN.md` before restyling or migrating any pi ren
 - One folder per extension, grouped by domain: `extensions/<domain>/<extension-name>/`, kebab-case, entry point `index.ts`.
 - Domains (closed list):
   - `ui/` — display surfaces and chat chrome: `renderers/`, `hud-footer/`, `hud-status/`, `hud-telemetry/`, `ask-user-question/`.
-  - `prompt/` — prompt and editor input path: `attachments/`, `double-escape-clear/`, `inline-skills/`.
+  - `prompt/` — prompt and editor input path: `attachments/`, `double-escape-clear/`, `inline-skills/`, `skill-surface/`.
   - `model/` — provider/model behavior: `fallback/`, `clean-provider-errors/`.
-  - `tools/` — tool-call behavior: `guard/`, `lazy-load/`.
+  - `tools/` — tool-call behavior: `guard/`, `lazy-load/`, `lookup/`.
   - `fetch/` — web content fetchers: `social/`, `twitter/`.
   - `herdr/` — herdr bridge extensions: `prompts/`.
-  - `commands/` — user-invoked commands and workflows: `simplify/` (a `/review` command belongs here too).
+  - `commands/` — user-invoked commands and workflows: `simplify/`, `usage/`, `goal/`, `context-budget/`, `dump/` (a `/review` command belongs here too).
 - No domain prefix in member names: the parent folder IS the domain. Sole exception: the `hud-*` chat-chrome family keeps its prefix as part of its name. Never rename a domain member to re-add its domain prefix.
 - Root level holds only: the shared library `lib/`, the subagents package config `subagent/`, the two herdr-generated flat files (`herdr-agent-state.ts`, `herdr-pane-meta.ts`), and these docs.
 
-## Loading contract (verified against pi 0.87.1 `dist/core/extensions/loader.js`)
+## Loading contract (verified against pi 1.0.3 `dist/core/extensions/loader.js`)
 
 - pi discovers extensions at ONE level only: direct `extensions/*.ts` files, `extensions/<dir>/index.ts`, or a `<dir>/package.json` with a `pi` manifest. A nested folder is silently ignored — `extensions/<domain>/<name>/` would never load by discovery alone.
 - The domain folders are therefore declared explicitly in `~/.pi/agent/settings.json` under `extensions` (`"extensions/prompt"`, `"extensions/model"`, `"extensions/tools"`, `"extensions/fetch"`, `"extensions/herdr"`, `"extensions/ui"`). pi resolves them from the agent directory and scans each one level deep.
@@ -37,7 +37,7 @@ Read `~/.pi/agent/extensions/DESIGN.md` before restyling or migrating any pi ren
 
 ## Moving or renaming an extension — mandatory steps, in order
 
-1. `grep -rn "<old-name>"` across `extensions/`, `disabled-extensions/`, `ARCHITECTURE.md`, `DESIGN.md` — update every relative import and path reference.
+1. `grep -rn "<old-name>"` across `extensions/`, `ARCHITECTURE.md`, `DESIGN.md` — update every relative import and path reference.
 2. Root-level flat files keep their name in default discovery; domain members need no settings change (the domain folder is what is listed).
 3. Re-run the verify loop from the section above. A rename that breaks `#lib` resolution is a broken session: check the headless run before declaring done.
 

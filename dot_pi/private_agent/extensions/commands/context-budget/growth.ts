@@ -14,6 +14,8 @@ import type {
 } from '@earendil-works/pi-coding-agent'
 
 const CHECKPOINT_OWNER = 'context-budget'
+/** Completed tool batches to let pass after a failed checkpoint before trying again. */
+const RETRY_AFTER_TURNS = 3
 
 function measuredPromptTokens(
 	message: TurnEndEvent['message'],
@@ -72,15 +74,18 @@ async function checkpointGrowth(
 class ContextGrowth {
 	private needsMeasurement = false
 	private failure: string | undefined
+	private retryAtTurn: number | undefined
 	private settingsVersion: string | undefined
 
 	reset(): void {
 		this.needsMeasurement = false
 		this.failure = undefined
+		this.retryAtTurn = undefined
 	}
 
 	retry(): void {
 		this.failure = undefined
+		this.retryAtTurn = undefined
 	}
 
 	compacted(details: unknown): void {
@@ -153,7 +158,8 @@ class ContextGrowth {
 		const tokens = ctx.getContextUsage()?.tokens
 		if (typeof tokens !== 'number') return undefined
 		this.refreshSettings()
-		if (this.failure) return undefined
+		if (this.isWaitingForRetry(event.turnIndex)) return undefined
+		this.retry()
 		try {
 			const ceiling = contextCeiling(ctx)
 			const promptTokens = measuredPromptTokens(event.message)
@@ -165,7 +171,7 @@ class ContextGrowth {
 			}
 			if (this.needsMeasurement)
 				throw new Error(
-					'The first measured prompt after checkpointing still exceeds the budget; automatic repetition is stopped.',
+					'The first measured prompt after checkpointing still exceeds the budget.',
 				)
 			ctx.ui.notify(
 				`Context Budget: ${tokens} tokens exceeds ${ceiling}; saving a checkpoint before the next model call.`,
@@ -176,14 +182,29 @@ class ContextGrowth {
 			return checkpointEntries
 		} catch (cause) {
 			if (ctx.signal?.aborted) return undefined
-			this.failure =
-				cause instanceof Error ? cause.message : String(cause)
-			ctx.ui.notify(
-				`Context Budget checkpoint failed; work continues with history unchanged. ${this.failure} Automatic retries are paused until your next input or limit change. /context-budget checkpoint retries manually; Pi's native summarizer is never used.`,
-				'warning',
-			)
+			this.recordFailure(cause, event.turnIndex, ctx)
 			return undefined
 		}
+	}
+
+	/** A failed checkpoint waits a few completed tool batches, never a whole human turn. */
+	private isWaitingForRetry(turnIndex: number): boolean {
+		return Boolean(
+			this.failure && this.retryAtTurn && turnIndex < this.retryAtTurn,
+		)
+	}
+
+	private recordFailure(
+		cause: unknown,
+		turnIndex: number,
+		ctx: ExtensionContext,
+	): void {
+		this.failure = cause instanceof Error ? cause.message : String(cause)
+		this.retryAtTurn = turnIndex + RETRY_AFTER_TURNS
+		ctx.ui.notify(
+			`Context Budget checkpoint failed; work continues with history unchanged. ${this.failure} Automatic retry after ${RETRY_AFTER_TURNS} more completed tool batches; /context-budget checkpoint retries now. Pi's native summarizer is never used.`,
+			'warning',
+		)
 	}
 }
 

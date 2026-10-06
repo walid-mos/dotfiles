@@ -1,7 +1,7 @@
 import { launchBrowser, openContext } from './browser-launch.ts'
-// frontend_iso_diff: compare the rendered implementation against a baseline (a
+// frontend_compare mode=diff: compare the rendered implementation against a baseline (a
 // prototype page, not a mockup image). Each side is a specimen captured from the
-// session browser (frontend_capture_specimen - the only way to reach pages behind
+// session browser (frontend_compare mode=capture - the only way to reach pages behind
 // login or session-only navigation) or a cold URL. Matching component styles,
 // text, attributes and geometry avoid a model call; this is diagnostic, not a
 // pixel-level pass gate. Differing pairs are reported with code-computed deltas and, when TYPESAFE_API_KEY
@@ -34,7 +34,7 @@ function isoSide(
 	if (reference) return { kind: 'captured', reference }
 	if (url) return { kind: 'url', url }
 	throw new Error(
-		'frontend_iso_diff needs both sides: captured_a/captured_b (specimens captured in the session browser) or implementation_url/baseline_url (directly reachable pages).',
+		'frontend_compare mode=diff needs both sides: captured_a/captured_b (specimens captured in the session browser) or implementation_url/baseline_url (directly reachable pages).',
 	)
 }
 

@@ -20,6 +20,7 @@ export const ABOVE_EDITOR_PRIORITY = {
 	driftWarning: 10,
 	/** The last /dump result stays above the prompt without entering the transcript. */
 	dump: 50,
+	usage: 60,
 	/** Startup Jev failures must remain visible above the checklist. */
 	goalWarning: 90,
 	goal: 100,

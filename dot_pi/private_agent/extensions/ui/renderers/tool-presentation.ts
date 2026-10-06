@@ -7,6 +7,7 @@ import { basename, dirname, sep } from 'node:path'
 import { reflectMember } from '#lib/ui/pi-members.ts'
 
 import { bashPreview } from './bash-preview.ts'
+import { codemodePresentation } from './codemode-preview.ts'
 import { PACKAGE_PRESENTATIONS } from './package-presentations.ts'
 import {
 	count,
@@ -93,6 +94,22 @@ function searchPresentation(
 	}
 }
 
+function lookupPresentation(args: unknown): ToolPresentation {
+	const ops = reflectMember(args, 'ops')
+	const list = Array.isArray(ops) ? ops : []
+	const [first] = list
+	const subject = first
+		? `${payloadText(first, 'tool')} ${payloadText(first, 'pattern') || basename(payloadText(first, 'path')) || payloadText(first, 'path')}`.trim()
+		: ''
+	return {
+		label: 'lookup',
+		subject,
+		annotation: list.length > 1 ? `${String(list.length)} ops` : '',
+		summary: countLines,
+		body: 'text',
+	}
+}
+
 function bashPresentation(args: unknown): ToolPresentation {
 	const preview = bashPreview(payloadText(args, 'command'))
 	return {
@@ -114,6 +131,8 @@ const PRESENTATIONS = new Map<string, PresentTool>([
 	['find', args => searchPresentation('glob', args)],
 	['glob', args => searchPresentation('glob', args)],
 	['bash', bashPresentation],
+	['lookup', lookupPresentation],
+	['codemode', codemodePresentation],
 	...PACKAGE_PRESENTATIONS,
 ])
 
@@ -193,7 +212,8 @@ export function outputWarning(output: ToolOutput): string {
 	const truncation = reflectMember(output.details, 'truncation')
 	const isTruncated =
 		reflectMember(truncation, 'truncated') === true ||
-		reflectMember(output.details, 'linesTruncated') === true
+		reflectMember(output.details, 'linesTruncated') === true ||
+		Boolean(reflectMember(output.details, 'fullOutputPath'))
 	const hasLimit = LIMIT_FIELDS.some(field =>
 		Boolean(reflectMember(output.details, field)),
 	)

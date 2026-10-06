@@ -71,6 +71,21 @@ export function isOutputFilter(stage: ShellStage): boolean {
 }
 
 /** Only named package validation tasks; arbitrary scripts are never rewritten. */
+function isValidationRunner(words: string[]): boolean {
+	if (
+		!/^(?:pnpm|npm|yarn|bun|npx|vitest|tsc|oxlint|oxfmt)$/.test(
+			words[0] ?? '',
+		)
+	)
+		return false
+	if (words.includes('oxfmt') && !words.includes('--check')) return false
+	return words.some(word =>
+		/^(?:test(?::[\w-]+)?|vitest|type-?check|lint(?::[\w-]+)?|format:check|build|tsc|oxlint|oxfmt)$/.test(
+			word,
+		),
+	)
+}
+
 export function validationCommand(command: string):
 	| {
 			base: string
@@ -84,21 +99,7 @@ export function validationCommand(command: string):
 	const setup =
 		leading && isDirectorySetup(leading) ? stages.shift() : undefined
 	const first = stages.shift()
-	if (
-		!first ||
-		!/^(?:pnpm|npm|yarn|bun|npx|vitest|tsc|oxlint)$/.test(
-			first.words[0] ?? '',
-		)
-	)
-		return undefined
-	if (
-		!first.words.some(word =>
-			/^(?:test(?::[\w-]+)?|vitest|type-?check|lint(?::[\w-]+)?|build|tsc|oxlint)$/.test(
-				word,
-			),
-		)
-	)
-		return undefined
+	if (!first || !isValidationRunner(first.words)) return undefined
 	if (stages.some(stage => !isOutputFilter(stage))) return undefined
 	if ([first, ...stages].slice(0, -1).some(stage => stage.after !== '|'))
 		return undefined

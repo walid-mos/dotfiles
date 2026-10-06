@@ -1,5 +1,5 @@
-// The rendered-page extractor shared by the spec check (frontend_check_spec) and the
-// ISO diff (frontend_iso_diff). `extractSpecimen` is serialized by Playwright and runs
+// The rendered-page extractor shared by frontend_compare mode=spec and
+// mode=diff. `extractSpecimen` is serialized by Playwright and runs
 // inside the page, so it must stay self-contained: every constant and helper it uses is
 // defined inside the function body, and nothing module-level is referenced there.
 //

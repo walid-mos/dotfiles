@@ -16,10 +16,8 @@ const RECOVERY_TOOLS = new Set([
 	'bash',
 	'frontend_eval',
 	'frontend_console',
-	'frontend_act',
 	'frontend_batch',
-	'frontend_check_spec',
-	'frontend_iso_diff',
+	'frontend_compare',
 ])
 
 function canonical(argument: unknown): unknown {
@@ -44,17 +42,13 @@ function requestIdentity(tool: string, input: unknown): string {
 }
 
 function failureFingerprint(event: ToolResultEvent): string | undefined {
-	if (!event.toolName.startsWith('frontend_')) return undefined
+	if (!event.toolName.startsWith('frontend_') || !event.isError)
+		return undefined
 	const text = event.content
 		.filter(block => block.type === 'text')
 		.map(block => block.text)
 		.join('\n')
 	if (text.startsWith(RECOVERY_PREFIX)) return undefined
-	const isPixelStall =
-		event.toolName === 'frontend_pixel_diff' &&
-		(text.startsWith('BLOCKED:') ||
-			(text.startsWith('FAIL:') && text.includes('REUSED:')))
-	if (!event.isError && !isPixelStall) return undefined
 	return digest(text.replace(/\b\d+(?:\.\d+)?\s*ms\b/g, '<duration>'))
 }
 

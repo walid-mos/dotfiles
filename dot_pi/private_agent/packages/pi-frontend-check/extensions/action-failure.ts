@@ -15,7 +15,7 @@ export type BatchFailure = {
 	remaining: string[]
 }
 
-/** What a failed frontend_act or frontend_batch step can prove about itself. */
+/** What a failed frontend_batch step can prove about itself. */
 export type ActionFinding = {
 	action: string
 	target?: string | undefined
@@ -28,7 +28,7 @@ export type ActionFinding = {
 	failingLocator?: string | undefined
 	failingLocatorMatches?: number | undefined
 	currentUrl?: string | undefined
-	batch?: BatchFailure | undefined
+	batch: BatchFailure
 }
 
 /** The two phases of one step: the requested action, then its readiness check. */
@@ -38,9 +38,9 @@ export type ActFailurePhase = 'action' | 'readiness'
 export type StepFailureDiagnosis = { url: string; matches?: number | undefined }
 
 /**
- * An ordinary frontend_act/frontend_batch step failure. Its message is the
- * bounded, redacted failed report, so the tool error that surfaces it carries
- * the failed step and locator diagnostics.
+ * An ordinary frontend_batch step failure. Its message is the bounded,
+ * redacted failed report, so the tool error that surfaces it carries the
+ * failed step and locator diagnostics.
  */
 export class ActionFailure extends Error {
 	readonly finding: ActionFinding
@@ -95,19 +95,14 @@ function findingTitle(finding: ActionFinding): string {
 	const stage = finding.actionRan
 		? `action ${describeActStep(finding)} completed, but wait_for "${finding.wait_for}" did not become visible`
 		: describeActStep(finding)
-	return finding.batch
-		? `Frontend batch failed at step ${finding.batch.index + 1}/${finding.batch.total} "${finding.batch.step}": ${stage}.`
-		: `Frontend action failed: ${stage}.`
+	return `Frontend batch failed at step ${finding.batch.index + 1}/${finding.batch.total} "${finding.batch.step}": ${stage}.`
 }
 
 function findingRecovery(finding: ActionFinding): string {
 	const firstStep = finding.actionRan
 		? 'The failed step already ran its action, so re-running the remainder may repeat it; inspect the current page (frontend_eval) first.'
-		: 'Fix the locator or inspect the current page (frontend_eval, frontend_console) first. A failed action does not prove it had no effect: a click can navigate or open the popup it targeted even while its wait times out, so inspect the page before re-running.'
-	const retry = finding.batch
-		? `Then re-run only the failed remainder from "${finding.batch.step}": ${finding.batch.remaining.join(', ')}.`
-		: 'Re-run just this action once corrected.'
-	return `The browser, login and page state are preserved. ${firstStep} ${retry}`
+		: 'Copy a selector from the visible controls below or inspect the current page (frontend_eval, frontend_console) first. A failed action does not prove it had no effect: a click can navigate or open the popup it targeted even while its wait times out, so inspect the page before re-running.'
+	return `The browser, login and page state are preserved. ${firstStep} Then re-run only the failed remainder from "${finding.batch.step}": ${finding.batch.remaining.join(', ')}.`
 }
 
 export function formatActionFinding(finding: ActionFinding): string {
@@ -119,7 +114,7 @@ export function formatActionFinding(finding: ActionFinding): string {
 				: `Locator "${finding.failingLocator}": match count unavailable.`,
 		)
 	if (finding.currentUrl) lines.push(`URL: ${finding.currentUrl}`)
-	if (finding.batch?.completed.length)
+	if (finding.batch.completed.length)
 		lines.push(
 			`Already applied, not replayed automatically: ${finding.batch.completed.join(', ')}.`,
 		)
@@ -146,7 +141,7 @@ export function buildActFailure(state: {
 	phase: ActFailurePhase
 	error: unknown
 	diagnosis: StepFailureDiagnosis
-	batch?: BatchFailure | undefined
+	batch: BatchFailure
 	redact: (text: string) => string
 }): ActionFailure {
 	const { options, phase, error, diagnosis, batch, redact } = state
@@ -173,14 +168,13 @@ export function buildActFailure(state: {
 		),
 		failingLocatorMatches: diagnosis.matches,
 		currentUrl: clip(diagnosis.url, MAX_URL_BYTES),
-	}
-	if (batch)
-		finding.batch = {
+		batch: {
 			...batch,
 			step: inline(batch.step),
 			completed: batch.completed.map(inline),
 			remaining: batch.remaining.map(inline),
-		}
+		},
+	}
 	// Every field is bounded above, so this final cap is only a guarantee that
 	// the report - failed step, matched count, completed ids, retry guidance -
 	// never exceeds the overall text budget during composition.

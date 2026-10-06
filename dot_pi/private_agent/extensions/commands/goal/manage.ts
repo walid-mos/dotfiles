@@ -3,7 +3,8 @@
  *
  * route-events.ts records genuine human input with its goal revision. That
  * record alone grants no permission: one Jev coverage check must confirm that
- * the human explicitly requested this change. A revision bump consumes it.
+ * the human explicitly requested this change. The record stands until the next
+ * human prompt replaces it; a goal that moves during the check aborts the edit.
  * Ordinary completion records never need this remote, destructive-edit gate.
  */
 import { activeGoal, GOAL_STATE_ENTRY, manageMarker } from '#lib/goal/state.ts'
@@ -20,13 +21,7 @@ import type { GoalManageMarker, GoalState } from '#lib/goal/state.ts'
 import type { ChoiceQuestion } from '#lib/jev/client.ts'
 import type { GoalParameters } from './schema.ts'
 
-/** Destructive goal edits require a high-confidence coverage verdict. */
-const MIN_CONFIDENCE = 0.8
-
-function assertMarker(
-	current: GoalState,
-	ctx: ExtensionContext,
-): GoalManageMarker {
+function assertMarker(ctx: ExtensionContext): GoalManageMarker {
 	const marker = manageMarker(ctx.sessionManager.getBranch())
 	if (!marker)
 		throw new Error(
@@ -35,10 +30,6 @@ function assertMarker(
 	if (marker.truncated)
 		throw new Error(
 			'The human request was truncated; delete/revise needs a concise explicit request. Nothing was changed.',
-		)
-	if (marker.revision !== current.revision)
-		throw new Error(
-			`The routed re-evaluation request applies to revision ${marker.revision}; the goal is at revision ${current.revision}. The goal changed since the human asked; a further delete/revise needs a new explicit request.`,
 		)
 	return marker
 }
@@ -108,9 +99,9 @@ async function verifyClaim(input: {
 		throw new Error(
 			'The re-evaluation check was cancelled; nothing was changed.',
 		)
-	if (verdict.choice !== 'covered' || verdict.confidence < MIN_CONFIDENCE)
+	if (verdict.choice !== 'covered')
 		throw new Error(
-			`goal ${props.action} refused: the change is not covered by the routed human request (${verdict.choice} at ${verdict.confidence}). Match the request exactly, or ask the human for a clearer one.`,
+			`goal ${props.action} refused: the latest human request does not cover this change (${verdict.choice}, confidence ${verdict.confidence}). Match the request exactly, or ask the human for a clearer one.`,
 		)
 }
 
@@ -155,7 +146,7 @@ export async function executeManage(input: {
 		)
 	const { action } = params
 	if (!current) throw new Error(`goal ${action} needs an active goal.`)
-	const marker = assertMarker(current, ctx)
+	const marker = assertMarker(ctx)
 	const sessionId = ctx.sessionManager.getSessionId()
 	await verifyClaim({
 		marker,
