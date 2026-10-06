@@ -23,8 +23,17 @@
 .pi/agent/plans/active
 .pi/agent/plans/done/2026/galley
 .pi/agent/plans/done/2026/harness
+.pi/agent/plans/done/2026/harness-maintenance
 .pi/agent/plans/done/2026/syneva
 .pi/agent/plans/done/2026/wt
+
+# tool caches, installs and worktree state at $HOME root: binaries, caches, sessions - never version
+.ascii
+.bundle
+.cargo
+.herdr
+.herdr-boats
+Applications
 
 # Pi: pnpm regenerates the lock in the installed tree
 .pi/agent/npm/package-lock.json

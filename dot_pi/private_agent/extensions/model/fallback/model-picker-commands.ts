@@ -29,9 +29,9 @@ import { sessionRows } from './model-picker-view.ts'
 
 import type { ModelThinkingLevel } from '@earendil-works/pi-ai'
 import type { ModelFallbackConfig } from './config.ts'
+import type { DefaultModelEdit } from './model-picker-default-write.ts'
 import type {
 	AgentOverrideEdit,
-	DefaultModelEdit,
 	ScopeListEdit,
 } from './model-picker-settings.ts'
 import type { PickerState } from './model-picker-state.ts'
@@ -52,7 +52,8 @@ export interface PickerCommand {
 	scopeList?: ScopeListEdit
 	/** One agent's own thinking override, written on its own. */
 	agentEdit?: AgentOverrideEdit
-	/** The startup default the ctrl+s key saves (`defaultProvider`/`defaultModel`). */
+	/** The startup default the ctrl+s key saves: pi's `defaultProvider`/
+	 * `defaultModel`, plus the row's stepped reasoning level when it has one. */
 	defaultEdit?: DefaultModelEdit
 	/** The session model choice enter commits. */
 	model?: { reference: string; level: ModelThinkingLevel | undefined }
@@ -176,7 +177,10 @@ export function stepAgentThinking(
  * own default (`defaultProvider`/`defaultModel`, the keys pi's `/model` picker
  * writes with the same key), not this session's model - enter is what switches
  * that once the row is in the Ctrl+P list - and not the saved scope, which
- * enter and ctrl+x edit.
+ * enter and ctrl+x edit. The row's own stepped reasoning level goes with it,
+ * saved as pi's per-model thinking override, so a new session starts that
+ * model at the level the row shows; a row left at inherit saves the model
+ * alone and keeps whatever level it inherits.
  */
 export function saveDefaultModel(input: CommandInput): PickerCommand {
 	const { view, state } = input
@@ -184,7 +188,10 @@ export function saveDefaultModel(input: CommandInput): PickerCommand {
 	const row = sessionRows(view, input.query)[state.cursor]
 	if (!row) return {}
 	return {
-		defaultEdit: { reference: row.reference },
+		defaultEdit: {
+			reference: row.reference,
+			level: state.levels.get(row.reference),
+		},
 		state: commitAction(state),
 	}
 }

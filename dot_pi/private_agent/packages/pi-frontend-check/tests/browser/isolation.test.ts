@@ -48,7 +48,10 @@ test('shutdown cancels active evaluation and rejects queued actions', async cont
 	const rejectedActive = assert.rejects(active, /session closed/)
 	await evaluationStarted
 	const queued = browser.run(() =>
-		browser.act({ action: 'click', target: '#save' }),
+		browser.actMany(
+			[{ id: 'save', action: 'click', target: '#save' }],
+			'/tmp',
+		),
 	)
 	const rejectedQueued = assert.rejects(queued, /session closed/)
 	await Promise.all([browser.shutdown(), rejectedActive, rejectedQueued])

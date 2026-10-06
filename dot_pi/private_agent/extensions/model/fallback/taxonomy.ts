@@ -77,3 +77,18 @@ export function classifyErrorText(text: string | undefined): FailureTextClass {
 		return 'overflow'
 	return 'retryable'
 }
+
+const RATE_LIMIT_PATTERNS = [
+	/^\s*429\s*:/,
+	/\bHTTP\s429\b/,
+	/rate.?limit/i,
+	/per.?minute/i,
+	/too many requests/i,
+	/near its capacity/i,
+	/concurrent requests/i,
+]
+
+/** A provider throttle: the same model answers again once its window rolls, so the retry waits longer. */
+export function isRateLimitFailure(reason: string): boolean {
+	return RATE_LIMIT_PATTERNS.some(pattern => pattern.test(reason))
+}

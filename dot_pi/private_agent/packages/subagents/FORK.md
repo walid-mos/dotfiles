@@ -65,6 +65,13 @@ this list is the only record of what the fork changes. Behavior changes:
     without the option. Upstream resolved them under the root itself, so
     concurrent runs of an agent with a default `output` shared one file and
     read each other's result.
+12. **Reply workflow block tolerance** — an unterminated ` ```js workflow `
+    fence in the launching reply runs to the end of the reply instead of
+    failing as `not closed` (what a renderer shows for an unclosed fence; a
+    garbage capture still fails later as a script syntax error). Opening
+    fences accept up to three leading spaces and a label after `workflow`, and
+    `found 0` errors quote the fence-like lines the reply actually contained,
+    so a launch can self-correct in one retry.
 
 ## Removed subsystems
 

@@ -16,31 +16,17 @@ import {
 
 import { commandWorkspace } from './command-workspace.ts'
 import { validationCommand } from './shell-segments.ts'
+import { loggedSteps } from './validation-log.ts'
+import { validationSteps } from './validation-steps.ts'
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 import type { CommandEvidence } from '#lib/command-evidence/schema.ts'
+import type { RecordedStep } from './validation-log.ts'
+import type { ValidationCommand } from './validation-steps.ts'
 
 type BashDefinition = ReturnType<typeof createBashToolDefinition>
 type BashArguments = Parameters<BashDefinition['execute']>
-type ValidationCommand = NonNullable<ReturnType<typeof validationCommand>>
 const JSON_INDENT = 2
-
-function shellQuote(path: string): string {
-	return `'${path.replaceAll("'", "'\\''")}'`
-}
-
-function loggedCommand(
-	command: ValidationCommand,
-	record: CommandEvidence,
-): string {
-	const log = shellQuote(record.logPath)
-	const codes = shellQuote(`${record.receiptPath}.codes`)
-	if (!command.filters.length)
-		return `set -o pipefail\n( ${command.base} ) 2>&1 | tee ${log}\n__pi_exit=$? __pi_codes=("\${PIPESTATUS[@]}")\nprintf '%s\\n' "\${__pi_codes[@]}" > ${codes}\nexit "$__pi_exit"`
-	// Filtering the saved file only after completion prevents head/SIGPIPE from truncating the suite.
-	const filters = command.filters.map(stage => ` | ${stage.source}`).join('')
-	return `( ${command.base} ) > ${log} 2>&1\n__pi_validation=$?\ncat ${log}${filters}\n__pi_display=$?\nprintf '%s\\n' "$__pi_validation" "$__pi_display" > ${codes}\nif [ "$__pi_validation" -ne 0 ]; then exit "$__pi_validation"; fi\nexit "$__pi_display"`
-}
 
 async function readExitCodes(path: string): Promise<number[]> {
 	try {
@@ -68,10 +54,15 @@ async function saveEvidence(
 	pi: ExtensionAPI,
 	isCurrent: () => boolean,
 ): Promise<CommandEvidence> {
+	const codes = await readExitCodes(`${record.receiptPath}.codes`)
 	const saved = {
 		...record,
 		endedAtMs: Date.now(),
-		pipelineExitCodes: await readExitCodes(`${record.receiptPath}.codes`),
+		...(codes.length && {
+			status: 'completed' as const,
+			exitCode: codes.find(code => code !== 0) ?? 0,
+		}),
+		pipelineExitCodes: codes,
 	}
 	await writeFile(
 		saved.receiptPath,
@@ -126,38 +117,45 @@ async function prepareEvidence(
 	}
 }
 
-function evidenceBash(
-	cwd: string,
-	command: ValidationCommand,
-	record: CommandEvidence,
-): {
-	tool: BashDefinition
-	observation: Pick<CommandEvidence, 'status' | 'exitCode'>
-} {
+function evidenceBash(cwd: string, steps: RecordedStep[]): BashDefinition {
 	const local = createLocalBashOperations()
-	const observation: Pick<CommandEvidence, 'status' | 'exitCode'> = {
-		status: 'interrupted',
-		exitCode: null,
-	}
-	const tool = createBashToolDefinition(cwd, {
+	return createBashToolDefinition(cwd, {
 		spawnHook: context => ({
 			...context,
 			env: { ...context.env, HERDR_ENV: undefined },
 		}),
 		operations: {
-			exec: async (_command, workingDirectory, options) => {
-				const execution = await local.exec(
-					loggedCommand(command, record),
-					workingDirectory,
-					options,
-				)
-				observation.exitCode = execution.exitCode
-				observation.status = 'completed'
-				return execution
-			},
+			exec: (_command, workingDirectory, options) =>
+				local.exec(loggedSteps(steps), workingDirectory, options),
 		},
 	})
-	return { tool, observation }
+}
+
+async function prepareSteps(args: BashArguments): Promise<RecordedStep[]> {
+	const [, input] = args
+	const single = validationCommand(input.command)
+	const steps = single
+		? [{ source: input.command, validation: single }]
+		: validationSteps(input.command)
+	return Promise.all(
+		steps.map(async step => {
+			if (!step.validation) return step
+			const prepared = await prepareEvidence(args, step.validation)
+			return Object.assign(step, prepared)
+		}),
+	)
+}
+
+async function saveSteps(
+	steps: RecordedStep[],
+	pi: ExtensionAPI,
+	isCurrent: () => boolean,
+): Promise<CommandEvidence[]> {
+	return Promise.all(
+		steps.flatMap(step =>
+			step.record ? [saveEvidence(step.record, pi, isCurrent)] : [],
+		),
+	)
 }
 
 export async function executeWithEvidence(
@@ -166,37 +164,33 @@ export async function executeWithEvidence(
 	args: BashArguments,
 	isCurrent: () => boolean,
 ): ReturnType<BashDefinition['execute']> {
-	const [, input, , , ctx] = args
-	const command = validationCommand(input.command)
-	if (!command) return bash.execute(...args)
-	const { record, warning } = await prepareEvidence(args, command)
-	const { tool, observation } = evidenceBash(ctx.cwd, command, record)
+	const [, , , , ctx] = args
+	const steps = await prepareSteps(args)
+	if (!steps.length) return bash.execute(...args)
+	const tool = evidenceBash(ctx.cwd, steps)
 	let execution: Awaited<ReturnType<BashDefinition['execute']>>
 	try {
 		execution = await tool.execute(...args)
 	} catch (cause) {
-		const saved = await saveEvidence(
-			{ ...record, ...observation },
-			pi,
-			isCurrent,
-		)
+		const saved = await saveSteps(steps, pi, isCurrent)
 		throw new Error(
-			`${cause instanceof Error ? cause.message : String(cause)}\n${evidenceText(saved)}`,
+			`${cause instanceof Error ? cause.message : String(cause)}\n${saved.map(evidenceText).join('\n')}`,
 			{ cause },
 		)
 	}
-	const saved = await saveEvidence(
-		{ ...record, ...observation },
-		pi,
-		isCurrent,
-	)
+	const saved = await saveSteps(steps, pi, isCurrent)
 	return {
 		...execution,
 		content: [
 			...execution.content,
 			{
 				type: 'text',
-				text: [warning, evidenceText(saved)].filter(Boolean).join('\n'),
+				text: [
+					...steps.map(step => step.warning),
+					...saved.map(evidenceText),
+				]
+					.filter(Boolean)
+					.join('\n'),
 			},
 		],
 	}

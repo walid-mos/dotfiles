@@ -1,6 +1,7 @@
 /** Exact, bounded skill reads kept outside the lossy checkpoint summary. */
+import { readFileSync } from 'node:fs'
 import { homedir } from 'node:os'
-import { join, relative, resolve } from 'node:path'
+import { relative, resolve, sep } from 'node:path'
 
 import { getAgentDir } from '@earendil-works/pi-coding-agent'
 
@@ -12,21 +13,28 @@ const MAX_CHARS = 32_000
 
 type RetainedRead = { path: string; toolCallId: string; content: unknown }
 
+/** Skill markdown under the agent dir: `skills/**` and every vendored package's `skills/**`. */
+function isSkillReference(path: string): boolean {
+	const inside = relative(getAgentDir(), path)
+	if (inside.startsWith('..') || !inside.endsWith('.md')) return false
+	return (
+		inside.startsWith(`skills${sep}`) ||
+		/^packages[\\/][^\\/]+[\\/]skills[\\/]/.test(inside)
+	)
+}
+
 function readCalls(
 	entry: SessionEntry,
 	cwd: string,
 	calls: Map<string, string>,
 ): void {
 	if (entry.type !== 'message' || entry.message.role !== 'assistant') return
-	const skills = join(getAgentDir(), 'skills')
 	for (const block of entry.message.content) {
 		if (block.type !== 'toolCall' || block.name !== 'read') continue
 		const args = block.arguments
 		if (typeof args.path !== 'string') continue
 		const path = resolve(cwd, args.path.replace(/^~\//, `${homedir()}/`))
-		const inside = relative(skills, path)
-		if (!inside.startsWith('..') && inside.endsWith('.md'))
-			calls.set(block.id, path)
+		if (isSkillReference(path)) calls.set(block.id, path)
 	}
 }
 
@@ -59,6 +67,23 @@ function skillResults(
 	return [...reads.values()]
 }
 
+/** A copy is worth retaining only while the file still says the same thing. */
+function isCurrent(read: RetainedRead): boolean {
+	if (!Array.isArray(read.content)) return false
+	const text = read.content
+		.map(block =>
+			block && typeof block === 'object' && 'text' in block
+				? String(block.text)
+				: '',
+		)
+		.join('')
+	try {
+		return readFileSync(read.path, 'utf8').trim() === text.trim()
+	} catch {
+		return false
+	}
+}
+
 export function retainedSkillReads(
 	entries: readonly SessionEntry[],
 	cwd: string,
@@ -66,6 +91,7 @@ export function retainedSkillReads(
 	const retained: RetainedRead[] = []
 	let size = 0
 	for (const read of skillResults(entries, cwd).toReversed()) {
+		if (!isCurrent(read)) continue
 		const { length } = JSON.stringify(read)
 		if (size + length > MAX_CHARS) continue
 		retained.push(read)

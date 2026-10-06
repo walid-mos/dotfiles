@@ -104,18 +104,81 @@ export function manageMarker(
 	return undefined
 }
 
-/** Share every text bound beyond this point. */
+/** Share every text bound beyond this point: one line, at most MAX_GOAL_TEXT characters, never a rejection the model has to retry. */
 export function boundedGoalText(
 	goalValue: string | undefined,
 	field: string,
 ): string {
-	const text = goalValue?.trim()
-	if (!text || text.length > MAX_GOAL_TEXT || /[\r\n]/.test(text)) {
-		throw new Error(
-			`goal: ${field} must be 1-${MAX_GOAL_TEXT} characters on one line.`,
-		)
-	}
-	return text
+	const text = goalValue?.replace(/\s+/g, ' ').trim()
+	if (!text) throw new Error(`goal: ${field} must not be empty.`)
+	return text.length > MAX_GOAL_TEXT
+		? `${text.slice(0, MAX_GOAL_TEXT - 1)}…`
+		: text
+}
+
+function itemLine(goalItem: GoalItem): string {
+	return `#${goalItem.id} ${goalItem.text}${goalItem.outcome ? ` (${goalItem.outcome})` : ''}`
+}
+
+function nextOpenItem(state: GoalState): GoalItem | undefined {
+	return (
+		state.items.find(
+			goalItem => !goalItem.done && goalItem.kind !== 'request',
+		) ?? state.items.find(goalItem => !goalItem.done)
+	)
+}
+
+/**
+ * What changed between two revisions plus the next open item: the result of a
+ * tick or declare, so the full checklist is not re-sent on every call. The
+ * full text stays behind `status`.
+ */
+export function goalDeltaText(
+	previous: GoalState | undefined,
+	next: GoalState,
+): string {
+	const before = new Map(
+		(previous?.items ?? []).map(goalItem => [goalItem.id, goalItem]),
+	)
+	const added = next.items.filter(goalItem => !before.has(goalItem.id))
+	const ticked = next.items.filter(
+		goalItem => goalItem.done && before.get(goalItem.id)?.done === false,
+	)
+	const checked = next.items.filter(goalItem => goalItem.done).length
+	const lines = [
+		`Goal ${checked}/${next.items.length} (revision ${next.revision})`,
+	]
+	if (added.length) lines.push(`Added: ${added.map(itemLine).join('; ')}`)
+	if (ticked.length) lines.push(`Ticked: ${ticked.map(itemLine).join('; ')}`)
+	if (next.blocked) lines.push(`Blocked: ${next.blocked}`)
+	const open = nextOpenItem(next)
+	lines.push(
+		open
+			? `Next: ${itemLine(open)}`
+			: 'All items done; use status for the full checklist.',
+	)
+	return lines.join('\n')
+}
+
+/**
+ * Per-request projection: open items only, so the model always sees current
+ * IDs without the completed history that `status` keeps.
+ */
+export function goalContextText(state: GoalState): string {
+	const open = state.items.filter(goalItem => !goalItem.done)
+	const lines = [
+		`Goal ${state.items.length - open.length}/${state.items.length} (revision ${state.revision})`,
+	]
+	if (state.request) lines.push(`Request: ${state.request}`)
+	lines.push(
+		open.length
+			? `Open: ${open.map(itemLine).join('; ')}`
+			: 'All items done.',
+	)
+	if (state.blocked) lines.push(`Blocked: ${state.blocked}`)
+	if (state.paused?.length)
+		lines.push(`Paused goals: ${state.paused.length} (status lists them).`)
+	return lines.join('\n')
 }
 
 export function goalText(state: GoalState): string {

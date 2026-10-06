@@ -3,7 +3,7 @@
  *
  * Every registered extension tool is active by default, so its full schema sits
  * in the prompt on every turn, including the turns that never call it. Measured
- * on 2026-09-18 (`node audits/harness-footprint.ts`), 7.9k of a 15.9k
+ * on 2026-09-18 from the first request's input tokens, 7.9k of a 15.9k
  * per-session floor was exactly that: the subagent tool (4.1k), the four
  * pi-web-access tools (2.8k) and bg_wait (1.1k).
  *

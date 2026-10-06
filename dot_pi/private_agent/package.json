@@ -10,14 +10,15 @@
 		"lint": "oxlint --disable-nested-config",
 		"lint:types": "oxlint --disable-nested-config --type-aware",
 		"type-check": "tsc --noEmit",
+		"drift": "node --experimental-transform-types bin/pi-drift.ts",
 		"format": "oxfmt --write .",
 		"format:check": "oxfmt --check .",
 		"test": "node --input-type=module -e 'import {globSync} from \"node:fs\"; const n = globSync(\"tests/**/*.test.ts\").length; if (!n) { console.error(\"test: no files matched tests/**/*.test.ts - refusing to report success\"); process.exit(1); }' && node --experimental-transform-types --test 'tests/**/*.test.ts'"
 	},
 	"devDependencies": {
-		"@earendil-works/pi-ai": "0.99.1",
-		"@earendil-works/pi-coding-agent": "0.99.1",
-		"@earendil-works/pi-tui": "0.99.1",
+		"@earendil-works/pi-ai": "1.0.4",
+		"@earendil-works/pi-coding-agent": "1.0.4",
+		"@earendil-works/pi-tui": "1.0.4",
 		"@nextnode-solutions/standards": "^1.24.0",
 		"@types/node": "^24.13.6",
 		"oxfmt": "^0.67.0",

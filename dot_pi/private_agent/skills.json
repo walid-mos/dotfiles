@@ -1,0 +1,45 @@
+{
+	"hidden": [
+		"cloudflare-one",
+		"cloudflare-one-migrations",
+		"cloudflare-email-service",
+		"durable-objects",
+		"workers-best-practices",
+		"wrangler",
+		"sandbox-stable",
+		"sandbox-next",
+		"sandbox-migrate-to-next",
+		"agents-sdk"
+	],
+	"projects": {
+		},
+		"nextnode": {
+			"markers": ["nextnode.toml"],
+			"packageDeps": ["@nextnode-solutions/"],
+			"skills": ["nextnode-*", "ssh-nextnode"]
+		},
+		"harness": {
+			"roots": ["$AGENT"],
+			"skills": ["pi-updated"]
+		}
+	},
+	"autoload": {
+		"coding": {
+			"paths": [
+				"**/*.{ts,tsx,js,jsx,mjs,cjs,py,go,rs,java,kt,swift,rb,php,cs,c,h,cc,cpp,hpp,sh,zsh,astro,vue,svelte,sql}"
+			]
+		},
+		"typescript": { "paths": ["**/*.ts", "**/*.tsx"] },
+		"react": { "paths": ["**/*.tsx", "**/*.jsx"] },
+		"astro": { "paths": ["**/*.astro"] },
+		"harness-tuning": {
+			"tools": ["edit", "write"],
+			"paths": [
+				"$AGENT/skills/**",
+				"$AGENT/extensions/**",
+				"**/AGENTS.md",
+				"**/ARCHITECTURE.md"
+			]
+		}
+	}
+}

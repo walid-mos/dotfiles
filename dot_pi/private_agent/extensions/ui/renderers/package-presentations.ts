@@ -16,6 +16,8 @@ type PresentTool = (args: unknown) => ToolPresentation
 
 const MS_PER_SECOND = 1000
 const PREVIEW_CHARS = 160
+/** More batch steps than this collapse to first … last. */
+const LISTED_STEP_IDS = 2
 
 /** A `workflow` string holding a path separator is a script file; any other string names a resource. */
 function isWorkflowScriptPath(workflow: string): boolean {
@@ -92,21 +94,68 @@ function frontendOpenPresentation(args: unknown): ToolPresentation {
 	}
 }
 
-function frontendActPresentation(args: unknown): ToolPresentation {
-	const action = payloadText(args, 'action') || 'act'
-	const target = payloadText(args, 'target')
-	const waitFor = payloadText(args, 'wait_for')
+function stepIds(args: unknown): string[] {
+	const steps = reflectMember(args, 'steps')
+	if (!Array.isArray(steps)) return []
+	return steps.map(step => payloadText(step, 'id')).filter(Boolean)
+}
+
+function frontendBatchPresentation(args: unknown): ToolPresentation {
+	const ids = stepIds(args)
+	const evals = reflectMember(args, 'evals')
+	const capture = payloadText(reflectMember(args, 'capture'), 'name')
+	const subject =
+		ids.length > LISTED_STEP_IDS
+			? `${ids[0] ?? ''} … ${ids.at(-1) ?? ''} (${String(ids.length)} steps)`
+			: ids.join(' · ')
 	return {
-		label: 'act',
-		subject: [action, target || payloadText(args, 'key')]
-			.filter(Boolean)
-			.join(' '),
+		label: 'batch',
+		subject: subject || 'steps',
 		annotation: [
-			action === 'wait_for' || !waitFor ? '' : `wait for ${waitFor}`,
-			reflectMember(args, 'popup') === true ? 'new tab' : '',
+			Array.isArray(evals) && evals.length
+				? `${String(evals.length)} evals`
+				: '',
+			capture ? `capture ${capture}` : '',
 		]
 			.filter(Boolean)
 			.join(' · '),
+		summary: countLines,
+		body: 'text',
+	}
+}
+
+function comparedSides(args: unknown): string {
+	const first =
+		payloadText(args, 'captured_a') ||
+		payloadText(args, 'implementation_url')
+	const second =
+		payloadText(args, 'captured_b') || payloadText(args, 'baseline_url')
+	return [first, second].filter(Boolean).join(' vs ')
+}
+
+function frontendComparePresentation(args: unknown): ToolPresentation {
+	const mode = payloadText(args, 'mode') || 'compare'
+	const subject =
+		mode === 'diff'
+			? comparedSides(args)
+			: payloadText(args, 'name') || basename(payloadText(args, 'file'))
+	return {
+		label: 'compare',
+		subject: [mode, subject].filter(Boolean).join(' '),
+		annotation: payloadText(args, 'scope'),
+		summary: countLines,
+		body: 'text',
+	}
+}
+
+function frontendPixelsPresentation(args: unknown): ToolPresentation {
+	const mode = payloadText(args, 'mode') || 'pixels'
+	const subject =
+		mode === 'diff' ? comparedSides(args) : payloadText(args, 'name')
+	return {
+		label: 'pixels',
+		subject: [mode, subject].filter(Boolean).join(' '),
+		annotation: payloadText(args, 'selector'),
 		summary: countLines,
 		body: 'text',
 	}
@@ -139,11 +188,16 @@ function frontendConsolePresentation(args: unknown): ToolPresentation {
 }
 
 function frontendEvalPresentation(args: unknown): ToolPresentation {
+	const checks = reflectMember(args, 'checks')
+	const subject = Array.isArray(checks)
+		? `${String(checks.length)} checks: ${checks
+				.map(check => payloadText(check, 'name'))
+				.filter(Boolean)
+				.join(', ')}`
+		: payloadText(args, 'expression')
 	return {
 		label: 'eval',
-		subject: singleLine(
-			payloadText(args, 'expression').slice(0, PREVIEW_CHARS),
-		),
+		subject: singleLine(subject.slice(0, PREVIEW_CHARS)),
 		annotation: '',
 		summary: countLines,
 		body: 'text',
@@ -194,10 +248,12 @@ export const PACKAGE_PRESENTATIONS: readonly (readonly [
 	['subagent', subagentPresentation],
 	['syneva_agent', synevaPresentation],
 	['frontend_open', frontendOpenPresentation],
-	['frontend_act', frontendActPresentation],
+	['frontend_batch', frontendBatchPresentation],
 	['frontend_screenshot', frontendScreenshotPresentation],
 	['frontend_console', frontendConsolePresentation],
 	['frontend_eval', frontendEvalPresentation],
+	['frontend_compare', frontendComparePresentation],
+	['frontend_pixels', frontendPixelsPresentation],
 	['bg_wait', waitPresentation],
 	['subagent_supervisor', supervisorPresentation],
 ]

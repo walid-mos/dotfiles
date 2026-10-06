@@ -1,4 +1,4 @@
-// frontend_check_spec: judge the open page against a spec file. The spec lives in the
+// frontend_compare mode=spec: judge the open page against a spec file. The spec lives in the
 // project repo as JSON - a list of checkable requirements with their source - so the
 // tool itself carries nothing project-specific. One batched Jev call judges every item
 // over the extracted specimen; the confidence gate routes anything unproven to the

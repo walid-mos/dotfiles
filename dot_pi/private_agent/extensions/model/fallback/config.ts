@@ -2,7 +2,6 @@
 // toggles, and how long a failed model stays cooling down. The TypeBox schema is
 // the single source of truth for both runtime validation and the TypeScript
 // type, so a half-valid config can never reach the failover path.
-// Unit-tested in `../tests/fallback.test.ts`.
 
 import { readFileSync, renameSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -19,6 +18,9 @@ const MIN_EXCLUSION_TTL_MS = 1_000
 const DEFAULT_EXCLUSION_TTL_MS = 300_000
 /** Same as pi's native retry `baseDelayMs` default, for a familiar default wait. */
 const DEFAULT_RETRY_DELAY_MS = 2_000
+/** A per-minute throttle needs most of its window to roll before the same model answers. */
+const DEFAULT_RATE_LIMIT_RETRY_DELAY_MS = 20_000
+const DEFAULT_RATE_LIMIT_RETRY_LIMIT = 2
 
 export const ModelFallbackConfigSchema = Type.Object({
 	autoFallback: Type.Boolean({
@@ -44,6 +46,18 @@ export const ModelFallbackConfigSchema = Type.Object({
 		minimum: 0,
 		default: DEFAULT_RETRY_DELAY_MS,
 		description: 'Wait before a bounded same-model retry is issued',
+	}),
+	rateLimitRetryLimit: Type.Integer({
+		minimum: 0,
+		default: DEFAULT_RATE_LIMIT_RETRY_LIMIT,
+		description:
+			'Same-model retries a rate-limited model gets before the chain cascades',
+	}),
+	rateLimitRetryDelayMs: Type.Integer({
+		minimum: 0,
+		default: DEFAULT_RATE_LIMIT_RETRY_DELAY_MS,
+		description:
+			'Wait before the first rate-limit retry; each further retry waits one more multiple',
 	}),
 	exclusionTtlMs: Type.Number({
 		minimum: MIN_EXCLUSION_TTL_MS,

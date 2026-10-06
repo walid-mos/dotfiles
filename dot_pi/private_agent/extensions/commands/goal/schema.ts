@@ -2,7 +2,7 @@
 import { StringEnum } from '@earendil-works/pi-ai'
 import { Type } from 'typebox'
 
-import { MAX_GOAL_ITEMS, MAX_GOAL_TEXT } from '#lib/goal/state.ts'
+import { MAX_GOAL_ITEMS } from '#lib/goal/state.ts'
 
 import type { Static } from 'typebox'
 
@@ -19,6 +19,11 @@ const actionArguments = {
 			{
 				id: 2,
 				outcome: 'Checked app --version: 0.9.3; app status: running.',
+			},
+			{
+				id: 3,
+				outcome:
+					'curl -s localhost:8080/health returned 200 {"ok":true}.',
 			},
 		],
 	},
@@ -47,11 +52,8 @@ function example(action: GoalAction): string {
 
 export const GOAL_ACTION_USAGE = actions.map(example).join('\n')
 
-const text = Type.String({
-	minLength: 1,
-	maxLength: MAX_GOAL_TEXT,
-	pattern: '^[^\\r\\n]+$',
-})
+/** Length and line breaks are normalized on receipt (boundedGoalText), never rejected. */
+const text = Type.String({ minLength: 1 })
 const batch = { minItems: 1, maxItems: MAX_GOAL_ITEMS }
 
 export const goalParameters = Type.Object(
@@ -80,7 +82,7 @@ export const goalParameters = Type.Object(
 				{
 					...batch,
 					description:
-						'Required for tick only. Each entry is {id, outcome}; accepted ticks persist.',
+						'Required for tick only. One {id, outcome} object per task, never numbered or extra keys; accepted ticks persist.',
 				},
 			),
 		),

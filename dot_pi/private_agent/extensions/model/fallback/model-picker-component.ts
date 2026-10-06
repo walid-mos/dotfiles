@@ -48,8 +48,8 @@ import type { TuiMouseEvent, TuiMouseEventResult } from '@earendil-works/pi-tui'
 import type { ModelFallbackConfig } from './config.ts'
 import type { AgentEntry } from './model-picker-agents.ts'
 import type { PickerCommand } from './model-picker-commands.ts'
+import type { DefaultModelEdit } from './model-picker-default-write.ts'
 import type { PickerKeyIntent } from './model-picker-keymap.ts'
-import type { DefaultModelEdit } from './model-picker-settings.ts'
 import type {
 	AgentOverrideEdit,
 	ScopeListEdit,

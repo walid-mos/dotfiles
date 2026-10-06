@@ -1,4 +1,4 @@
-// frontend_capture_specimen: freeze the open session page's rendered specimen into a
+// frontend_compare mode=capture: freeze the open session page's rendered specimen into a
 // reusable JSON file. The session browser owns the state cold URLs cannot reach -
 // Keycloak login, persona impersonation, demo-mode toggles - so capture-after-
 // navigation is what makes the ISO diff usable on auth-walled apps. The captured
@@ -53,7 +53,7 @@ export async function loadCapturedSpecimen(
 			.map(error => `${error.instancePath || '/'} ${error.message}`)
 			.join('; ')
 		throw new Error(
-			`Invalid specimen file ${path}: expected frontend_capture_specimen output - ${errors}`,
+			`Invalid specimen file ${path}: expected frontend_compare mode=capture output - ${errors}`,
 		)
 	}
 	return specimenOf(raw)
@@ -84,7 +84,7 @@ export function formatCaptureReport(
 		`specimen captured: ${path}`,
 		`${specimen.title} | ${specimen.url} | lang=${specimen.lang}`,
 		`components: ${specimen.components.length} (${roles})`,
-		`diff it with frontend_iso_diff captured_a/captured_b - the file is self-contained, the page can be navigated away.`,
+		`diff it with frontend_compare mode=diff captured_a/captured_b - the file is self-contained, the page can be navigated away.`,
 	].join('\n')
 }
 

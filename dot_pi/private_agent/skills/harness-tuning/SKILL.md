@@ -74,7 +74,9 @@ Any code file created or modified under `~/.pi/agent` (extensions, tests, config
 
 ```bash
 pnpm run lint                    # oxlint
+pnpm run type-check              # tsc --noEmit
 pnpm exec oxfmt --write <files>  # format exactly the files you touched
+pnpm run drift                   # running pi version vs AUDITED_PI_VERSION (lib/ui/pi-runtime.ts)
 pnpm run test                    # node --experimental-transform-types --test 'tests/**/*.test.ts' — when tests cover the change
 ```
 

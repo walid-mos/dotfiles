@@ -1,10 +1,6 @@
-import { readFileSync } from 'node:fs'
+import { getAgentDir, loadSkills } from '@earendil-works/pi-coding-agent'
 
-import {
-	getAgentDir,
-	loadSkills,
-	stripFrontmatter,
-} from '@earendil-works/pi-coding-agent'
+import { formatSkillBlock, readSkillBody } from '#lib/skills/block.ts'
 
 import { skillToken, SKILL_TOKEN_GLOBAL_RE } from './token.ts'
 
@@ -129,21 +125,4 @@ export function expandAllSkills(
 	}
 	expanded += text.slice(cursor)
 	return expanded
-}
-
-/** Skill body without frontmatter; null when the file is unreadable. */
-function readSkillBody(skill: Skill): string | null {
-	try {
-		return stripFrontmatter(readFileSync(skill.filePath, 'utf-8')).trim()
-	} catch {
-		return null
-	}
-}
-
-/** The exact `<skill>` block format pi's native expansion produces. */
-function formatSkillBlock(skill: Skill, body: string): string {
-	return (
-		`<skill name="${skill.name}" location="${skill.filePath}">\n` +
-		`References are relative to ${skill.baseDir}.\n\n${body}\n</skill>`
-	)
 }

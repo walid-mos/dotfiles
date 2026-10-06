@@ -1,4 +1,5 @@
 import {
+	COMPLETION_WAIT_MS,
 	FOREGROUND_MS,
 	MAX_FINISHED_JOBS,
 	MAX_RUNNING_JOBS,
@@ -93,7 +94,8 @@ export class BashJobs {
 				'Unknown job in this live session. Use bash action=list. Jobs stop on reload, session replacement or exit; saved receipts are evidence, not live handles.',
 			)
 		if (input.action === 'stop') job.stop()
-		const waitMs = input.action === 'stop' ? STOP_GRACE_MS : FOREGROUND_MS
+		const waitMs =
+			input.action === 'stop' ? STOP_GRACE_MS : COMPLETION_WAIT_MS
 		const outcome =
 			job.isRunning() && ['stop', 'wait'].includes(input.action ?? '')
 				? await waitForJob(job.settled, waitMs, signal)
@@ -104,7 +106,7 @@ export class BashJobs {
 	#report(job: BashJob, outcome?: string): AgentToolResult {
 		const snapshot = job.snapshot()
 		const guidance = job.isRunning()
-			? 'Command is still running, not successful or ready. Do not rerun it. Use bash action=status/wait/stop with this jobId; check readiness separately. Completion notifies this session unless cancelled. Jobs stop on reload, session replacement or exit.'
+			? 'Command is still running, not successful or ready. Do not rerun it or poll status/wait in a loop. Do independent work or end this turn; completion notifies this session unless cancelled. Use status only for needed progress, wait for a bounded completion wait, or stop to cancel; check readiness separately. In one-shot sessions, finish or stop owned jobs before the final reply. Jobs stop on reload, session replacement or exit.'
 			: 'Command finished. Receipts write asynchronously; check receiptPath/persistenceError and read the receipt or full-output/validation log before rerunning.'
 		return {
 			content: [

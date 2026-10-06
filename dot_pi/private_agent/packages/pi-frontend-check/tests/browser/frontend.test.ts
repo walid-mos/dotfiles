@@ -10,9 +10,14 @@ test('installed Brave renders, fills, selects by label, captures responsive PNG 
 	)
 	assert.match(description, /Frontend Check fixture/)
 	await browser.run(() =>
-		browser.act({ action: 'type', target: '#name', text: 'Walid' }),
+		browser.actMany(
+			[
+				{ id: 'name', action: 'type', target: '#name', text: 'Walid' },
+				{ id: 'save', action: 'click', target: '#save' },
+			],
+			'/tmp',
+		),
 	)
-	await browser.run(() => browser.act({ action: 'click', target: '#save' }))
 	assert.equal(
 		await browser.run(() =>
 			browser.evaluate("document.querySelector('#saved').textContent"),
@@ -20,7 +25,10 @@ test('installed Brave renders, fills, selects by label, captures responsive PNG 
 		'"Walid"',
 	)
 	await browser.run(() =>
-		browser.act({ action: 'type', target: '#name', text: '' }),
+		browser.actMany(
+			[{ id: 'clear', action: 'type', target: '#name', text: '' }],
+			'/tmp',
+		),
 	)
 	assert.equal(
 		await browser.run(() =>
@@ -29,11 +37,17 @@ test('installed Brave renders, fills, selects by label, captures responsive PNG 
 		'""',
 	)
 	await browser.run(() =>
-		browser.act({
-			action: 'select',
-			target: '#choice',
-			text: 'Second label',
-		}),
+		browser.actMany(
+			[
+				{
+					id: 'choose',
+					action: 'select',
+					target: '#choice',
+					text: 'Second label',
+				},
+			],
+			'/tmp',
+		),
 	)
 	assert.equal(
 		await browser.run(() =>
@@ -66,21 +80,24 @@ test('runs ordered actions in one shared-session batch', async context => {
 	const { browser, url } = await fixture(context)
 	await browser.run(() => browser.open({ url }, '/tmp'))
 	const batchDescription = await browser.run(() =>
-		browser.actMany([
-			{
-				id: 'enter-name',
-				action: 'type',
-				target: '#name',
-				text: 'Walid',
-			},
-			{ id: 'save-name', action: 'click', target: '#save' },
-			{
-				id: 'choose-second',
-				action: 'select',
-				target: '#choice',
-				text: 'Second label',
-			},
-		]),
+		browser.actMany(
+			[
+				{
+					id: 'enter-name',
+					action: 'type',
+					target: '#name',
+					text: 'Walid',
+				},
+				{ id: 'save-name', action: 'click', target: '#save' },
+				{
+					id: 'choose-second',
+					action: 'select',
+					target: '#choice',
+					text: 'Second label',
+				},
+			],
+			'/tmp',
+		),
 	)
 	assert.match(
 		batchDescription,
@@ -101,17 +118,26 @@ test('ambiguous selectors fail without clicking; popup becomes the current page'
 	await browser.run(() => browser.open({ url }, '/tmp'))
 	await assert.rejects(
 		browser.run(() =>
-			browser.act({ action: 'click', target: '.ambiguous' }),
+			browser.actMany(
+				[{ id: 'dup', action: 'click', target: '.ambiguous' }],
+				'/tmp',
+			),
 		),
 		/strict mode violation/,
 	)
 	await browser.run(() =>
-		browser.act({
-			action: 'click',
-			target: '#popup',
-			popup: true,
-			wait_for: '#popup-ready',
-		}),
+		browser.actMany(
+			[
+				{
+					id: 'popup',
+					action: 'click',
+					target: '#popup',
+					popup: true,
+					wait_for: '#popup-ready',
+				},
+			],
+			'/tmp',
+		),
 	)
 	assert.equal(
 		await browser.run(() => browser.evaluate('document.title')),
@@ -153,7 +179,16 @@ test('an action timeout preserves the authenticated browser session', async cont
 	await browser.run(() => browser.open({ url }, '/tmp'))
 	await assert.rejects(
 		browser.run(() =>
-			browser.act({ action: 'click', target: '#missing-control' }),
+			browser.actMany(
+				[
+					{
+						id: 'missing',
+						action: 'click',
+						target: '#missing-control',
+					},
+				],
+				'/tmp',
+			),
 		),
 		/timeout/i,
 	)

@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { statSync } from 'node:fs'
+import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 
 import { checkpointReadResults } from '#lib/context-budget/retained-reads.ts'
@@ -99,7 +100,7 @@ export class ReadLedger {
 		cwd: string,
 		input: { path: string; offset?: number | null; limit?: number | null },
 	): boolean {
-		const path = resolve(cwd, input.path)
+		const path = resolve(cwd, input.path.replace(/^~\//, `${homedir()}/`))
 		const signature = this.signature(path)
 		if (!signature) return false
 		const key = JSON.stringify([

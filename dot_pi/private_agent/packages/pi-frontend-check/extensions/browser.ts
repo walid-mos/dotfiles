@@ -3,6 +3,7 @@ import { BrowserConnection } from './browser-connection.ts'
 import { browserOperation } from './browser-operation.ts'
 import { actOnPage, actWithPopup, diagnoseFailure } from './page-actions.ts'
 import { capturePage } from './page-capture.ts'
+import { evaluateChecks } from './page-checks.ts'
 import { visibleControls } from './page-controls.ts'
 import { observePage } from './page-events.ts'
 import { navigatePage } from './page-navigation.ts'
@@ -20,7 +21,8 @@ import type { ImageContent } from '@earendil-works/pi-ai'
 import type { AgentToolResult } from '@earendil-works/pi-coding-agent'
 import type { ActFailurePhase, BatchFailure } from './action-failure.ts'
 import type { ActionFailure } from './action-failure.ts'
-import type { ActOptions, BatchStep } from './action-schema.ts'
+import type { BatchStep, Checks } from './action-schema.ts'
+import type { ControlsPolicy } from './page-observation.ts'
 import type { PixelFrame } from './page-pixel-frame.ts'
 import type { PageSpecimen } from './page-specimen.ts'
 import type { Config, OpenOptions, ScreenshotOptions } from './schema.ts'
@@ -117,31 +119,33 @@ export class FrontendBrowser {
 			close: () => this.close(),
 			redact: text => this.redact(text),
 		})
-		return this.describe()
+		return this.describe('always')
 	}
 
-	async act(options: ActOptions): Promise<string> {
-		await this.performAct(options)
-		return this.describe()
-	}
-
-	async actMany(steps: BatchStep[]): Promise<string> {
+	/** Ordered steps in the open page; goto URLs resolve like frontend_open's. */
+	async actMany(steps: BatchStep[], cwd: string): Promise<string> {
+		const page = this.connection.currentPage()
+		const urlBefore = page.url()
 		const completedIds: string[] = []
 		for (const [index, step] of steps.entries()) {
+			const resolved =
+				step.action === 'goto' && step.url
+					? { ...step, url: normalizeUrl(step.url, cwd) }
+					: step
 			// Each action may create the state consumed by the next step.
 			// oxlint-disable-next-line no-await-in-loop
 			await this.performAct(
-				step,
+				resolved,
 				batchStepFailure(steps, index, completedIds),
 			)
 			completedIds.push(step.id)
 		}
-		return `Completed ${steps.length} frontend actions: ${completedIds.join(', ')}\n${await this.describe()}`
+		return `Completed ${steps.length} frontend actions: ${completedIds.join(', ')}\n${await this.describe({ urlBefore })}`
 	}
 
 	private async performAct(
-		options: ActOptions,
-		batch?: BatchFailure,
+		options: BatchStep,
+		batch: BatchFailure,
 	): Promise<void> {
 		try {
 			const page = this.connection.currentPage()
@@ -163,10 +167,10 @@ export class FrontendBrowser {
 
 	/** Ordinary failure: throws the failed report; an unresponsive page rethrows. */
 	private async failStep(
-		options: ActOptions,
+		options: BatchStep,
 		phase: ActFailurePhase,
 		error: unknown,
-		batch?: BatchFailure,
+		batch: BatchFailure,
 	): Promise<ActionFailure> {
 		const diagnosis = await diagnoseFailure(
 			() => this.connection.currentPage(),
@@ -186,9 +190,12 @@ export class FrontendBrowser {
 		return failure
 	}
 
-	async describe(): Promise<string> {
-		return describePage(this.connection.currentPage(), this.log, text =>
-			this.redact(text),
+	async describe(policy: ControlsPolicy): Promise<string> {
+		return describePage(
+			this.connection.currentPage(),
+			this.log,
+			text => this.redact(text),
+			policy,
 		)
 	}
 
@@ -216,6 +223,15 @@ export class FrontendBrowser {
 			.evaluate(expression)
 		return boundedText(
 			JSON.stringify(evaluated, null, JSON_INDENT) ?? String(evaluated),
+			this.config.MAX_EVAL_CHARS,
+		)
+	}
+
+	/** Every named check in one round trip, bounded like a single evaluation. */
+	async evaluateChecks(checks: Checks): Promise<string> {
+		return evaluateChecks(
+			this.connection.currentPage(),
+			checks,
 			this.config.MAX_EVAL_CHARS,
 		)
 	}

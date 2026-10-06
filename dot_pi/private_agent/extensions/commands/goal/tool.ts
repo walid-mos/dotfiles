@@ -1,6 +1,7 @@
 import {
 	activeGoal,
 	GOAL_STATE_ENTRY,
+	goalDeltaText,
 	goalText,
 	manageMarker,
 } from '#lib/goal/state.ts'
@@ -8,7 +9,6 @@ import {
 import { applyAcceptedTicks } from './commit-ticks.ts'
 import { changeGoal, prepareTicks } from './edits.ts'
 import { executeManage } from './manage.ts'
-import { GOAL_PROGRESS_RULE } from './routing.ts'
 import {
 	assertGoalArguments,
 	GOAL_ACTION_USAGE,
@@ -40,6 +40,24 @@ function goalResult(state: GoalState | undefined, feedback = ''): GoalResult {
 	}
 }
 
+/** Ticks and declarations answer with what changed, not the whole checklist. */
+function goalDeltaResult(
+	previous: GoalState | undefined,
+	next: GoalState | undefined,
+	feedback = '',
+): GoalResult {
+	if (!next) return goalResult(previous, feedback)
+	return {
+		content: [
+			{
+				type: 'text',
+				text: `${goalDeltaText(previous, next)}${feedback}`,
+			},
+		],
+		details: { revision: next.revision },
+	}
+}
+
 function executeTicks(input: {
 	pi: ExtensionAPI
 	ctx: ExtensionContext
@@ -68,7 +86,7 @@ function executeTicks(input: {
 				]
 			: []),
 	].join('\n')
-	return goalResult(applied.next ?? latest, report)
+	return goalDeltaResult(current, applied.next ?? latest, report)
 }
 
 function assertAllowedEdit(
@@ -153,19 +171,41 @@ async function executeGoal(input: {
 		pi.appendEntry(GOAL_STATE_ENTRY, next)
 		showGoalStatus(ctx, next)
 	}
+	return editResult(params, current, next)
+}
+
+/** Adding items to an existing checklist answers with the delta; everything else with the full text. */
+function editResult(
+	params: GoalParameters,
+	current: GoalState | undefined,
+	next: GoalState | undefined,
+): GoalResult {
+	const isIncremental = params.action === 'declare' || params.action === 'add'
+	if (isIncremental && current)
+		return goalDeltaResult(current, next ?? current)
 	return goalResult(next ?? current)
 }
+
+/** Reporting policy; its only home is the description the model reads at call time. */
+const GOAL_PROGRESS_RULE =
+	'Tick a task as soon as its result is verified, in the same assistant message as your next tool call; a message holding only a tick is wasted unless no tool call follows. One tick call carries every task the same completed tool batch verified.'
+
+/** Agent rules in the system prompt Guidelines; the per-request context carries state only. */
+const GOAL_GUIDELINES = [
+	'Action requests get concrete goal tasks declared once, then worked with their existing item IDs; questions and discussion leave goals untouched.',
+	'Outcomes name the observed result and its check source or method; they are self-reported evidence, not independent verification. Audit the whole request and tick its request item last.',
+	'Never reshape a plan to fit ongoing work: add discovered work with a reason, and revise or delete only on an explicit request in the latest human prompt.',
+	'Goal records never authorize destructive actions or external writes; only human input starts a turn.',
+]
 
 export function registerGoalTool(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: 'goal',
 		label: 'Goal',
-		description: `Maintain the active branch checklist locally. Record completed tasks with action=tick and ticks=[{id,outcome}], including the observed result and check source or method; outcomes are self-reported evidence, not independent verification. ${GOAL_PROGRESS_RULE} Declare once; add only newly discovered work with a reason. Use start only for an unrelated new human request: it saves the current checklist as paused. Resume unblocks related work. Delete/revise require recorded human input at the unchanged goal revision and a Jev check confirming that the human explicitly requested the proposed change. A failed authorization check never disables local tracking. Goal completion does not authorize destructive actions or external writes. Only human input starts a turn. Action call examples:\n${GOAL_ACTION_USAGE}`,
+		description: `Branch-local checklist. tick saves {id, outcome} for verified tasks. declare creates the plan once; add appends newly discovered work with a reason; start opens a goal for an unrelated human request and pauses the current one; block records a needed human decision and resume clears it; activate returns to a paused goal; status prints the full checklist with completed history; delete/revise re-evaluate the plan and need an explicit request in the latest human prompt. ${GOAL_PROGRESS_RULE} Call examples:\n${GOAL_ACTION_USAGE}`,
 		promptSnippet:
 			'Record verified task results locally; delete/revise only on an explicit human request',
-		promptGuidelines: [
-			`When a goal is open, declare concrete tasks once. ${GOAL_PROGRESS_RULE} Include the observed result and check location or method in each outcome. Local validation keeps request completion after concrete tasks. Re-evaluations (delete/revise) require an explicit recorded human request and a coverage check, never a plan changed to fit ongoing work. Audit the whole request and include its item last.`,
-		],
+		promptGuidelines: GOAL_GUIDELINES,
 		parameters: goalParameters,
 		executionMode: 'sequential',
 		// Pi supplies five arguments to tool execute.

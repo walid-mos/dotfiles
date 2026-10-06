@@ -1,6 +1,6 @@
 // Fallback chain mechanics: model reference formatting, cooldown bookkeeping for
 // models that just failed, and candidate ordering. Pure - the caller owns the
-// clock and the map. Unit-tested in `../tests/fallback.test.ts`.
+// clock and the map.
 
 /** Model reference (`provider/modelId`) -> epoch ms until which it is excluded. */
 export type Exclusions = Map<string, number>
