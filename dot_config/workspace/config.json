@@ -1,0 +1,9 @@
+{
+  "domain": "ws.nextnode.fr",
+  "acme_email": "walidmostefaoui@nextnode.fr",
+  "infisical_project_id": "ce69a081-6aec-472d-9ee8-edbb7ed2b72e",
+  "infisical_env": "main",
+  "dns_token_secret": "CLOUDFLARE_DNS_API_TOKEN",
+  "cert_dir": "~/.local/share/workspace-gateway",
+  "default_agent": "pi"
+}
