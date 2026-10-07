@@ -55,7 +55,10 @@ Inspect the staged diff and remove any unapproved or secret path from staging be
 the source repo (`dot_pi/agent/modify_settings.json`): `chezmoi re-add` silently
 skips it, and a lingering `MM` on `settings.json` after re-add means a pinned key
 changed in live - live wins: hand-edit the pinned JSON inside the script, never
-accept the drift.
+accept the drift. `modify_skills.json` and `modify_lazy-load.json` read their
+merge data from the machine-local chezmoi config (`[data.clientProjects]`), not
+from the repo: client project rules live on the machine; never copy them into
+the source.
 
 ## Rules
 
