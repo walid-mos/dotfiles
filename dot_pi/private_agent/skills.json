@@ -12,7 +12,6 @@
 		"agents-sdk"
 	],
 	"projects": {
-		},
 		"nextnode": {
 			"markers": ["nextnode.toml"],
 			"packageDeps": ["@nextnode-solutions/"],

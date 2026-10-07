@@ -28,3 +28,4 @@ This integration shares Infisical login records, not browser storage. Each Pi se
 
 Exact-origin matching intentionally rejects a login saved for another SSO domain; navigate to the actual password form's origin before enrolling. Sites may still require MFA, CAPTCHA, passkeys, consent, or renewed credentials. A shared password is **not** a shared session, nor a guarantee of unattended permanent access. This integration runs as the same macOS user as both agents; an agent with unrestricted local shell access is not an adversarial sandbox against that user or the organization's Infisical administrators.
 
+Atlassian (`id.atlassian.com`) is enrolled.

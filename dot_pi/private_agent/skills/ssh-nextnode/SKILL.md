@@ -64,6 +64,3 @@ Examples:
 - Without one, print the interactive command for the user to run themselves:
 
       ssh -i ~/.ssh/nextnode-ci deploy@<tailscale-hostname>
-
-## Related skills
-

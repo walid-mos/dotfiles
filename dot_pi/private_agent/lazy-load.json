@@ -21,14 +21,5 @@
 		"mcp__infisical",
 		"mcp__resend"
 	],
-	"projects": {
-			"defer": [
-				"syneva_agent"
-			]
-		},
-			"defer": [
-				"syneva_agent"
-			]
-		}
-	}
+	"projects": {}
 }
