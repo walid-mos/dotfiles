@@ -21,11 +21,7 @@
 
 # Pi: plans are throwaway; closed ones are archived locally only
 .pi/agent/plans/active
-.pi/agent/plans/done/2026/galley
-.pi/agent/plans/done/2026/harness
-.pi/agent/plans/done/2026/harness-maintenance
-.pi/agent/plans/done/2026/syneva
-.pi/agent/plans/done/2026/wt
+.pi/agent/plans/done/**
 
 # tool caches, installs and worktree state at $HOME root: binaries, caches, sessions - never version
 .ascii
@@ -177,4 +173,7 @@ infisical-keyring
 .config/herdr/session-snapshots
 .config/herdr/sessions
 .config/herdr/task-names
+
+# client-project skills stay local-only (never versioned)
+.pi/agent/skills/accor-*
 
