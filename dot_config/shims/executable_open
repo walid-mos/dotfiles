@@ -1,13 +1,35 @@
 #!/bin/sh
 # open — machine-wide `open` rule, resolved via PATH by every zsh session
-# (.zshenv prepends this dir). Also the target of the delegating pi bin shim.
-# Forward `open` to the MacBook over SSH (`ssh macbook-pro`) when the session
-# runs remotely (`SSH_CONNECTION` set); local `/usr/bin/open` otherwise. Paths
-# name files as they exist on the MacBook (mirrored Desktop works today);
-# cloud-resident paths would need a serve-URL branch here later.
-if [ -n "$SSH_CONNECTION" ]; then
-	args=
-	[ "$#" -gt 0 ] && args=$(printf ' %q' "$@")
-	exec ssh macbook-pro "exec open$args"
-fi
-exec /usr/bin/open "$@"
+# (.zshenv prepends this dir; .zprofile re-prepends it after /etc/zprofile's
+# path_helper demotes it) and by pi's delegating bin shim.
+# Local `/usr/bin/open` unless the session runs over SSH (`SSH_CONNECTION`
+# set); then the target shows on the CALLING machine — resolved from the
+# client IP in $SSH_CONNECTION via `tailscale status`, falling back to
+# `macbook-pro` for a caller outside the tailnet: a regular file is copied
+# there first (nothing on this disk is visible from the caller), a localhost
+# URL gets this machine's Tailscale IP so the caller's browser reaches a
+# server bound to 0.0.0.0, every other argument (flags, app names, public
+# URLs) passes through unchanged. The remote side calls /usr/bin/open by
+# path: the caller runs this same shim and would otherwise bounce the
+# request back here.
+[ -n "$SSH_CONNECTION" ] || exec /usr/bin/open "$@"
+
+target=$(tailscale status | awk -v ip="${SSH_CONNECTION%% *}" '$1 == ip { print $2; exit }')
+[ -n "$target" ] || target=macbook-pro
+client="ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 $target"
+cache=Library/Caches/open-remote
+args=
+for arg in "$@"; do
+	case $arg in
+	http://localhost*|https://localhost*|http://127.0.0.1*|https://127.0.0.1*)
+		arg=$(printf '%s' "$arg" | sed -E "s#://(localhost|127\.0\.0\.1)#://$(tailscale ip -4)#")
+		;;
+	esac
+	if [ -f "$arg" ]; then
+		name=$(basename "$arg")
+		$client "mkdir -p $cache && cat > $cache/$(printf '%q' "$name")" < "$arg" || exit
+		arg="$cache/$name"
+	fi
+	args="$args$(printf ' %q' "$arg")"
+done
+exec $client "exec /usr/bin/open$args"
