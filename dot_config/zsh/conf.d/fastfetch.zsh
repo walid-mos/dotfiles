@@ -1,5 +1,1 @@
-# =============================================================================
-# Fastfetch - system banner on new shells
-# =============================================================================
-
-command -v fastfetch &>/dev/null && fastfetch
+(( $+commands[fastfetch] )) && fastfetch

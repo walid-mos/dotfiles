@@ -1,0 +1,35 @@
+alias szsh='source ~/.zshenv && source ~/.zshrc'
+# ESC[3J clears the scrollback as well, like Cmd+K.
+alias k='clear && printf "\e[3J"'
+alias getip='ifconfig | grep "inet " | grep -v 127.0.0.1'
+
+alias gs='git status'
+alias ga='git add'
+alias gc='git commit'
+alias gcm='git commit -m'
+alias gca='git commit --amend --no-edit'
+alias gd='git diff'
+alias gds='git diff --staged'
+alias gb='git branch'
+alias gsw='git switch'
+alias gcb='git switch -c'
+alias gl='git log --oneline --graph --decorate --all'
+alias gp='git push'
+alias gpf='git push --force-with-lease'
+alias gpl='git pull --all'
+alias gr='git rebase'
+alias gst='git stash'
+alias gstp='git stash pop'
+alias grs='git restore --staged'
+
+alias v='nvim'
+
+alias cddl='cd ~/Downloads'
+alias cdcfg='cd ~/.config'
+alias cdzsh='cd ~/.config/zsh'
+alias cdpi='cd ~/.pi/agent'
+alias cdcm='cd ~/.local/share/chezmoi'
+alias cdev='cd ~/Development'
+
+# Over SSH nothing can answer the Keychain prompt, so unlock it by hand after a display-sleep relock.
+alias kc-unlock='security unlock-keychain ~/Library/Keychains/login.keychain-db'
