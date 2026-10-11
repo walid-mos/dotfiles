@@ -1,0 +1,21 @@
+emulate -L zsh
+local id_file convo_file id convo
+local -i exit_code
+id_file=$(mktemp)
+convo_file=$(mktemp)
+BOAT_CURRENT_ID_FILE=$id_file BOAT_CURRENT_CONVO_FILE=$convo_file command boat "$@"
+exit_code=$?
+if (( exit_code == 0 )); then
+  case $1 in
+    new|start|fork)
+      id=$(tr -d '[:space:]' < $id_file)
+      [[ -n $id ]] && export BOAT_CURRENT_ID=$id
+      ;;
+    prompt)
+      IFS= read -r convo < $convo_file
+      [[ -n $convo ]] && export BOAT_CURRENT_CONVO=$convo
+      ;;
+  esac
+fi
+rm -f $id_file $convo_file
+return $exit_code

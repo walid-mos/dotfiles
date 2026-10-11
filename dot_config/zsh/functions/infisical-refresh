@@ -1,0 +1,22 @@
+emulate -L zsh
+zmodload zsh/system
+
+local cache_file=$XDG_CACHE_HOME/zsh/infisical.env
+local project_id=ce69a081-6aec-472d-9ee8-edbb7ed2b72e
+local -a secret_names=(TYPESAFE_API_KEY LINEAR_API_KEY SENTRY_AUTH_TOKEN OPENROUTER_MANAGEMENT_KEY INCO_API_KEY)
+local access_token secret_exports
+local -i lock_fd
+
+[[ -d ${cache_file:h} ]] || mkdir -p ${cache_file:h}
+: >> $cache_file.lock
+if ! zsystem flock -t 0 -f lock_fd $cache_file.lock 2> /dev/null; then
+  print -u2 'infisical-refresh: another refresh is already running'
+  return 1
+fi
+{
+  access_token=$(infisical login --method=universal-auth --silent --plain) || return
+  secret_exports=$(infisical secrets get --token=$access_token --projectId=$project_id --env=main --path=/ --output dotenv --silent $secret_names) || return
+  (umask 077 && print -r -- $secret_exports > $cache_file.tmp) && mv -f $cache_file.tmp $cache_file
+} always {
+  exec {lock_fd}>&-
+}
