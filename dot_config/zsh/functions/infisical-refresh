@@ -9,7 +9,7 @@ local -i lock_fd
 
 [[ -d ${cache_file:h} ]] || mkdir -p ${cache_file:h}
 : >> $cache_file.lock
-if ! zsystem flock -t 0 -f lock_fd $cache_file.lock; then
+if ! zsystem flock -t 0 -f lock_fd $cache_file.lock 2> /dev/null; then
   print -u2 'infisical-refresh: another refresh is already running'
   return 1
 fi
