@@ -1,4 +1,4 @@
-alias szsh='source ~/.zshenv && source ~/.zshrc'
+alias szsh='exec zsh'
 # ESC[3J clears the scrollback as well, like Cmd+K.
 alias k='clear && printf "\e[3J"'
 alias getip='ifconfig | grep "inet " | grep -v 127.0.0.1'
