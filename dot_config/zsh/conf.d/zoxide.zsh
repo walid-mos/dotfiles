@@ -1,7 +1,1 @@
-# =============================================================================
-# zoxide - smarter cd
-# =============================================================================
-
-if command -v zoxide &>/dev/null; then
-  eval "$(zoxide init zsh)"
-fi
+(( $+commands[zoxide] )) && eval "$(zoxide init zsh)"

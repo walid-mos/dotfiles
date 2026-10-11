@@ -1,10 +1,3 @@
-# =============================================================================
-# Ghostty Shell Integration
-# =============================================================================
-# MUST load first to properly track CWD for new tabs/splits.
-# Ghostty auto-injects this in direct shells, but not in exec zsh/tmux/etc.
-# =============================================================================
-
-if [[ -n "$GHOSTTY_RESOURCES_DIR" && -r "$GHOSTTY_RESOURCES_DIR/shell-integration/zsh/ghostty-integration" ]]; then
-  source "$GHOSTTY_RESOURCES_DIR/shell-integration/zsh/ghostty-integration"
-fi
+# First module on purpose: Ghostty only injects this itself into shells it spawns directly, never into herdr panes.
+[[ -n $GHOSTTY_RESOURCES_DIR && -r $GHOSTTY_RESOURCES_DIR/shell-integration/zsh/ghostty-integration ]] &&
+  source $GHOSTTY_RESOURCES_DIR/shell-integration/zsh/ghostty-integration
