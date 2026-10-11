@@ -1,11 +1,3 @@
-#!/bin/zsh
-# killport — kill whatever listens on the given TCP port(s)
-#
-# Usage: killport <port> [<port> ...]
-#   killport 5175            → SIGTERM the listener on :5175
-#   killport 5175 3000       → several ports at once
-#   killport -9 5175         → SIGKILL instead of the default SIGTERM
-
 emulate -L zsh
 
 local sig=TERM
@@ -15,7 +7,7 @@ if [[ $1 == -[0-9]* || $1 == -(KILL|TERM|INT|HUP) ]]; then
 fi
 
 if (( $# == 0 )); then
-  print -u2 "usage: killport [-9] <port> [<port> ...]"
+  print -u2 'usage: killport [-9] <port> [<port> ...]'
   return 2
 fi
 
@@ -23,7 +15,7 @@ local port pids
 local -i rc=0
 for port in "$@"; do
   pids=(${(f)"$(lsof -ti tcp:$port -sTCP:LISTEN 2>/dev/null)"})
-  if (( ${#pids} == 0 )); then
+  if (( $#pids == 0 )); then
     print "port $port: nothing listening"
     continue
   fi
