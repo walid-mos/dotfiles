@@ -1,3 +1,16 @@
 .config/zsh/aliases
 .config/zsh/infisical
+.config/zsh/path.zsh
+.config/zsh/infisical.zsh
+.config/zsh/conf.d/00-ghostty.zsh
+.config/zsh/conf.d/completion.zsh
+.config/zsh/conf.d/fastfetch.zsh
+.config/zsh/conf.d/fzf.zsh
+.config/zsh/conf.d/help-completer.zsh
+.config/zsh/conf.d/history.zsh
+.config/zsh/conf.d/keybindings.zsh
 .config/zsh/conf.d/pnpm.zsh
+.config/zsh/conf.d/starship.zsh
+.config/zsh/conf.d/zoxide.zsh
+.config/zsh/conf.d/zz-syntax-highlighting.zsh
+.config/zsh/conf.d
