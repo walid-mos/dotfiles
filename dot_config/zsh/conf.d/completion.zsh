@@ -1,3 +1,5 @@
+fpath=($HOMEBREW_PREFIX/share/zsh/site-functions $fpath)
+
 autoload -Uz compinit
 [[ -d $XDG_CACHE_HOME/zsh ]] || mkdir -p $XDG_CACHE_HOME/zsh
 compinit -d $XDG_CACHE_HOME/zsh/zcompdump
