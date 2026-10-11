@@ -14,6 +14,6 @@ export TURBO_TELEMETRY_DISABLED=1
 
 fpath=($XDG_CONFIG_HOME/zsh/functions $fpath)
 
-source $XDG_CONFIG_HOME/zsh/path.zsh
+source $XDG_CONFIG_HOME/zsh/env/path.zsh
 [[ -r $XDG_CONFIG_HOME/zsh/secrets ]] && source $XDG_CONFIG_HOME/zsh/secrets
-source $XDG_CONFIG_HOME/zsh/infisical.zsh
+source $XDG_CONFIG_HOME/zsh/env/infisical.zsh

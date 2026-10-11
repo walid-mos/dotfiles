@@ -1,4 +1,4 @@
 eval "$($HOMEBREW_PREFIX/bin/brew shellenv)"
-source $XDG_CONFIG_HOME/zsh/path.zsh
+source $XDG_CONFIG_HOME/zsh/env/path.zsh
 # GUI apps inherit launchd's PATH, which knows nothing about Homebrew or pnpm until a login shell sets it.
 launchctl setenv PATH "$PATH"

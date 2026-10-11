@@ -1,7 +1,7 @@
 autoload -Uz $XDG_CONFIG_HOME/zsh/functions/*(N:t)
 
-# Modules load alphabetically: 00-ghostty.zsh must come first, zz-syntax-highlighting.zsh last.
-for module in $XDG_CONFIG_HOME/zsh/conf.d/*.zsh(N); do
+# Stage order: compinit before the completers in tools, highlighting after every widget they define.
+for module in $XDG_CONFIG_HOME/zsh/rc/{terminal,completion,tools,highlighting}/*.zsh(N); do
   source $module
 done
 unset module
