@@ -37,6 +37,11 @@ An agent-facing reference doc (ARCHITECTURE.md, PRODUCT.md, …) that nothing po
 
 Never install a skill through a package manager, marketplace, or registry CLI — `npx skills add` (skills.sh/Vercel), `claude plugin marketplace`, or any equivalent: they run third-party code and write files outside review. Vendor by copying the upstream files (`SKILL.md` plus its license) into `skills/<name>/` byte-identical, and record the upstream repo, revision and date in a `SOURCE.md` beside them so an update is a re-copy diff.
 
+## Directions, not inventories
+
+- An agent-facing doc carries directions only — what a location is for, how to run it, what is binding. Never keep counts of files, folders, or functions in it: the directory is a source of truth the doc cannot outlive, and a doc restating the listing is a cache (see `~/.pi/agent/skills/writing-for-agents/SKILL.md`) that stales on the next added file.
+- Where work goes is stated as a placement rule — "new outputs go in the matching domain folder; opening a folder is reserved for a genuinely new domain" — not an enumeration of current contents. A specific file is found through the folder it lives in (or Spotlight), not through the doc.
+
 ## Modifying pi or herdr
 
 Before any change to pi or herdr source, dist, or binary, apply this ladder in order:

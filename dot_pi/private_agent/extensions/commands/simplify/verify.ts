@@ -4,8 +4,9 @@
  * from here. Gates come out cheapest-first.
  */
 
-import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
+
+import { runtimeFor } from '#lib/runtime/runtime.ts'
 
 import { isRecord } from './json.ts'
 
@@ -172,7 +173,7 @@ function dedupe(gates: readonly Gate[]): Gate[] {
 
 async function readText(file: string): Promise<string | undefined> {
 	try {
-		return await readFile(file, 'utf8')
+		return (await runtimeFor(file).readFile(file)).toString('utf8')
 	} catch {
 		return undefined
 	}
@@ -180,7 +181,7 @@ async function readText(file: string): Promise<string | undefined> {
 
 async function exists(file: string): Promise<boolean> {
 	try {
-		await stat(file)
+		await runtimeFor(file).stat(file)
 		return true
 	} catch {
 		return false

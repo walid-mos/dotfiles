@@ -1,18 +1,23 @@
--- Remote herdr: OSC 52 sends yanks to the MacBook client. OSC 52 clipboard
--- queries do not work here, so read the MacBook clipboard over SSH instead.
--- Local sessions use Neovim's native macOS clipboard provider.
-if vim.env.HERDR_ENV and vim.env.SSH_CONNECTION then
+-- Inside herdr the clipboard belongs to the viewing client: OSC 52 sends yanks
+-- there, and since OSC 52 queries do not work here, paste reads the clipboard
+-- of the machine viewer-host names over SSH, or this machine's when it names
+-- none. Outside herdr Neovim's native macOS clipboard provider applies.
+if vim.env.HERDR_ENV then
 	local osc52 = require("vim.ui.clipboard.osc52")
-	local function pasteFromMacBook()
-		local result = vim.system({
-			"ssh",
-			"-o", "BatchMode=yes",
-			"-o", "ConnectTimeout=2",
-			"-o", "ConnectionAttempts=1",
-			"macbook-pro", "pbpaste",
-		}, { text = true }):wait(3000)
+	local function pasteFromViewer()
+		local viewer = vim.system({ vim.env.HOME .. "/.config/shims/viewer-host" }, { text = true }):wait(5000)
+		local host = vim.trim(viewer.stdout or "")
+		local command = host == "" and { "pbpaste" }
+			or {
+				"ssh",
+				"-o", "BatchMode=yes",
+				"-o", "ConnectTimeout=2",
+				"-o", "ConnectionAttempts=1",
+				host, "pbpaste",
+			}
+		local result = vim.system(command, { text = true }):wait(3000)
 		if result.code ~= 0 then
-			error("MacBook clipboard unavailable over SSH; use Cmd+V (" .. (result.stderr or result.code) .. ")")
+			error(host .. " clipboard unavailable over SSH; use Cmd+V (" .. (result.stderr or result.code) .. ")")
 		end
 
 		local text = result.stdout or ""
@@ -25,14 +30,14 @@ if vim.env.HERDR_ENV and vim.env.SSH_CONNECTION then
 	end
 
 	vim.g.clipboard = {
-		name = "MacBook clipboard over SSH",
+		name = "herdr viewer clipboard",
 		copy = {
 			["+"] = osc52.copy("+"),
 			["*"] = osc52.copy("*"),
 		},
 		paste = {
-			["+"] = pasteFromMacBook,
-			["*"] = pasteFromMacBook,
+			["+"] = pasteFromViewer,
+			["*"] = pasteFromViewer,
 		},
 		cache_enabled = 0,
 	}

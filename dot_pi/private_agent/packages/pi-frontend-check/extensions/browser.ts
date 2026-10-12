@@ -217,6 +217,9 @@ export class FrontendBrowser {
 		)
 	}
 
+	withScratchPage: BrowserConnection['withScratchPage'] = work =>
+		this.connection.withScratchPage(work)
+
 	async evaluate(expression: string): Promise<string> {
 		const evaluated: unknown = await this.connection
 			.currentPage()

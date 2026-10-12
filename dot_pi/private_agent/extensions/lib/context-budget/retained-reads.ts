@@ -57,12 +57,14 @@ function skillResults(
 		const path = calls.get(message.toolCallId)
 		if (!path || message.content.some(block => block.type !== 'text'))
 			continue
-		reads.delete(path)
-		reads.set(path, {
+		const read = {
 			path,
 			toolCallId: message.toolCallId,
 			content: message.content,
-		})
+		}
+		if (!isCurrent(read)) continue
+		reads.delete(path)
+		reads.set(path, read)
 	}
 	return [...reads.values()]
 }

@@ -48,7 +48,9 @@ export function registerPixelsTool(
 				requireField(options, 'captured_a'),
 				requireField(options, 'captured_b'),
 			)
-			return textResult(await runPixelDiff(pair, config(), signal))
+			return textResult(
+				await runPixelDiff(pair, browser, config(), signal),
+			)
 		},
 	})
 }

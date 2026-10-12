@@ -3,7 +3,7 @@
 Single source of truth for restyling pi's TUI. Read this before migrating ANY render surface
 (tool rows, chrome, transcript surfaces) to the house design system.
 
-- Verified against installed `@earendil-works/pi-coding-agent@1.0.4` + `@earendil-works/pi-tui@1.0.4` dist sources.
+- Verified against installed `@earendil-works/pi-coding-agent@1.1.0` + `@earendil-works/pi-tui@1.1.0` dist sources.
 - Re-diff this matrix after every pi upgrade; glyph/format details can shift between versions.
 - Ownership rules live in `~/.pi/agent/ARCHITECTURE.md`. This file tracks *what renders*, not *who owns which module*.
 
@@ -538,3 +538,34 @@ Close-out also aligned the workspace pins (`~/.pi/agent/package.json` devDepende
 `pnpm run drift` first ran the local `.bin` `pi` shim at 1.0.3 while `pi --version` (global bin)
 already reported 1.0.4; drift now prints `pi 1.0.4: audited version` and tsc type-checks against
 the same 1.0.4 declarations the extension-audit verified.
+
+Drift record 1.0.4 → 1.1.0 (2026-10-11, `pi-updated`; install re-keyed to the `7e68-18dd…`
+store, the patcher printed `3e4f681e…` spellings — audit-path realpath + inode equality
+verified, one physical hardlinked tree): no Breaking Changes. Extension-surface entries are all
+additive: `durationMs` + `outputPad` in the tool render context and `tool_execution_end`,
+`aborted` on `agent_settled`, OSC 7501 program status, `+name`/`-name` `--tools` entries,
+GPT-6 Luna image classifier (`models.classify()` gains `images`), Claude Haiku 5.5, llama.cpp
+decision models via `/v1/systemone`, live `/mcp` manager, codemode output delimiters. The one
+display-semantic change: `outputPad` (existing setting, sourced from
+`settingsManager.getOutputPad()`) now also applies to `!` command output, tool output, and
+summary blocks — previously only user messages, assistant messages, and thinking. House settings
+run `outputPad: 0` / `editorPaddingX: 0`, so tool rows, `!` blocks, compaction/branch summary
+cards, and custom entries/messages shift one cell left after /reload, aligning with messages
+already at 0; house `tool-surface.ts` draws no hardcoded left padding and `frame.ts` keeps its
+own insets for framed surfaces. bash.js prefers a final result's recorded `durationMs` for the
+`Took` line (monotonic, survives reloads; clock fallback, #10549) — house bash row keeps its own
+presentation. Audits: extension-audit ✓ ('extension API intact'), hygiene-audit 5 packages
+clean / no builtin shadowing / live loader 32 extensions 0 errors 0 warnings, abi-audit 7
+exports + 13 prototype methods ✓. All four dist patches reapplied first-run `patched`; verified
+on the running tree by grep (`HERDR_ENV` osc52-first, `truncateDanglingArrows` + advisory
+warning, no `/copy` registration) and `node --check` clean on all four files; mermaid mini
+chunk is now chunk-OIM2DMFI.js. Glyph/format re-diff against npm-packed 1.0.4 baselines:
+pi-tui `markdown.js` byte-identical; pi-tui `box.js`/`text.js` add `setPaddingX()` only
+(new API, unused by house code); `editor.js` = the prompt-history patch; renderers differ only
+in `bash.js` (durationMs) and `edit.js` (outputPad); interactive components differ only in the
+outputPad threading, the settings-selector description text, and `mermaid.js` (= the
+never-drop patch); `user-message.js`/`assistant-message.js` unchanged — outputPad already
+applied there in 1.0.4. Close-out: `AUDITED_PI_VERSION` 1.0.4 → 1.1.0, workspace pins pi-ai /
+pi-coding-agent / pi-tui 1.0.4 → 1.1.0, lockfile re-verified. §9 visual pass pending the
+user's /reload: confirm tool rows, `!` blocks and summary cards render flush-left (outputPad 0)
+aligned with messages, and the bash `Took` line.

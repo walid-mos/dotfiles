@@ -1,0 +1,8 @@
+{
+  "infisical_project_id": "ce69a081-6aec-472d-9ee8-edbb7ed2b72e",
+  "infisical_env": "main",
+  "tailscale_authkey_secret": "TAILSCALE_AUTHKEY_BOAT",
+  "git_identity": "~/.ssh/github_boat",
+  "anchor_root": "~/.ws",
+  "terminal": "herdr"
+}

@@ -26,7 +26,7 @@
 	"type": "module",
 	"scripts": {
 		"lint": "oxlint",
-		"format:check": "oxfmt --check extensions scripts oxfmt.config.ts oxlint.config.ts",
+		"format:check": "oxfmt --check extensions oxfmt.config.ts oxlint.config.ts",
 		"type-check": "tsc --noEmit",
 		"test": "node --test 'tests/*.test.ts'",
 		"test:browser": "node --test 'tests/browser/*.test.ts'"

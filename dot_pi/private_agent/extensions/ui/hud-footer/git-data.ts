@@ -3,6 +3,9 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
+import { anchorFor } from '#lib/runtime/anchor.ts'
+import { runtimeFor } from '#lib/runtime/runtime.ts'
+
 import { isRecord } from './json.ts'
 
 const execFileAsync = promisify(execFile)
@@ -96,23 +99,40 @@ function syncState(porcelain: string): GitStatus['sync'] {
 		: 'unavailable'
 }
 
+const GIT_STATUS_ARGS = [
+	'--no-optional-locks',
+	'status',
+	'--porcelain=v2',
+	'--branch',
+	'--show-stash',
+]
+
+/** Porcelain from the machine holding the checkout: the Boat under a workspace anchor. */
+async function readPorcelain(
+	cwd: string,
+	signal?: AbortSignal,
+): Promise<string> {
+	const runtime = runtimeFor(cwd)
+	if (!runtime.isRemote) {
+		const { stdout } = await execFileAsync('git', GIT_STATUS_ARGS, {
+			cwd,
+			timeout: GIT_TIMEOUT_MS,
+			signal,
+		})
+		return stdout
+	}
+	const status = await runtime.run(`git ${GIT_STATUS_ARGS.join(' ')}`, cwd)
+	if (status.exitCode !== 0) throw new Error(status.stderr)
+	return status.stdout
+}
+
 /** One read-only snapshot of branch, upstream, worktree and stash. */
 export async function fetchGitStatus(
 	cwd: string,
 	signal?: AbortSignal,
 ): Promise<GitStatus | null> {
 	try {
-		const { stdout } = await execFileAsync(
-			'git',
-			[
-				'--no-optional-locks',
-				'status',
-				'--porcelain=v2',
-				'--branch',
-				'--show-stash',
-			],
-			{ cwd, timeout: GIT_TIMEOUT_MS, signal },
-		)
+		const stdout = await readPorcelain(cwd, signal)
 		const counters = emptyCounters()
 		for (const line of stdout.split('\n')) {
 			const delta = rowDelta(line)
@@ -147,17 +167,21 @@ function isGitPr(candidate: unknown): candidate is GitPr {
 	)
 }
 
+/** `gh pr view` arguments; under a workspace anchor the Mac's gh names the Boat's repo and branch. */
+function prViewArgs(cwd: string): string[] {
+	const anchor = anchorFor(cwd)
+	const query = ['--json', 'number,url']
+	if (!anchor) return ['pr', 'view', ...query]
+	return ['pr', 'view', anchor.branch, '--repo', anchor.repo, ...query]
+}
+
 /** Resolve the PR attached to the current branch via `gh`. Null if none / not GitHub. */
 export async function fetchCurrentPr(cwd: string): Promise<GitPr | null> {
 	try {
-		const { stdout } = await execFileAsync(
-			'gh',
-			['pr', 'view', '--json', 'number,url'],
-			{
-				cwd,
-				timeout: PR_TIMEOUT_MS,
-			},
-		)
+		const { stdout } = await execFileAsync('gh', prViewArgs(cwd), {
+			cwd,
+			timeout: PR_TIMEOUT_MS,
+		})
 		const parsed: unknown = JSON.parse(stdout)
 		if (!isGitPr(parsed)) return null
 		return parsed

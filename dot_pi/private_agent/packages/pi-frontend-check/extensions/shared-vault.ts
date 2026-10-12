@@ -1,5 +1,5 @@
 import { execFile } from 'node:child_process'
-import { homedir } from 'node:os'
+import { homedir, tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { promisify } from 'node:util'
 
@@ -50,12 +50,7 @@ async function callBroker(
 				env: {
 					HOME: homedir(),
 					PATH: process.env.PATH ?? '/usr/local/bin:/usr/bin:/bin',
-					TMPDIR:
-						process.env.TMPDIR ??
-						join(
-							homedir(),
-							'.hermes/profiles/factory/cache/scratch',
-						),
+					TMPDIR: process.env.TMPDIR ?? tmpdir(),
 					USER: process.env.USER ?? '',
 					LOGNAME: process.env.LOGNAME ?? '',
 				},

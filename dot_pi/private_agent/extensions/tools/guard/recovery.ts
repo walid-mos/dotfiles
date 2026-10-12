@@ -4,13 +4,15 @@
  * edit "could not find": the current lines around the nearest match of the
  * missing text. read ENOENT: the nearest existing directory and its entries.
  */
-import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs'
 import { basename, dirname, resolve } from 'node:path'
+
+import { runtimeFor } from '#lib/runtime/runtime.ts'
 
 import type {
 	ExtensionAPI,
 	ToolResultEventResult,
 } from '@earendil-works/pi-coding-agent'
+import type { Runtime } from '#lib/runtime/runtime.ts'
 
 const CONTEXT_LINES = 3
 const MAX_ENTRIES = 24
@@ -57,15 +59,17 @@ function nearestLine(lines: readonly string[], probe: string): number {
 	return lines.findIndex(line => line.includes(prefix))
 }
 
-function editHint(
+async function editHint(
 	input: Record<string, unknown>,
 	error: string,
-): string | undefined {
+): Promise<string | undefined> {
 	const path = typeof input.path === 'string' ? input.path : ''
 	const missing = missingText(input, error)
-	if (!path || !missing || !existsSync(path)) return undefined
-	if (statSync(path).size > MAX_FILE_BYTES) return undefined
-	const lines = readFileSync(path, 'utf8').split('\n')
+	if (!path || !missing) return undefined
+	const runtime = runtimeFor(path)
+	if (!(await runtime.exists(path))) return undefined
+	if ((await runtime.stat(path)).size > MAX_FILE_BYTES) return undefined
+	const lines = (await runtime.readFile(path)).toString('utf8').split('\n')
 	const probes = missing.split('\n').filter(line => line.trim())
 	const [first] = probes
 	if (!first) return undefined
@@ -87,22 +91,33 @@ function editHint(
 	return `Nearest match for the missing oldText in ${path} at line ${at + 1}; current text, numbered:\n${numbered}\nCopy oldText from these lines exactly.`
 }
 
-function readHint(
+async function nearestDirectory(
+	runtime: Runtime,
+	directory: string,
+): Promise<string | undefined> {
+	if (await runtime.exists(directory)) return directory
+	const parent = dirname(directory)
+	if (parent === directory) return undefined
+	return nearestDirectory(runtime, parent)
+}
+
+async function readHint(
 	cwd: string,
 	input: Record<string, unknown>,
-): string | undefined {
+): Promise<string | undefined> {
 	const requested = typeof input.path === 'string' ? input.path : ''
 	if (!requested) return undefined
-	let directory = dirname(resolve(cwd, requested))
-	while (!existsSync(directory)) {
-		const parent = dirname(directory)
-		if (parent === directory) return undefined
-		directory = parent
-	}
+	const runtime = runtimeFor(resolve(cwd, requested))
+	const found = await nearestDirectory(
+		runtime,
+		dirname(resolve(cwd, requested)),
+	)
+	if (!found) return undefined
+	const directory = runtime.toTarget(found)
 	let entries: string[]
 	try {
-		entries = readdirSync(directory, { withFileTypes: true }).map(entry =>
-			entry.isDirectory() ? `${entry.name}/` : entry.name,
+		entries = (await runtime.listDirectory(found)).map(entry =>
+			entry.isDirectory ? `${entry.name}/` : entry.name,
 		)
 	} catch {
 		return undefined
@@ -122,14 +137,14 @@ function readHint(
 }
 
 export function registerLookupRecovery(pi: ExtensionAPI): void {
-	pi.on('tool_result', (event, ctx) => {
+	pi.on('tool_result', async (event, ctx) => {
 		if (!event.isError) return undefined
 		const error = textOf(event.content)
 		let hint: string | undefined
 		if (event.toolName === 'edit' && /could not find/i.test(error))
-			hint = editHint(event.input, error)
+			hint = await editHint(event.input, error)
 		if (event.toolName === 'read' && /ENOENT/.test(error))
-			hint = readHint(ctx.cwd, event.input)
+			hint = await readHint(ctx.cwd, event.input)
 		if (!hint) return undefined
 		return withHint(event.content, hint)
 	})

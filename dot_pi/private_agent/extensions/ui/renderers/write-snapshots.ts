@@ -5,6 +5,7 @@ import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 import { buffer as readBuffer } from 'node:stream/consumers'
 
+import { runtimeFor } from '#lib/runtime/runtime.ts'
 import { reflectMember } from '#lib/ui/pi-members.ts'
 
 import {
@@ -15,6 +16,7 @@ import {
 import { payloadText } from './tool-payload.ts'
 
 import type { FileHandle } from 'node:fs/promises'
+import type { Runtime } from '#lib/runtime/runtime.ts'
 import type { ChangeDocument } from '#lib/ui/change-block.ts'
 
 type BeforeImage = { kind: 'known'; content: string } | { kind: 'unavailable' }
@@ -48,8 +50,11 @@ async function readBefore(path: string, cwd: string): Promise<BeforeImage> {
 	if (path.startsWith('@') || /\s/u.test(path.replaceAll(' ', '')))
 		return { kind: 'unavailable' }
 	const expanded = path.replace(/^~(?=\/|$)/u, () => homedir())
+	const target = resolve(cwd, expanded)
+	const runtime = runtimeFor(target)
 	try {
-		return await readRegularFile(resolve(cwd, expanded))
+		if (runtime.isRemote) return await readRemoteFile(runtime, target)
+		return await readRegularFile(target)
 	} catch (cause) {
 		return reflectMember(cause, 'code') === 'ENOENT'
 			? { kind: 'known', content: '' }
@@ -69,6 +74,29 @@ async function readRegularFile(path: string): Promise<BeforeImage> {
 	}
 }
 
+/** A file under a workspace anchor is read on the Boat with the same bounds. */
+async function readRemoteFile(
+	runtime: Runtime,
+	path: string,
+): Promise<BeforeImage> {
+	const stats = await runtime.stat(path)
+	if (!stats.isFile || stats.size > MAX_CHANGE_BYTES)
+		return { kind: 'unavailable' }
+	return decodeBounded(await runtime.readFile(path))
+}
+
+function decodeBounded(content: Buffer): BeforeImage {
+	if (content.length > MAX_CHANGE_BYTES || content.includes(0))
+		return { kind: 'unavailable' }
+	return {
+		kind: 'known',
+		content: new TextDecoder('utf-8', {
+			fatal: true,
+			ignoreBOM: true,
+		}).decode(content),
+	}
+}
+
 async function readBoundedText(file: FileHandle): Promise<BeforeImage> {
 	const stream = file.createReadStream({
 		start: 0,
@@ -76,16 +104,7 @@ async function readBoundedText(file: FileHandle): Promise<BeforeImage> {
 		autoClose: false,
 	})
 	try {
-		const content = await readBuffer(stream)
-		if (content.length > MAX_CHANGE_BYTES || content.includes(0))
-			return { kind: 'unavailable' }
-		return {
-			kind: 'known',
-			content: new TextDecoder('utf-8', {
-				fatal: true,
-				ignoreBOM: true,
-			}).decode(content),
-		}
+		return decodeBounded(await readBuffer(stream))
 	} finally {
 		stream.destroy()
 	}

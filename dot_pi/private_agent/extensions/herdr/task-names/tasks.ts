@@ -79,6 +79,18 @@ async function branch(file: string, paneId: string): Promise<SessionEntry[]> {
 	return entries.toReversed()
 }
 
+function projectOf(pane: Pane, snapshot: Snapshot): string {
+	const workspace = snapshot.workspaces.find(
+		candidate => candidate.workspace_id === pane.workspace_id,
+	)
+	return (
+		workspace?.worktree?.repo_name ||
+		workspace?.label ||
+		path.basename(pane.cwd ?? '') ||
+		'Pi'
+	)
+}
+
 async function paneTask(
 	pane: Pane,
 	snapshot: Snapshot,
@@ -91,12 +103,7 @@ async function paneTask(
 		id: pane.pane_id,
 		tabId: pane.tab_id,
 		session: isNative ? session.value : '',
-		project:
-			snapshot.workspaces.find(
-				workspace => workspace.workspace_id === pane.workspace_id,
-			)?.label ||
-			path.basename(pane.cwd ?? 'Pi') ||
-			'Pi',
+		project: projectOf(pane, snapshot),
 		items: [],
 		isComplete: false,
 		isReadable: true,

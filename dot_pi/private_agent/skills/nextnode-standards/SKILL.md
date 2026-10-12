@@ -1,10 +1,10 @@
 ---
 name: nextnode-standards
 description: >-
-  How to use @nextnode-solutions/standards in NextNode projects: all tooling
-  configs (oxlint, oxfmt, TypeScript, tsdown, Vitest, commitlint,
-  semantic-release, Tailwind). Load when @nextnode-solutions/standards is in
-  package.json or when configuring tooling in a NextNode project.
+  Use when configuring NextNode tooling or pull-request CI.
+  Shared @nextnode-solutions/standards configs for oxlint, oxfmt, TypeScript,
+  tsdown, Vitest, commitlint, semantic-release and Tailwind, plus the common
+  CI convention. Also load when the package appears in package.json.
 ---
 
 # @nextnode-solutions/standards
@@ -20,6 +20,7 @@ Centralized development standards for all NextNode projects. This is a **config-
 - `typescript`: TypeScript config details
 - `tsdown`: bundler config details (for publishable packages)
 - `vitest`: test config details
+- `ci`: common pull-request CI, naming and verification
 - `configs`: smaller configs (commitlint, lint-staged, oxfmt, Tailwind, editorconfig, npmrc)
 
 ## Instructions
@@ -40,6 +41,7 @@ Use the relevant sub-file for details:
 - [tsdown.md](tsdown.md) - bundler config base for publishable packages
 - [vitest.md](vitest.md) - test configs and all export paths (backend, frontend, astro, vite-plugin)
 - [configs.md](configs.md) - commitlint, lint-staged, oxfmt, Tailwind theme, editorconfig, .npmrc, semantic-release
+- [ci.md](ci.md) - common PR CI; read before adding or renaming the workflow or its required check
 
 ---
 
@@ -73,6 +75,7 @@ lint-staged.config.js     # imports standards/lint-staged
 .releaserc.json           # extends standards/semantic-release (for publishable packages)
 .editorconfig             # copied from standards
 .npmrc                    # copied from standards
+.github/workflows/ci.yml  # common pull-request CI; see ci.md
 ```
 
 And these package.json fields:
@@ -91,6 +94,10 @@ And these package.json fields:
 ```
 
 **`packageManager` is required** - The NextNode CI pipeline (`pnpm/action-setup`) reads the pnpm version from this field. Without it, the pipeline will fail. Always pin to the exact version in use in the monorepo (check the root `package.json`) - never a range or major-only.
+
+## Pull-request CI
+
+Use an agent-neutral PR workflow across NextNode projects, separate from deployment and human approval. Read [ci.md](ci.md) before creating or renaming it; naming, gates and verification have one home there. A standard convention does not authorize a fleet-wide rollout.
 
 ## Rules
 

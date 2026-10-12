@@ -17,16 +17,18 @@ Treat the entire argument as free text, not a literal branch name. Execute the f
 
 ## Open the worktree
 
+Always pass `--no-focus`: creating or opening a worktree must never move the user's focus; they switch to the new workspace themselves.
+
 Use `herdr worktree list --workspace "$HERDR_WORKSPACE_ID"` to resolve the chosen branch's checkout.
 
-- **Confirmed branch already checked out:** run `herdr worktree open --workspace "$HERDR_WORKSPACE_ID" --path '<existing-checkout>' --label '<branch>' --focus`. Reuse its checkout and any existing subworkspace; do not force a duplicate checkout. If it is the caller's checkout, explain that it is already open rather than manufacture another worktree.
+- **Confirmed branch already checked out:** run `herdr worktree open --workspace "$HERDR_WORKSPACE_ID" --path '<existing-checkout>' --label '<branch>' --no-focus`. Reuse its checkout and any existing subworkspace; do not force a duplicate checkout. If it is the caller's checkout, explain that it is already open rather than manufacture another worktree.
 - **Confirmed branch not checked out:** create and open a worktree on that branch. For a remote-only match, first create its local tracking branch with `git branch --track '<local-name>' '<confirmed-remote-ref>'`, after checking for local-name conflicts. Capture the confirmed branch tip as the base.
 - **New branch:** create and open a worktree from the captured caller commit.
 
 For creation, run once with the resolved local branch and base:
 
 ```bash
-herdr worktree create --workspace "$HERDR_WORKSPACE_ID" --branch '<branch>' --base '<captured-commit>' --label '<branch>' --focus
+herdr worktree create --workspace "$HERDR_WORKSPACE_ID" --branch '<branch>' --base '<captured-commit>' --label '<branch>' --no-focus
 ```
 
 Let Herdr choose the path. Read workspace ID and checkout path from returned JSON. On error, inspect the reported state before retrying; do not grant repository trust automatically.

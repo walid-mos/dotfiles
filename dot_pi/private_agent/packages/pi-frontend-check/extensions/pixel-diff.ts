@@ -155,7 +155,7 @@ async function comparePngs(
 	})
 }
 
-async function compareCapturedImages(
+async function compareInColdBrowser(
 	a: PixelCapture,
 	b: PixelCapture,
 	config: Config,
@@ -224,6 +224,7 @@ function describeRegion(a: PixelCapture, bounds: Bounds): string {
  */
 export async function runPixelDiff(
 	{ a, b, capturedA, capturedB }: PixelPair,
+	browser: FrontendBrowser,
 	config: Config,
 	signal?: AbortSignal,
 ): Promise<string> {
@@ -238,7 +239,9 @@ export async function runPixelDiff(
 		return `FAIL: viewports differ: ${capturedA} ${a.viewport.width}x${a.viewport.height} vs ${capturedB} ${b.viewport.width}x${b.viewport.height}. Recapture at the same viewport.`
 	if (a.width !== b.width || a.height !== b.height)
 		return `FAIL: capture dimensions differ: ${capturedA} ${a.width}x${a.height} vs ${capturedB} ${b.width}x${b.height}.\nImplementation: ${a.url}\nBaseline: ${b.url}`
-	const comparison = await compareCapturedImages(a, b, config, signal)
+	const comparison =
+		(await browser.withScratchPage(page => comparePngs(page, a, b))) ??
+		(await compareInColdBrowser(a, b, config, signal))
 	signal?.throwIfAborted()
 	const total = a.width * a.height
 	if (!comparison.changed)

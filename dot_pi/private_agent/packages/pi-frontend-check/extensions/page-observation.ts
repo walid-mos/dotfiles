@@ -6,12 +6,9 @@ import type { Page } from 'playwright-core'
 import type { PageSpecimen } from './page-specimen.ts'
 import type { BrowserLog } from './report.ts'
 
-/**
- * Which controls the description carries: every call after frontend_open
- * repeats them only when the surface changed (navigation, or an open dialog,
- * menu or listbox), so a long batch does not re-send the same page chrome.
- */
 export type ControlsPolicy = 'always' | { urlBefore: string }
+
+const describedControls = new WeakMap<Page, string>()
 
 async function controlsText(
 	page: Page,
@@ -19,13 +16,15 @@ async function controlsText(
 	redact: (text: string) => string,
 ): Promise<string | undefined> {
 	const snapshot = await snapshotControls(page)
-	if (policy === 'always') return formatControls(snapshot, redact)
+	const controls = formatControls(snapshot, redact)
 	const isSurfaceChanged =
+		policy === 'always' ||
 		typeof snapshot === 'string' ||
-		snapshot.isOverlay ||
+		controls !== describedControls.get(page) ||
 		page.url() !== policy.urlBefore
 	if (!isSurfaceChanged) return undefined
-	return formatControls(snapshot, redact)
+	describedControls.set(page, controls)
+	return controls
 }
 
 export async function describePage(
