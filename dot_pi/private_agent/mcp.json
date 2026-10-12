@@ -26,7 +26,32 @@
 		},
 		"infisical": {
 			"command": "npx",
-			"args": ["-y", "@infisical/mcp"]
+			"args": [
+				"-y",
+				"@infisical/mcp"
+			]
+		},
+		"terraform": {
+			"command": "docker",
+			"args": [
+				"run",
+				"--rm",
+				"-i",
+				"-e",
+				"TFE_ADDRESS",
+				"-e",
+				"TFE_TOKEN",
+				"-e",
+				"ENABLE_TF_OPERATIONS",
+				"local/terraform-mcp-server:1.3.0",
+				"stdio",
+				"--toolsets=registry,terraform"
+			],
+			"env": {
+				"TFE_ADDRESS": "https://app.terraform.io",
+				"ENABLE_TF_OPERATIONS": "false"
+			},
+			"description": "Terraform Registry documentation and HCP Terraform inspection; local changes and applies are disabled"
 		}
 	}
 }

@@ -14,6 +14,11 @@ Facts marked *observed* were verified live on sandbox `bx_5jgvdcgb` (default siz
   files on the disk, installed packages. What does NOT return: hand-run processes (a `nohup sleep`
   was gone). Anything that must survive a stop/resume cycle is a systemd unit — the sandbox has
   passwordless sudo, so write `/etc/systemd/system/<name>.service` and `systemctl enable --now` it.
+- SSH (observed 2026-10-07): plain `ssh -p <port> user@<host>` (endpoint from `sshEndpoint`) is refused
+  until `boat ssh <id>` has run once on that sandbox — it installs `~/.ssh/ascii_box_ed25519.pub`. The
+  host key changes on every resume; `boat ssh` refreshes it in
+  `~/.ssh/ascii_sandbox_known_hosts/<sha256(id)[:24]>` under alias `ascii-sandbox-<same>`, which plain
+  ssh can verify strictly (`HostKeyAlias` + `UserKnownHostsFile`).
 - Fork inherits the source's type unless `--type` says otherwise; snapshots can be named
   (`boat snapshot <id> <name>`) and sandboxed from (`boat new --from <name>`).
 
@@ -33,10 +38,11 @@ Facts marked *observed* were verified live on sandbox `bx_5jgvdcgb` (default siz
 
 - Boat's GitHub integration is OFF (`boat env set base --github false`) — the operator has no
   admin on the target org, so an org-level Boat GitHub App cannot be installed.
-- Instead: dedicated key `~/.ssh/github_boat` (ed25519, no passphrase) whose public half is on the
-  operator's GitHub account; the private half is injected into sandboxes as environment secret
-  file `.ssh/github_boat` (env `base`). In the sandbox: `chmod 600`, then
-  `GIT_SSH_COMMAND="ssh -i ~/.ssh/github_boat"` for clones.
+- Instead: dedicated key `~/.ssh/github_boat` (ed25519, no passphrase, public half on the operator's
+  GitHub account) stays on the Mac. The `workspace` CLI loads it alone into the agent at
+  `~/.ssh/workspace-agent.sock` and its `ws-*` ssh blocks forward that socket: Git on the Boat
+  authenticates through the Mac. No key file reaches sandboxes (env `base` has no secret files since
+  2026-10-07).
 - Fallback if the org enforces SAML SSO: HTTPS clone + classic PAT (one "Enable SSO" click,
   user-level) or Git Credential Manager with the browser session. No admin needed either way.
 - Repos cannot be selected via CLI (`env add-repo` needs a Boat-connected repo) — dashboard-only,
@@ -51,9 +57,11 @@ Facts marked *observed* were verified live on sandbox `bx_5jgvdcgb` (default siz
   (project `core-vault`, env `main`, secret `TAILSCALE_AUTHKEY_BOAT`) — fetch it with the local
   CLI (`infisical secrets get TAILSCALE_AUTHKEY_BOAT --projectId ce69a081-6aec-472d-9ee8-edbb7ed2b72e --env main -o json`)
   and pass it through a shell variable so the value never lands in logs.
-- MagicDNS worked; `*.ts.net` names resolve and answer from other tailnet devices. The ephemeral
-  node disappears from the tailnet when the sandbox stops; on resume, re-run `tailscale up` with
-  the still-valid key (another reason the key must be reusable).
+- MagicDNS worked; `*.ts.net` names resolve and answer from other tailnet devices. An ephemeral node
+  lingers 30–60 min after its sandbox stops and a re-enrol meanwhile gets a `-1` name, so the
+  `workspace` CLI runs `sudo tailscale logout` before `boat stop` and `tailscale up` again on resume.
+- The first HTTPS request to a new MagicDNS name waits for Tailscale to obtain its certificate
+  (11 s observed); later requests answer in ~50 ms.
 
 ## Cost reality checks
 

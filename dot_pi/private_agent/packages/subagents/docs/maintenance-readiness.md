@@ -98,9 +98,8 @@ The branch is `git log ad56bf92..wm/vendor/main` in
   `ARCHITECTURE.md`; root `oxlint.config.ts`, `oxfmt.config.ts`
   (`packages/**` ignored) and `package.json` (`oxlint --disable-nested-config`,
   because the package's own `.oxlintrc.json` otherwise overrides the root
-  ignore); `~/.local/bin/pi-boat`, `~/.local/bin/pi-boat-apply.sh`,
-  `~/.local/lib/pi-sync-lib.sh` (the Boat now syncs the vendored package to
-  `/home/user/.pi-boat/packages/subagents`).
+  ignore); the Boat sync scripts (since retired: Pi stays local, plan
+  `workspace/mac-central-rebuild`).
 
 ## Linter
 
@@ -142,8 +141,7 @@ Baselines kept for comparison: `00-*` (pre-work), `01-test-unit-baseline.log`
   branch (F1), user-pin precedence over project/provider overrides (F7).
 - Live behavior verified: result handoff, async completion and `bg_wait`,
   workflow by path. Not exercised live: `/simplify` end to end (interactive
-  command), `pi-boat` on the remote Boat (validated offline only: syntax,
-  manifest, archive content, path rewrite).
+  command).
 
 ## Dependencies, configuration, installation
 

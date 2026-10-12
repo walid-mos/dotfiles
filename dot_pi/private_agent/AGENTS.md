@@ -23,7 +23,9 @@ Never hand-draw a diagram, schema, tree, or flow as ASCII/box-drawing art in a p
 
 ## Tool calls
 
-Always use the dedicated Pi tool for the job: `read` (with `offset`/`limit`), `grep`, `find`, `ls` for lookups; `edit` for a targeted change; `write` to create or replace a file; `lookup` to run several independent lookups in one call; `codemode` when a batch needs logic (filter a large result inside the script so only the extract reaches context); `frontend_batch` for known browser sequences; `mcpScript` for several MCP calls with logic. Wait when one result determines the next target. A plain `cat`/`ls`/`grep`/`find`/`head`/`sed -n` typed into `bash` runs through its dedicated tool automatically; any other lookup-shaped shell command is refused.
+Always use the dedicated Pi tool for the job: `read` (with `offset`/`limit`), `grep`, `find`, `ls` for lookups; `edit` for a targeted change; `write` to create or replace a file; `lookup` to run several independent lookups in one call; `codemode` when a batch needs logic (filter a large result inside the script so only the extract reaches context); `frontend_batch` for known browser sequences; `mcpScript` for several MCP calls with logic. Wait when one result determines the next target.
+
+**Never call `subagent`, `subagent_supervisor`, or `contact_supervisor` inside a `codemode` script** — pi registers them `exposure: "model-only"`, so the sandbox has no binding and the script throws `tools.subagent_supervisor does not exist`; compute the payload in the script, then issue the direct tool call. A plain `cat`/`ls`/`grep`/`find`/`head`/`sed -n` typed into `bash` runs through its dedicated tool automatically; any other lookup-shaped shell command is refused.
 
 **Never use `bash`/`host` for that work** — reading, listing, searching and finding belong to the dedicated file tools, even through a pipe or redirect. Bash stays right for builds, tests, git and pipelines that transform or store (`jq`, `sed`, counts, redirects to a file).
 

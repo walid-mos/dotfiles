@@ -17,8 +17,7 @@ surfaces the owner actually uses inside Pi.
   setting of `~/.pi/agent/settings.json`. This directory is the only copy:
   there is no separate repository, branch or worktree, and it is not under
   version control. Change the code here, then run the gates below.
-- **Remote Linux "Boat"**: `~/.local/bin/pi-boat` copies this package and runs
-  `pnpm install --ignore-scripts` there.
+- **Remote Linux "Boat"**: the Boat sync script is retired; Pi stays local and drives the Boat over ssh (plan `workspace/mac-central-rebuild`).
 
 Nothing is published to npm: the package is `private`, has no `bin`, `files`
 or build step, and Pi runs `index.ts` directly. Upstream is no longer tracked.

@@ -16,3 +16,5 @@ plan dirs move whole (`active/` → `done/<year>/`) — see `README.md` before r
 | harness/goal-and-context-budget-rebuild | harness | active | 2026-10-06 | active/harness/goal-and-context-budget-rebuild.md |
 | syneva/test-suite-rebuild | syneva | done | 2026-09-18 | done/2026/syneva/test-suite-rebuild.md |
 | pi-subagents/vendor-into-pi-config | pi-subagents | review | 2026-10-04 | active/pi-subagents/vendor-into-pi-config.md |
+| workspace/mac-central-rebuild | workspace | review | 2026-10-07 | active/workspace/mac-central-rebuild.md |
+| hermes-exit/migration | hermes-exit | active | 2026-10-09 | active/hermes-exit/migration.md |

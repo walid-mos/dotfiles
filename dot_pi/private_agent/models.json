@@ -6,8 +6,8 @@
       "api": "openai-completions",
       "models": [
         {
-          "id": "glm-5.3-flash:fast",
-          "name": "GLM 5.3 Flash (Inco)",
+          "id": "glm-5.3-flash",
+          "name": "GLM 5.3 Flash standard (Inco)",
           "reasoning": true,
           "thinkingLevelMap": {
             "off": null,
@@ -26,6 +26,36 @@
             "input": 0.15,
             "output": 0.5,
             "cacheRead": 0.03,
+            "cacheWrite": 0
+          },
+          "contextWindow": 1048576,
+          "maxTokens": 32768,
+          "compat": {
+            "supportsDeveloperRole": false,
+            "supportsReasoningEffort": false
+          }
+        },
+        {
+          "id": "glm-5.3-flash:fast",
+          "name": "GLM 5.3 Flash (Inco)",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": "low",
+            "medium": null,
+            "high": "high",
+            "xhigh": null,
+            "max": "max"
+          },
+          "input": [
+            "text",
+            "image"
+          ],
+          "cost": {
+            "input": 0.3,
+            "output": 1,
+            "cacheRead": 0.06,
             "cacheWrite": 0
           },
           "contextWindow": 1048576,
