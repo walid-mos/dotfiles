@@ -1,0 +1,18 @@
+id = "open-link"
+name = "Open link where you are"
+version = "0.1.0"
+min_herdr_version = "0.9.0"
+description = "Control-click on a file:// or localhost link runs the machine-wide open shim, which shows the target on the machine you are at."
+platforms = ["macos"]
+
+[[actions]]
+id = "open"
+title = "Open with the open shim"
+contexts = ["workspace"]
+command = ["/bin/sh", "-c", '[ -n "$HERDR_PLUGIN_CLICKED_URL" ] || exit 0; exec "$HOME/.config/shims/open" "$HERDR_PLUGIN_CLICKED_URL"']
+
+[[link_handlers]]
+id = "here"
+title = "Open file and localhost links where you are"
+pattern = "^(file://|https?://(localhost|127\\.0\\.0\\.1)([:/]|$))"
+action = "open"
