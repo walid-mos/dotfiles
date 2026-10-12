@@ -15,7 +15,7 @@ export function registerSharedVault(
 		label: 'Shared Web Logins',
 		parameters: Type.Object({}),
 		description:
-			"List exact-origin Infisical web login handles and identifiers, never passwords. If missing, ask the user to open that site's login page in Hermes desktop and use browser_vault_save_login: its masked prompt saves once for both agents. Do not ask for credentials in chat or read secrets through shell commands.",
+			'List exact-origin Infisical web login handles and identifiers, never passwords. If the origin is missing, ask the user to run `python3 ~/.pi/agent/packages/pi-frontend-check/shared-web-logins/enroll.py` in a terminal (masked prompts), then list again. Do not ask for credentials in chat or read secrets through shell commands.',
 		execute: async (_id, _parameters, signal) => {
 			const items = await listSharedLogins(signal)
 			return {

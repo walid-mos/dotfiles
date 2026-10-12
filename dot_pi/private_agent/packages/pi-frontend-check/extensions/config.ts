@@ -6,6 +6,7 @@ import { getAgentDir } from '@earendil-works/pi-coding-agent'
 import { Value } from 'typebox/value'
 
 import { configSchema } from './config-schema.ts'
+import { hasErrorCode } from './error-code.ts'
 import { defaults } from './schema.ts'
 
 import type { Config } from './schema.ts'
@@ -31,12 +32,7 @@ export function loadConfig(path = configPath): Config {
 			throw new Error('Expected a configuration object.')
 		return validateConfig({ ...defaults, ...parsed })
 	} catch (error) {
-		if (
-			error instanceof Error &&
-			'code' in error &&
-			error.code === 'ENOENT'
-		)
-			return { ...defaults }
+		if (hasErrorCode(error, 'ENOENT')) return { ...defaults }
 		throw new Error(
 			`Could not load ${path}; correct it before using frontend tools.`,
 			{ cause: error },

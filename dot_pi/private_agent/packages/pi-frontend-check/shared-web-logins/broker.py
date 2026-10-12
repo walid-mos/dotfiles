@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Model-blind Infisical login store shared by the Pi and Hermes browser adapters.
+"""Model-blind Infisical login store for the Pi browser adapter and `enroll.py`.
 
-Only `read` writes a password to stdout. Adapters must capture that pipe in
+Only `read` writes a password to stdout. The adapter must capture that pipe in
 memory and never pass it to a tool result, transcript, log, or shell command.
 """
 

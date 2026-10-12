@@ -1,5 +1,5 @@
 /**
- * Frontend checks in isolated Brave or the managed shared browser via CDP.
+ * Frontend checks in isolated Brave, or in an already running Brave via CDP.
  * browser.ts owns session resources and serialized, cancellable operations;
  * scenario.ts owns scripted, parallel runs in their own contexts;
  * schema/config own validated settings; tools.ts registers the tools.
@@ -8,18 +8,14 @@
 import { FrontendBrowser } from './browser.ts'
 import { frontendCommand } from './command.ts'
 import { loadConfig } from './config.ts'
-import { sweepStaleProfileDirs } from './profile-store.ts'
 import { registerProgressRecovery } from './progress-recovery.ts'
+import { maintainState } from './state-maintenance.ts'
 import { registerFrontendTools } from './tools.ts'
 
 import type { ExtensionAPI } from '@earendil-works/pi-coding-agent'
 
 export default function frontendCheck(pi: ExtensionAPI): void {
-	try {
-		sweepStaleProfileDirs()
-	} catch {
-		// A failing profile sweep must not block the extension load.
-	}
+	maintainState()
 	let config = loadConfig()
 	const browser = new FrontendBrowser(config)
 	registerFrontendTools(pi, browser, () => config)

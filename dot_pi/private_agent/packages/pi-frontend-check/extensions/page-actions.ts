@@ -1,4 +1,5 @@
 import { failingStepLocator } from './action-failure.ts'
+import { isDevTestOrigin } from './browser-origin.ts'
 
 import type { Locator, Page } from 'playwright-core'
 import type { ActFailurePhase, StepFailureDiagnosis } from './action-failure.ts'
@@ -29,9 +30,13 @@ const actions: Record<
 				'type requires text (use an empty string to clear).',
 			)
 		const locator = target(page, options)
-		if ((await locator.getAttribute('type'))?.toLowerCase() === 'password')
+		if (
+			(await locator.getAttribute('type'))?.toLowerCase() ===
+				'password' &&
+			!isDevTestOrigin(page.url())
+		)
 			throw new Error(
-				'Use frontend_vault_fill for password fields; never type a password.',
+				'Password fills on production origins go through frontend_vault_fill; typing is allowed only on dev/test origins (localhost, private hosts, .local/.test).',
 			)
 		await locator.fill(options.text)
 	},

@@ -1,88 +1,71 @@
-import { resolveExecutable } from './config.ts'
+import {
+	contextOptions,
+	launchBrowser,
+	launchOptions,
+	loadChromium,
+	openContext,
+} from './browser-launch.ts'
 import { sessionProfileDir } from './profile-store.ts'
 
-import type {
-	Browser,
-	BrowserContext,
-	BrowserType,
-	Page,
-} from 'playwright-core'
+import type { Browser, BrowserContext, Page } from 'playwright-core'
 import type { Config } from './schema.ts'
 
-let chromiumModule: { chromium: BrowserType } | undefined
-
-async function connectSharedBrowser(config: Config): Promise<{
+type ConnectedBrowser = {
 	browser: Browser
 	context: BrowserContext
-}> {
-	chromiumModule ??= { chromium: (await import('playwright-core')).chromium }
-	const browser = await chromiumModule.chromium.connectOverCDP(
-		config.CDP_URL,
-		{
-			timeout: config.NAV_TIMEOUT_MS,
-			noDefaults: true,
-		},
-	)
+	page?: Page | undefined
+}
+
+async function connectSharedBrowser(config: Config): Promise<ConnectedBrowser> {
+	const browser = await (
+		await loadChromium()
+	).connectOverCDP(config.CDP_URL, {
+		timeout: config.NAV_TIMEOUT_MS,
+		noDefaults: true,
+	})
 	const [context] = browser.contexts()
 	if (context) return { browser, context }
 	await browser.close()
 	throw new Error('The shared browser has no persistent default context.')
 }
 
-function contextOptions(config: Config): {
-	viewport: { width: number; height: number }
-	deviceScaleFactor: number
-	acceptDownloads: boolean
-} {
-	return {
-		viewport: {
-			width: config.VIEWPORT_WIDTH,
-			height: config.VIEWPORT_HEIGHT,
-		},
-		deviceScaleFactor: 1,
-		acceptDownloads: false,
-	}
+/** A persistent context opens with a blank tab (plus restored tabs on relaunch): keep one, close the rest. */
+async function adoptStartupTab(
+	context: BrowserContext,
+): Promise<Page | undefined> {
+	const open = context.pages()
+	const kept = open.find(page => page.url() === 'about:blank') ?? open[0]
+	await Promise.all(
+		open
+			.filter(page => page !== kept)
+			.map(page => page.close().catch(() => undefined)),
+	)
+	return kept
 }
 
 /** A named session owns a persistent profile: cookies survive relaunches and resume. */
 async function connectSessionBrowser(
 	config: Config,
 	sessionKey: string,
-): Promise<{
-	browser: Browser
-	context: BrowserContext
-}> {
-	chromiumModule ??= { chromium: (await import('playwright-core')).chromium }
-	const context = await chromiumModule.chromium.launchPersistentContext(
-		sessionProfileDir(sessionKey),
-		{
-			executablePath: resolveExecutable(config.EXECUTABLE_PATH),
-			headless: true,
-			timeout: config.NAV_TIMEOUT_MS,
-			chromiumSandbox: true,
-			...contextOptions(config),
-		},
-	)
+): Promise<ConnectedBrowser> {
+	const context = await (
+		await loadChromium()
+	).launchPersistentContext(sessionProfileDir(sessionKey), {
+		...launchOptions(config),
+		...contextOptions(config),
+	})
 	const browser = context.browser()
 	if (!browser)
 		throw new Error('The persistent browser context has no browser handle.')
-	return { browser, context }
+	return { browser, context, page: await adoptStartupTab(context) }
 }
 
-async function connectEphemeralBrowser(config: Config): Promise<{
-	browser: Browser
-	context: BrowserContext
-}> {
-	chromiumModule ??= { chromium: (await import('playwright-core')).chromium }
-	const browser = await chromiumModule.chromium.launch({
-		executablePath: resolveExecutable(config.EXECUTABLE_PATH),
-		headless: true,
-		timeout: config.NAV_TIMEOUT_MS,
-		chromiumSandbox: true,
-	})
+async function connectEphemeralBrowser(
+	config: Config,
+): Promise<ConnectedBrowser> {
+	const browser = await launchBrowser(config)
 	try {
-		const context = await browser.newContext(contextOptions(config))
-		return { browser, context }
+		return { browser, context: await openContext(browser, config) }
 	} catch (error) {
 		await browser.close()
 		throw error
@@ -93,7 +76,7 @@ async function connectEphemeralBrowser(config: Config): Promise<{
 async function connectBrowser(
 	config: Config,
 	sessionKey?: string,
-): Promise<{ browser: Browser; context: BrowserContext }> {
+): Promise<ConnectedBrowser> {
 	if (config.CDP_URL) return connectSharedBrowser(config)
 	if (sessionKey) return connectSessionBrowser(config, sessionKey)
 	return connectEphemeralBrowser(config)
@@ -140,7 +123,9 @@ export class BrowserConnection {
 			signal?.throwIfAborted()
 			this.context.setDefaultTimeout(config.ACTION_TIMEOUT_MS)
 			this.context.setDefaultNavigationTimeout(config.NAV_TIMEOUT_MS)
-			return await this.newPage(config)
+			return connection.page
+				? await this.sizePage(connection.page, config)
+				: await this.newPage(config)
 		} catch (error) {
 			await this.close()
 			throw new Error(
@@ -160,13 +145,29 @@ export class BrowserConnection {
 
 	private async newPage(config: Config): Promise<Page> {
 		if (!this.context) throw new Error('No browser context is connected.')
-		const page = await this.context.newPage()
+		return this.sizePage(await this.context.newPage(), config)
+	}
+
+	private async sizePage(page: Page, config: Config): Promise<Page> {
 		this.trackPage(page)
 		await page.setViewportSize({
 			width: config.VIEWPORT_WIDTH,
 			height: config.VIEWPORT_HEIGHT,
 		})
 		return page
+	}
+
+	/** Untracked on purpose: renderer work in this tab never becomes the current app page. */
+	async withScratchPage<Result>(
+		work: (page: Page) => Promise<Result>,
+	): Promise<Result | undefined> {
+		if (!this.isConnected || !this.context) return undefined
+		const page = await this.context.newPage()
+		try {
+			return await work(page)
+		} finally {
+			await page.close().catch(() => undefined)
+		}
 	}
 
 	currentPage(): Page {
