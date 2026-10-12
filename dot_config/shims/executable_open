@@ -2,20 +2,18 @@
 # open — machine-wide `open` rule, resolved via PATH by every zsh session
 # (.zshenv prepends this dir; .zprofile re-prepends it after /etc/zprofile's
 # path_helper demotes it) and by pi's delegating bin shim.
-# Local `/usr/bin/open` unless the session runs over SSH (`SSH_CONNECTION`
-# set); then the target shows on the CALLING machine — resolved from the
-# client IP in $SSH_CONNECTION via `tailscale status`, falling back to
-# `macbook-pro` for a caller outside the tailnet: a regular file is copied
-# there first (nothing on this disk is visible from the caller), a localhost
-# URL gets this machine's Tailscale IP so the caller's browser reaches a
-# server bound to 0.0.0.0, every other argument (flags, app names, public
-# URLs) passes through unchanged. The remote side calls /usr/bin/open by
-# path: the caller runs this same shim and would otherwise bounce the
-# request back here.
-[ -n "$SSH_CONNECTION" ] || exec /usr/bin/open "$@"
+# Local `/usr/bin/open` when the person is at this machine; otherwise the
+# target shows on the machine `viewer-host` names (the SSH caller, or the
+# remote herdr client in use): a regular file, also as a file:// URL, is
+# copied there first (nothing on this disk is visible from there), a localhost
+# URL gets this machine's
+# Tailscale IP so the remote browser reaches a server bound to 0.0.0.0, every
+# other argument (flags, app names, public URLs) passes through unchanged. The
+# remote side calls /usr/bin/open by path: it runs this same shim and would
+# otherwise bounce the request back here.
+target=$("$HOME/.config/shims/viewer-host")
+[ -n "$target" ] || exec /usr/bin/open "$@"
 
-target=$(tailscale status | awk -v ip="${SSH_CONNECTION%% *}" '$1 == ip { print $2; exit }')
-[ -n "$target" ] || target=macbook-pro
 client="ssh -o BatchMode=yes -o StrictHostKeyChecking=accept-new -o ConnectTimeout=5 $target"
 cache=Library/Caches/open-remote
 args=
@@ -23,6 +21,9 @@ for arg in "$@"; do
 	case $arg in
 	http://localhost*|https://localhost*|http://127.0.0.1*|https://127.0.0.1*)
 		arg=$(printf '%s' "$arg" | sed -E "s#://(localhost|127\.0\.0\.1)#://$(tailscale ip -4)#")
+		;;
+	file://*)
+		arg=$(printf '%b' "$(printf '%s' "${arg#file://}" | sed -e 's|^localhost/|/|' -e 's/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')")
 		;;
 	esac
 	if [ -f "$arg" ]; then
