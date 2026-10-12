@@ -179,3 +179,12 @@ infisical-keyring
 .pi/agent/skills.json
 .pi/agent/lazy-load.json
 
+# pi: MCP OAuth token cache - empty today, holds tokens when populated
+.pi/agent/mcp-auth.json
+
+# mole: generated clean-list (151KB, regenerated on every run)
+.config/mole/
+
+# terraform: CLI checkpoint cache
+.terraform.d/
+
