@@ -4,6 +4,10 @@ import { homedir } from 'node:os'
 import { resolve } from 'node:path'
 
 import { checkpointReadResults } from '#lib/context-budget/retained-reads.ts'
+import { quote } from '#lib/runtime/remote.ts'
+import { runtimeFor } from '#lib/runtime/runtime.ts'
+
+import type { Runtime } from '#lib/runtime/runtime.ts'
 
 /** Durable metadata only: no file contents or secrets enter this entry. */
 export const READ_LEDGER_ENTRY = 'pi-read-ledger-v2'
@@ -95,13 +99,13 @@ export class ReadLedger {
 		}
 	}
 
-	begin(
+	async begin(
 		callId: string,
 		cwd: string,
 		input: { path: string; offset?: number | null; limit?: number | null },
-	): boolean {
+	): Promise<boolean> {
 		const path = resolve(cwd, input.path.replace(/^~\//, `${homedir()}/`))
-		const signature = this.signature(path)
+		const signature = await this.signature(path)
 		if (!signature) return false
 		const key = JSON.stringify([
 			path,
@@ -138,7 +142,9 @@ export class ReadLedger {
 		}
 	}
 
-	private signature(path: string): string | undefined {
+	private async signature(path: string): Promise<string | undefined> {
+		const runtime = runtimeFor(path)
+		if (runtime.isRemote) return remoteSignature(runtime, path)
 		try {
 			const file = statSync(path)
 			if (!file.isFile()) return undefined
@@ -147,5 +153,23 @@ export class ReadLedger {
 			// An unreadable or missing file must reach the original read tool.
 			return undefined
 		}
+	}
+}
+
+/** A Boat stat has one-second mtimes: the content hash keeps a same-second, same-size edit visible. */
+async function remoteSignature(
+	runtime: Runtime,
+	path: string,
+): Promise<string | undefined> {
+	try {
+		const target = quote(runtime.toTarget(path))
+		const probe = await runtime.run(
+			`test -f ${target} && stat -L -c '%s:%Y:%Z' -- ${target} && sha1sum -- ${target}`,
+			'/',
+		)
+		if (probe.exitCode !== 0) return undefined
+		return probe.stdout.replace(/\s+/g, ' ').trim()
+	} catch {
+		return undefined
 	}
 }

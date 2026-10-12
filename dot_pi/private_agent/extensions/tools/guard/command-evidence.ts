@@ -13,8 +13,10 @@ import {
 	commandEvidence,
 	evidenceText,
 } from '#lib/command-evidence/schema.ts'
+import { runtimeFor } from '#lib/runtime/runtime.ts'
 
 import { commandWorkspace } from './command-workspace.ts'
+import { execRemoteEvidence } from './remote-evidence.ts'
 import { validationCommand } from './shell-segments.ts'
 import { loggedSteps } from './validation-log.ts'
 import { validationSteps } from './validation-steps.ts'
@@ -119,6 +121,7 @@ async function prepareEvidence(
 
 function evidenceBash(cwd: string, steps: RecordedStep[]): BashDefinition {
 	const local = createLocalBashOperations()
+	const runtime = runtimeFor(cwd)
 	return createBashToolDefinition(cwd, {
 		spawnHook: context => ({
 			...context,
@@ -126,7 +129,14 @@ function evidenceBash(cwd: string, steps: RecordedStep[]): BashDefinition {
 		}),
 		operations: {
 			exec: (_command, workingDirectory, options) =>
-				local.exec(loggedSteps(steps), workingDirectory, options),
+				runtime.isRemote
+					? execRemoteEvidence(
+							runtime,
+							steps,
+							workingDirectory,
+							options,
+						)
+					: local.exec(loggedSteps(steps), workingDirectory, options),
 		},
 	})
 }

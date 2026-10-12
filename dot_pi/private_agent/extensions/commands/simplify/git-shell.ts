@@ -6,6 +6,9 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
 
+import { quote } from '#lib/runtime/remote.ts'
+import { runtimeFor } from '#lib/runtime/runtime.ts'
+
 import { errorMessage, isRecord } from './json.ts'
 
 const execFileAsync = promisify(execFile)
@@ -20,6 +23,8 @@ export async function git(
 	cwd: string,
 	args: readonly string[],
 ): Promise<string> {
+	const runtime = runtimeFor(cwd)
+	if (runtime.isRemote) return remoteGit(cwd, args)
 	try {
 		const { stdout } = await execFileAsync('git', args, {
 			cwd,
@@ -30,6 +35,24 @@ export async function git(
 	} catch (error) {
 		throw new ScopeError(gitFailure(args, error))
 	}
+}
+
+/** Under a workspace anchor the checkout lives on the Boat. */
+async function remoteGit(
+	cwd: string,
+	args: readonly string[],
+): Promise<string> {
+	const run = await runtimeFor(cwd).run(
+		`git ${args.map(quote).join(' ')}`,
+		cwd,
+	)
+	if (run.exitCode !== 0) {
+		const detail = firstLine(run.stderr)
+		throw new ScopeError(
+			`git ${args.join(' ')} failed${detail ? `: ${detail}` : ''}`,
+		)
+	}
+	return run.stdout
 }
 
 /** A probe that is allowed to fail: undefined means "git said no". */

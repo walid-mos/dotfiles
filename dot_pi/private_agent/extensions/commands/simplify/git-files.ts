@@ -5,8 +5,9 @@
  */
 
 import { createHash } from 'node:crypto'
-import { readFile, stat } from 'node:fs/promises'
 import path from 'node:path'
+
+import { runtimeFor } from '#lib/runtime/runtime.ts'
 
 import { git } from './git-shell.ts'
 import {
@@ -18,6 +19,7 @@ import {
 } from './scope-parse.ts'
 import { mapSequential } from './sequential.ts'
 
+import type { RuntimeStat } from '#lib/runtime/runtime.ts'
 import type { LineRange, ScopeStatus, SkippedFile } from './types.ts'
 
 const HASH_CHUNK = 64
@@ -117,7 +119,7 @@ async function inspectFile(input: InspectInput): Promise<InspectResult> {
 	if (input.submodules.has(relative)) return skip(relative, 'submodule')
 	if (input.binaries.has(relative)) return skip(relative, 'binary file')
 	const stats = await fileStats(path.join(workspaceRoot, relative))
-	if (!stats?.isFile()) return skip(relative, 'not a readable regular file')
+	if (!stats?.isFile) return skip(relative, 'not a readable regular file')
 	if (stats.size > MAX_FILE_BYTES)
 		return skip(relative, `larger than ${formatBytes(MAX_FILE_BYTES)}`)
 	if (
@@ -141,7 +143,7 @@ async function inspectFile(input: InspectInput): Promise<InspectResult> {
 
 async function isBinaryFile(absolute: string): Promise<boolean> {
 	try {
-		return (await readFile(absolute)).includes(0)
+		return (await runtimeFor(absolute).readFile(absolute)).includes(0)
 	} catch {
 		return false
 	}
@@ -168,9 +170,9 @@ async function fileRanges(input: InspectInput): Promise<LineRange[]> {
 
 export async function fileStats(
 	absolute: string,
-): Promise<Awaited<ReturnType<typeof stat>> | undefined> {
+): Promise<RuntimeStat | undefined> {
 	try {
-		return await stat(absolute)
+		return await runtimeFor(absolute).stat(absolute)
 	} catch {
 		return undefined
 	}
@@ -179,7 +181,7 @@ export async function fileStats(
 /** Content identity without relying on version control. */
 export async function fileHash(absolute: string): Promise<string> {
 	try {
-		const content = await readFile(absolute)
+		const content = await runtimeFor(absolute).readFile(absolute)
 		return `sha256 ${createHash('sha256').update(content).digest('hex')}`
 	} catch {
 		return 'missing'

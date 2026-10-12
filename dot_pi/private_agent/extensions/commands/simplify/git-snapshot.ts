@@ -4,14 +4,16 @@
  * excluded before the manifest caps are applied.
  */
 
-import { readdir, realpath } from 'node:fs/promises'
+import { realpath } from 'node:fs/promises'
 import path from 'node:path'
+
+import { runtimeFor } from '#lib/runtime/runtime.ts'
 
 import { fileStats } from './git-files.ts'
 import { ScopeError } from './git-shell.ts'
 import { mapSequential } from './sequential.ts'
 
-import type { Dirent } from 'node:fs'
+import type { DirectoryEntry } from '#lib/runtime/runtime.ts'
 import type { SelectedFile, ScopeSelection } from './git-files.ts'
 
 const PARENT_PREFIX = '..'
@@ -115,7 +117,7 @@ async function resolveCandidate(
 	const absolute = await resolved(path.resolve(cwd, raw))
 	assertInside(workspaceRoot, absolute, raw)
 	const stats = await fileStats(absolute)
-	if (!stats?.isFile() && !stats?.isDirectory()) return undefined
+	if (!stats?.isFile && !stats?.isDirectory) return undefined
 	return absolute
 }
 
@@ -124,8 +126,8 @@ async function expandRoot(
 	absolute: string,
 ): Promise<string[]> {
 	const stats = await fileStats(absolute)
-	if (stats?.isFile()) return [path.relative(workspaceRoot, absolute)]
-	if (!stats?.isDirectory()) return []
+	if (stats?.isFile) return [path.relative(workspaceRoot, absolute)]
+	if (!stats?.isDirectory) return []
 	return await walkDirectory(workspaceRoot, absolute)
 }
 
@@ -135,7 +137,7 @@ async function walkDirectory(
 ): Promise<string[]> {
 	let entries
 	try {
-		entries = await readdir(directory, { withFileTypes: true })
+		entries = await runtimeFor(directory).listDirectory(directory)
 	} catch {
 		throw new ScopeError(`${directory} is not a readable directory.`)
 	}
@@ -149,12 +151,12 @@ async function walkDirectory(
 async function expandEntry(
 	workspaceRoot: string,
 	directory: string,
-	entry: Dirent,
+	entry: DirectoryEntry,
 ): Promise<string[]> {
-	if (entry.isSymbolicLink()) return []
+	if (entry.isSymbolicLink) return []
 	const absolute = path.join(directory, entry.name)
-	if (entry.isFile()) return [path.relative(workspaceRoot, absolute)]
-	if (!entry.isDirectory() || EXCLUDED_DIRECTORIES.has(entry.name)) return []
+	if (entry.isFile) return [path.relative(workspaceRoot, absolute)]
+	if (!entry.isDirectory || EXCLUDED_DIRECTORIES.has(entry.name)) return []
 	return await walkDirectory(workspaceRoot, absolute)
 }
 
@@ -171,7 +173,7 @@ async function findNamedIn(
 ): Promise<string[]> {
 	let entries
 	try {
-		entries = await readdir(directory, { withFileTypes: true })
+		entries = await runtimeFor(directory).listDirectory(directory)
 	} catch {
 		return []
 	}
@@ -183,14 +185,14 @@ async function findNamedIn(
 
 async function findEntry(
 	directory: string,
-	entry: Dirent,
+	entry: DirectoryEntry,
 	normalizedQuery: string,
 ): Promise<string[]> {
-	if (entry.isSymbolicLink()) return []
+	if (entry.isSymbolicLink) return []
 	const absolute = path.join(directory, entry.name)
 	const matches =
 		entry.name.toLocaleLowerCase() === normalizedQuery ? [absolute] : []
-	if (!entry.isDirectory() || EXCLUDED_DIRECTORIES.has(entry.name))
+	if (!entry.isDirectory || EXCLUDED_DIRECTORIES.has(entry.name))
 		return matches
 	return [...matches, ...(await findNamedIn(absolute, normalizedQuery))]
 }

@@ -36,7 +36,16 @@ export const Snapshot = Type.Object({
 		}),
 	),
 	workspaces: Type.Array(
-		Type.Object({ workspace_id: Type.String(), label: Type.String() }),
+		Type.Object({
+			workspace_id: Type.String(),
+			label: Type.String(),
+			worktree: Type.Optional(
+				Type.Union([
+					Type.Object({ repo_name: Type.String() }),
+					Type.Null(),
+				]),
+			),
+		}),
 	),
 })
 export const SnapshotResponse = Type.Object({

@@ -12,7 +12,7 @@ Read `~/.pi/agent/extensions/DESIGN.md` before restyling or migrating any pi ren
   - `ui/` — display surfaces and chat chrome: `renderers/`, `hud-footer/`, `hud-status/`, `hud-telemetry/`, `ask-user-question/`.
   - `prompt/` — prompt and editor input path: `attachments/`, `double-escape-clear/`, `inline-skills/`, `skill-surface/`.
   - `model/` — provider/model behavior: `fallback/`, `clean-provider-errors/`.
-  - `tools/` — tool-call behavior: `guard/`, `lazy-load/`, `lookup/`.
+  - `tools/` — tool-call behavior: `guard/`, `lazy-load/`, `lookup/`, `workspace/`.
   - `fetch/` — web content fetchers: `social/`, `twitter/`.
   - `herdr/` — herdr bridge extensions: `prompts/`.
   - `commands/` — user-invoked commands and workflows: `simplify/`, `usage/`, `goal/`, `context-budget/`, `dump/` (a `/review` command belongs here too).
