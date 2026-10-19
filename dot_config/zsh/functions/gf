@@ -15,25 +15,37 @@ _gf_worktree_path_for_branch() {
     '
 }
 
-_gf_remove_worktree_and_branch() {
-  local branch=$1 worktree_path=$2 answer
-  echo "Branch '$branch' is checked out in worktree: $worktree_path"
-  echo "Removing it also deletes ignored files there (.env, cache dirs, ...)."
-  echo -n "Remove worktree and delete branch? (y/n): "
-  read -r answer
-  case $answer in
-    [Yy]|yes) ;;
-    *)
-      echo "   Kept. Manual cleanup later:"
-      echo "     git worktree remove $worktree_path && git branch -D $branch"
-      return 3
-      ;;
-  esac
-  if [[ -n $(git -C $worktree_path status --porcelain) ]]; then
-    echo "   Forcing: '$worktree_path' has uncommitted or untracked changes."
+_gf_lost_commit_count() {
+  local branch=$1 ref
+  local -a not_refs=()
+  for ref in ${(f)"$(git for-each-ref --format='%(refname)' refs/heads refs/remotes)"}; do
+    [[ $ref == "refs/heads/$branch" ]] && continue
+    not_refs+=("^$ref")
+  done
+  if (( ${#not_refs} == 0 )); then
+    git rev-list --count "refs/heads/$branch"
+  else
+    git rev-list --count "refs/heads/$branch" "${not_refs[@]}"
   fi
+}
+
+_gf_worktree_reason() {
+  local branch=$1 worktree_path=$2 lost
+  local -a parts=()
+  if [[ -n $(git -C $worktree_path status --porcelain 2>/dev/null) ]]; then
+    parts+=("uncommitted or untracked files")
+  fi
+  lost=$(_gf_lost_commit_count $branch)
+  (( ${lost:-0} != 0 )) && parts+=("$lost commit(s) exist only on this branch")
+  print -r -- ${(j:; :)parts}
+}
+
+_gf_remove_worktree() {
+  local branch=$1 worktree_path=$2
   if ! git worktree remove --force $worktree_path; then
     echo "   Failed to remove worktree: $worktree_path"
+    echo "   Kept. Manual cleanup later:"
+    echo "     git worktree remove --force $worktree_path && git branch -D $branch"
     return 1
   fi
   if ! git branch -D $branch > /dev/null 2>&1; then
@@ -44,14 +56,14 @@ _gf_remove_worktree_and_branch() {
 }
 
 _gf_delete_branch() {
-  local branch=$1 worktree_path
+  local branch=$1 worktree_path=$2
   if [[ $branch == "$(_gf_main_worktree_branch)" ]]; then
     echo "Skipping '$branch' (checked out in the main worktree)"
     return 2
   fi
-  worktree_path=$(_gf_worktree_path_for_branch $branch)
+  [[ -z $worktree_path ]] && worktree_path=$(_gf_worktree_path_for_branch $branch)
   if [[ -n $worktree_path ]]; then
-    _gf_remove_worktree_and_branch $branch $worktree_path
+    _gf_remove_worktree $branch $worktree_path
     return
   fi
   if git branch -D $branch > /dev/null 2>&1; then
@@ -63,22 +75,85 @@ _gf_delete_branch() {
 }
 
 _gf_delete_branches() {
-  local branch
-  for branch in "$@"; do
-    _gf_delete_branch $branch
+  local -a branches=("$@") risky_branches=() risky_paths=() risky_reasons=()
+  local branch worktree_path reason answer index
+  for branch in "$branches[@]"; do
+    if [[ $branch == "$(_gf_main_worktree_branch)" ]]; then
+      echo "Skipping '$branch' (checked out in the main worktree)"
+      continue
+    fi
+    worktree_path=$(_gf_worktree_path_for_branch $branch)
+    if [[ -n $worktree_path ]]; then
+      reason=$(_gf_worktree_reason $branch $worktree_path)
+      if [[ -n $reason ]]; then
+        risky_branches+=$branch
+        risky_paths+=$worktree_path
+        risky_reasons+=$reason
+        continue
+      fi
+      _gf_remove_worktree $branch $worktree_path
+      continue
+    fi
+    if git branch -D $branch > /dev/null 2>&1; then
+      echo "Deleted branch: $branch"
+    else
+      echo "Failed to delete branch: $branch"
+    fi
   done
+  (( ${#risky_branches} == 0 )) && return 0
+
+  echo
+  echo "Worktrees with unpushed or uncommitted work:"
+  for (( index = 1; index <= ${#risky_branches}; index++ )); do
+    echo "  - '${risky_branches[index]}' at ${risky_paths[index]}: ${risky_reasons[index]}"
+  done
+  echo "Removing them also deletes ignored files there (.env, cache dirs, ...)."
+  echo -n "Remove all ${#risky_branches} worktree(s) and delete their branches? (y/n): "
+  read -r answer
+  case $answer in
+    [Yy]|yes)
+      for (( index = 1; index <= ${#risky_branches}; index++ )); do
+        _gf_remove_worktree ${risky_branches[index]} ${risky_paths[index]}
+      done
+      ;;
+    *)
+      echo "Kept. Manual cleanup later:"
+      for (( index = 1; index <= ${#risky_branches}; index++ )); do
+        echo "  git worktree remove --force ${risky_paths[index]} && git branch -D ${risky_branches[index]}"
+      done
+      ;;
+  esac
 }
 
 _gf_confirm_each() {
   local -a branches=("$@")
   local -i index
-  local response
+  local branch worktree_path reason response
   for (( index = 1; index <= $#branches; index++ )); do
-    echo -n "Delete branch '$branches[index]'? (y/n/a/q): "
-    read -r response
+    branch=${branches[index]}
+    if [[ $branch == "$(_gf_main_worktree_branch)" ]]; then
+      echo "Skipping '$branch' (checked out in the main worktree)"
+      continue
+    fi
+    worktree_path=$(_gf_worktree_path_for_branch $branch)
+    reason=$(_gf_worktree_reason $branch $worktree_path)
+    if [[ -n $worktree_path && -n $reason ]]; then
+      echo "Branch '$branch' is checked out in worktree: $worktree_path"
+      echo "   $reason"
+      echo "Removing it also deletes ignored files there (.env, cache dirs, ...)."
+      echo -n "Remove worktree and delete branch? (y/n/a/q): "
+    elif [[ -n $worktree_path ]]; then
+      echo -n "Delete branch '$branch' (checked out in worktree: $worktree_path)? (y/n/a/q): "
+    elif [[ -n $reason ]]; then
+      echo "Branch '$branch': $reason"
+      echo -n "Delete branch anyway? (y/n/a/q): "
+    else
+      echo -n "Delete branch '$branch'? (y/n/a/q): "
+    fi
+    read -r response || { echo; echo "Cancelled"; return }
     case $response in
-      [Yy]|yes) _gf_delete_branch $branches[index] ;;
-      [Nn]|no) echo "Skipping '$branches[index]'" ;;
+      [Yy]|yes) _gf_delete_branch $branch $worktree_path ;;
+      [Nn]|no) echo "Skipping '$branch'" ;;
       [Aa]|all)
         echo "Deleting all remaining branches..."
         _gf_delete_branches "${(@)branches[index,-1]}"
@@ -111,8 +186,10 @@ _gf_usage() {
   echo "  --interactive, -i    Ask confirmation for each branch individually"
   echo "  --help, -h          Show this help message"
   echo ""
-  echo "A gone branch still checked out in a worktree: gf offers to remove"
-  echo "the worktree first, then the branch. Uncommitted and ignored files go too."
+  echo "A gone branch with no worktree is deleted outright. A gone branch"
+  echo "checked out in a linked worktree is removed together with that worktree;"
+  echo "if uncommitted or unshared commits remain, everything is held back and"
+  echo "confirmed once, no matter how many worktrees are involved."
 }
 
 local -i interactive=0
