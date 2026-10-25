@@ -1,0 +1,52 @@
+#!/bin/sh
+set -eu
+
+target=$1
+url=$2
+scheme=${url%%://*}
+authority=${url#*://}
+authority=${authority%%[/?#]*}
+case "$authority" in
+	localhost|127.0.0.1)
+		case "$scheme" in
+			http) source_port=80 ;;
+			https) source_port=443 ;;
+		esac
+		;;
+	localhost:*|127.0.0.1:*) source_port=${authority##*:} ;;
+	*) printf 'Not a localhost URL: %s\n' "$url" >&2; exit 1 ;;
+esac
+case "$source_port" in
+	''|*[!0-9]*) printf 'Invalid localhost port: %s\n' "$source_port" >&2; exit 1 ;;
+esac
+
+cache="$HOME/Library/Caches/open-remote"
+mkdir -p "$cache"
+identity=$(printf '%s' "$target" | /usr/bin/shasum -a 256 | /usr/bin/cut -c 1-16)
+control="$cache/ssh-$identity"
+label="local.open-remote.$identity"
+
+control_ssh() {
+	/usr/bin/ssh -S "$control" -o BatchMode=yes -o ConnectTimeout=5 "$@" "$target"
+}
+
+if ! control_ssh -O check >/dev/null 2>&1; then
+	/bin/launchctl remove "$label" >/dev/null 2>&1 || :
+	/bin/launchctl submit -l "$label" -e "$cache/ssh-$identity.log" -- \
+		/usr/bin/ssh -MN -S "$control" -o BatchMode=yes \
+		-o StrictHostKeyChecking=yes -o ConnectTimeout=5 \
+		-o ServerAliveInterval=15 -o ServerAliveCountMax=3 "$target"
+	deadline=$(($(date +%s) + 10))
+	until control_ssh -O check >/dev/null 2>&1; do
+		if [ "$(date +%s)" -ge "$deadline" ]; then
+			printf 'Cannot start SSH tunnel to %s. See %s/ssh-%s.log\n' "$target" "$cache" "$identity" >&2
+			exit 1
+		fi
+	done
+fi
+
+control_ssh -O forward -R "127.0.0.1:$source_port:127.0.0.1:$source_port"
+viewer_port=$source_port
+suffix=${url#*://}
+suffix=${suffix#"$authority"}
+printf '%s://127.0.0.1:%s%s\n' "$scheme" "$viewer_port" "$suffix"
