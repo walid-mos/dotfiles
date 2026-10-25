@@ -11,6 +11,7 @@ export PNPM_HOME=$HOME/Library/pnpm
 export COLIMA_HOME=$XDG_CONFIG_HOME/colima
 export DOCKER_BUILDKIT=1
 export TURBO_TELEMETRY_DISABLED=1
+export MCP_UI_VIEWER=none
 # pi copies through OSC 52 only under SSH_CLIENT or SSH_CONNECTION; a herdr pane's clipboard belongs to the viewing client, so mark it (a marker, not an address: viewer-host names the machine).
 [[ -n $HERDR_ENV && -z $SSH_CLIENT && -z $SSH_CONNECTION ]] && export SSH_CLIENT=herdr
 
@@ -19,3 +20,4 @@ fpath=($XDG_CONFIG_HOME/zsh/functions $fpath)
 source $XDG_CONFIG_HOME/zsh/env/path.zsh
 [[ -r $XDG_CONFIG_HOME/zsh/secrets ]] && source $XDG_CONFIG_HOME/zsh/secrets
 source $XDG_CONFIG_HOME/zsh/env/infisical.zsh
+source $XDG_CONFIG_HOME/zsh/env/aws.zsh

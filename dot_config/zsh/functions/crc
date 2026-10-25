@@ -1,0 +1,519 @@
+emulate -L zsh
+
+if (( $# != 1 )) || [[ $1 != (up|down|status|fix|clean) ]]; then
+  print -u2 'Usage: crc up|down|status|fix|clean (up resumes the sessions of the current folder or starts a new environment, down stops it, fix repairs every folder, clean removes stale references)'
+  return 2
+fi
+
+local executable
+if [[ $1 == up ]]; then
+  executable=$(whence -p claude) || {
+    print -u2 'Claude Code is not installed or not on PATH.'
+    return 1
+  }
+fi
+
+python3 - "$1" "$PWD" "$executable" <<'PY'
+import hashlib
+import json
+import os
+import pathlib
+import plistlib
+import re
+import subprocess
+import sys
+import time
+
+operation, directory, executable = sys.argv[1:4]
+project = pathlib.Path(directory).resolve()
+home = pathlib.Path.home()
+launch_agents = home / "Library/LaunchAgents"
+logs_root = home / "Library/Logs/claude-rc"
+claude_json = home / ".claude.json"
+domain = f"gui/{os.getuid()}"
+ansi = re.compile(r"\x1b\[[0-9;?]*[A-Za-z]|\x1b\]8;;[^\x07\x1b]*(?:\x07|\x1b\\)")
+
+CONNECTED = "connected"
+READY = "ready (not connected)"
+RECONNECTING = "reconnecting"
+CONNECTING = "connecting"
+FRESH_SECONDS = 86400
+PANEL_MARKERS = {
+    "Connected ·": CONNECTED,
+    "Ready ·": READY,
+    "Reconnecting": RECONNECTING,
+    "Connecting ·": CONNECTING,
+    "Environment preserved.": "stopped (sessions preserved)",
+    "Shutting down": "stopping",
+}
+
+
+def arg_value(args, flag):
+    if flag in args:
+        index = args.index(flag)
+        if index + 1 < len(args):
+            return args[index + 1]
+    return None
+
+
+def is_loaded(label):
+    return subprocess.run(
+        ["launchctl", "print", f"{domain}/{label}"],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    ).returncode == 0
+
+
+def launchd_info(label):
+    result = subprocess.run(
+        ["launchctl", "print", f"{domain}/{label}"], capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return {"state": "down", "exit": None, "pid": None}
+    state, last_exit, pid = "loaded", None, None
+    for line in result.stdout.splitlines():
+        if line.startswith("\tstate = "):
+            state = line.partition(" = ")[2].strip()
+        elif line.startswith("\tlast exit code = "):
+            last_exit = line.partition(" = ")[2].strip()
+        elif line.startswith("\tpid = "):
+            pid = line.partition(" = ")[2].strip()
+    return {"state": state, "exit": last_exit, "pid": pid}
+
+
+def read_tail(path, limit):
+    try:
+        with open(path, "rb") as source:
+            source.seek(max(0, os.fstat(source.fileno()).st_size - limit))
+            return source.read().decode("utf-8", "ignore").replace("\r", "\n")
+    except OSError:
+        return ""
+
+
+def panel_state(path, name):
+    text = ansi.sub("", read_tail(path, 14000))
+    state, position = None, -1
+    for marker, value in PANEL_MARKERS.items():
+        found = text.rfind(marker)
+        if found > position:
+            state, position = value, found
+    error = None
+    if state != CONNECTED:
+        for line in text.splitlines():
+            if "Error:" in line:
+                error = line.strip()[:140]
+    return state, error
+
+
+def stderr_note(path):
+    try:
+        if time.time() - os.path.getmtime(path) > FRESH_SECONDS:
+            return None
+    except OSError:
+        return None
+    text = ansi.sub("", read_tail(path, 6000))
+    if "Worktree mode requires a git repository" in text:
+        return "crash: --spawn worktree but the folder is not a git repo"
+    if "Workspace not trusted" in text:
+        return "spawn blocked: workspace not trusted"
+    lines = [line.strip()[:110] for line in text.splitlines() if "Error:" in line]
+    return f"errors: {lines[-1]}" if lines else None
+
+
+def etime_seconds(pid):
+    result = subprocess.run(
+        ["ps", "-o", "etime=", "-p", str(pid)], capture_output=True, text=True,
+    )
+    text = result.stdout.strip()
+    if not text:
+        return None
+    days = 0
+    if "-" in text:
+        days, text = text.split("-", 1)
+        days = int(days)
+    value = days * 86400
+    for part in text.split(":"):
+        value = value * 60 + int(part)
+    return value
+
+
+def row_trusted(work):
+    try:
+        projects = json.loads(claude_json.read_text()).get("projects", {})
+    except (OSError, ValueError):
+        return None
+    return projects.get(str(work), {}).get("hasTrustDialogAccepted")
+
+
+def collect():
+    rows = []
+    for path in sorted(launch_agents.glob("local.claude-rc.*.plist")):
+        try:
+            conf = plistlib.load(path.open("rb"))
+        except Exception as error:
+            rows.append({"path": path, "unreadable": str(error)})
+            continue
+        label = conf["Label"]
+        identifier = label.rpartition("local.claude-rc.")[2]
+        args = conf.get("ProgramArguments", [])
+        work = pathlib.Path(conf.get("WorkingDirectory", ""))
+        info = launchd_info(label)
+        out = pathlib.Path(conf.get("StandardOutPath") or logs_root / identifier / "stdout.log")
+        err = pathlib.Path(conf.get("StandardErrorPath") or logs_root / identifier / "stderr.log")
+        state, panel_error = panel_state(out, arg_value(args, "--name") or "unknown")
+        running = info["state"] == "running" and info["pid"] is not None
+        stuck = (
+            running
+            and state not in (None, CONNECTED)
+            and (etime_seconds(info["pid"]) or 0) > 240
+        )
+        crash = info["state"] == "spawn scheduled" and info["exit"] not in (None, "0", "0 (never exited)")
+        note = stderr_note(err)
+        if note and note.startswith("errors:") and state == CONNECTED and not crash:
+            note = None
+        rows.append({
+            "path": path, "label": label, "args": args, "conf": conf, "work": work,
+            "name": arg_value(args, "--name") or "unknown", "info": info,
+            "panel": state, "panel_error": panel_error, "stderr": note,
+            "running": running, "stuck": stuck, "crash": crash,
+            "trusted": row_trusted(work),
+        })
+    return rows
+
+
+def orphan_pids(rows):
+    keys = set()
+    for row in rows:
+        args = row.get("args") or []
+        if args and args[0].endswith("/claude") and len(args) > 2 and args[1] == "remote-control":
+            keys.add(tuple(args[2:]))
+        elif len(args) > 1:
+            keys.add(tuple(args[1:]))
+    listing = subprocess.run(
+        ["ps", "-axo", "pid=,command="], capture_output=True, text=True,
+    ).stdout
+    found = []
+    for line in listing.splitlines():
+        marker = line.find("claude remote-control")
+        if marker < 0:
+            continue
+        pid = line.strip().split(" ", 1)[0]
+        if not pid.isdigit():
+            continue
+        args = tuple(line[marker + len("claude remote-control"):].split())
+        if args in keys:
+            continue
+        found.append((int(pid), " ".join(args)))
+    return found
+
+
+def wait_unloaded(label, seconds=20):
+    deadline = time.time() + seconds
+    while is_loaded(label):
+        if time.time() > deadline:
+            return False
+        time.sleep(0.3)
+    return True
+
+
+def reload_service(row, new_args=None):
+    conf = row["conf"]
+    if not wait_unloaded(conf["Label"]):
+        subprocess.run(["launchctl", "bootout", f"{domain}/{conf['Label']}"], capture_output=True)
+        if not wait_unloaded(conf["Label"]):
+            return False
+    if new_args is not None:
+        conf["ProgramArguments"] = new_args
+        with row["path"].open("wb") as target:
+            plistlib.dump(conf, target)
+        if subprocess.run(["plutil", "-lint", str(row["path"])], capture_output=True).returncode != 0:
+            return False
+    return subprocess.run(
+        ["launchctl", "bootstrap", domain, str(row["path"])], capture_output=True,
+    ).returncode == 0
+
+
+def set_trust(work):
+    if not str(work).startswith(f"{home}/Development"):
+        return False
+    try:
+        data = json.loads(claude_json.read_text())
+        data.setdefault("projects", {}).setdefault(str(work), {})["hasTrustDialogAccepted"] = True
+        claude_json.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    except (OSError, ValueError):
+        return False
+    return True
+
+
+def remove_stale(rows):
+    removed, kept = [], []
+    for row in rows:
+        if row.get("unreadable"):
+            kept.append(f"{row['path']} is unreadable ({row['unreadable']}) — re-create it with crc up in its folder")
+            continue
+        work = row["work"]
+        if not work.exists():
+            if is_loaded(row["label"]):
+                subprocess.run(["launchctl", "bootout", f"{domain}/{row['label']}"], capture_output=True)
+                wait_unloaded(row["label"])
+            row["path"].unlink()
+            removed.append(f"{work} (folder gone; recreate later with crc up)")
+    return removed, kept
+
+
+def kill_orphans(rows):
+    killed = []
+    for pid, args in orphan_pids(rows):
+        try:
+            os.kill(pid, 15)
+            for _ in range(15):
+                if subprocess.run(["ps", "-p", str(pid)], capture_output=True).returncode != 0:
+                    break
+                time.sleep(0.4)
+            else:
+                os.kill(pid, 9)
+            killed.append(f"killed orphan claude remote-control pid {pid} ({args[:70]})")
+        except (ProcessLookupError, PermissionError):
+            pass
+    return killed
+
+
+def print_table(rows):
+    for row in rows:
+        if row.get("unreadable"):
+            print(f"{str(row['path']):<58} {'unreadable':<16} — ({row['unreadable'][:60]})")
+            continue
+        flags = row["info"]
+        extras = []
+        if not row["work"].exists():
+            extras.append("DIR GONE")
+        if row["stderr"]:
+            extras.append(row["stderr"])
+        if row["crash"]:
+            extras.append(f"crash-looping, exit {flags['exit']}")
+        if row["stuck"]:
+            extras.append(f"stuck (pid {flags['pid']})")
+        panel = row["panel"] or "no log yet"
+        print(f"{str(row['work']):<58} {flags['state']:<16} {panel:<30} {' · '.join(extras)}")
+
+
+def summarize(rows):
+    problems = []
+    gone = [str(row["work"]) for row in rows if not row.get("unreadable") and not row["work"].exists()]
+    if gone:
+        problems.append(f"{len(gone)} stale reference(s), folder gone: run `crc clean` — {', '.join(gone)}")
+    crashed = [
+        f"{row['work']} ({row['stderr'] or 'exit ' + str(row['info']['exit'])})"
+        for row in rows if not row.get("unreadable") and row["crash"]
+    ]
+    if crashed:
+        problems.append("crash-looping: " + ", ".join(crashed))
+    stuck = [str(row["work"]) for row in rows if not row.get("unreadable") and row["stuck"]]
+    if stuck:
+        problems.append("running but not connected: " + ", ".join(stuck))
+    untrusted = [
+        str(row["work"]) for row in rows
+        if not row.get("unreadable") and row["stderr"] and "not trusted" in row["stderr"]
+    ]
+    if untrusted:
+        problems.append("workspace not trusted: " + ", ".join(untrusted))
+    orphans = orphan_pids(rows)
+    if orphans:
+        problems.append("orphan claude remote-control processes: " + ", ".join(f"pid {pid}" for pid, _ in orphans))
+    if problems:
+        for problem in problems:
+            print(f"problem: {problem}")
+        print("run `crc fix` to repair all of these (or `crc clean` for the stale list only), then `crc status`")
+    else:
+        print("all services look healthy")
+
+
+def this_row(project):
+    for row in collect():
+        if not row.get("unreadable") and row["work"] == project:
+            return row
+    return None
+
+
+def wait_panel(identifier, name, seconds=45):
+    out = logs_root / identifier / "stdout.log"
+    deadline = time.time() + seconds
+    while time.time() < deadline:
+        state, error = panel_state(out, name)
+        if state == CONNECTED:
+            return state, error
+        if state in (READY, RECONNECTING, CONNECTING) and error:
+            return state, error
+        time.sleep(2)
+    return panel_state(out, name)
+
+
+def report_sync(state, error, logs):
+    if state == CONNECTED:
+        print("connected — sessions this folder's environment served within the ~4h resume window are reachable again at https://claude.ai/code")
+        return
+    if state is None:
+        print(f"no panel state yet — check `crc status` in a moment\nLogs: {logs}")
+        return
+    detail = f" — {error}" if error else ""
+    print(f"panel: {state}{detail}\n Logs: {logs}\nif this does not clear, run `crc fix` (then `crc status`)")
+
+
+def start():
+    identifier = hashlib.sha256(str(project).encode()).hexdigest()[:12]
+    label = f"local.claude-rc.{identifier}"
+    logs = logs_root / identifier
+    plist = launch_agents / f"{label}.plist"
+    row = this_row(project)
+    if row is not None:
+        if row["running"] and row["panel"] == CONNECTED:
+            print(f"Already served: {project} (connected) — its sessions are live at https://claude.ai/code")
+            return
+        if row["crash"] or row["stuck"]:
+            reason = "crash-looping" if row["crash"] else f"stuck in {row['panel']}"
+            if not reload_service(row):
+                sys.exit(f"crc up failed: could not relaunch {project} ({reason})")
+            print(f"Relaunched: {project} (was {reason})")
+            report_sync(*wait_panel(identifier, row["name"]), logs)
+            return
+        if row["running"]:
+            print(f"Already loaded: {project} — waiting for the environment to connect…")
+            report_sync(*wait_panel(identifier, row["name"]), logs)
+            return
+        print(f"Rebootstrapping: {project} (launchd shows {row['info']['state']})")
+        row = None
+    created = False
+    if not plist.exists():
+        created = True
+        plist.parent.mkdir(parents=True, exist_ok=True)
+        logs.mkdir(parents=True, exist_ok=True)
+        in_git_repo = subprocess.run(
+            ["git", "-C", directory, "rev-parse", "--is-inside-work-tree"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+        ).returncode == 0
+        configuration = {
+            "Label": label,
+            "ProgramArguments": [
+                executable, "remote-control", "--name", project.name,
+                "--spawn", "worktree" if in_git_repo else "session",
+            ],
+            "WorkingDirectory": str(project),
+            "EnvironmentVariables": {
+                "HOME": str(home), "PATH": os.environ["PATH"],
+            },
+            "RunAtLoad": True,
+            "KeepAlive": {"SuccessfulExit": False},
+            "ThrottleInterval": 30,
+            "StandardOutPath": str(logs / "stdout.log"),
+            "StandardErrorPath": str(logs / "stderr.log"),
+        }
+        with plist.open("xb") as output:
+            plistlib.dump(configuration, output)
+    subprocess.run(["plutil", "-lint", str(plist)], check=True)
+    subprocess.run(["launchctl", "bootstrap", domain, str(plist)], check=True)
+    if created:
+        print(f"Loaded: {project}\nLogs: {logs}")
+    else:
+        print(f"Rebootstrapped: {project}\nLogs: {logs}")
+    report_sync(*wait_panel(identifier, project.name), logs)
+
+
+def stop():
+    identifier = hashlib.sha256(str(project).encode()).hexdigest()[:12]
+    label = f"local.claude-rc.{identifier}"
+    if is_loaded(label):
+        subprocess.run(["launchctl", "bootout", f"{domain}/{label}"], check=True)
+        wait_unloaded(label)
+    plist = launch_agents / f"{label}.plist"
+    if plist.exists():
+        plist.unlink()
+    print(f"Stopped and removed login startup: {project}")
+
+
+def status():
+    rows = collect()
+    print_table(rows)
+    print()
+    summarize(rows)
+
+
+def clean():
+    removed, kept = remove_stale(collect())
+    for message in removed:
+        print(f"removed: {message}")
+    for message in kept:
+        print(f"attention: {message}")
+    if not (removed or kept):
+        print("nothing to clean")
+
+
+# fix restarts only services that are not connected, so an environment doing live work is never touched
+def fix():
+    rows = collect()
+    removed, kept = remove_stale(rows)
+    fixed = kill_orphans([row for row in collect() if not row.get("unreadable")])
+    advisory = [f"kept unreadable plist — {message}" for message in kept]
+    rows = [row for row in collect() if not row.get("unreadable") and row["work"].exists()]
+    for row in rows:
+        work = row["work"]
+        if "--no-create-session-in-dir" in row["args"]:
+            if row["panel"] != CONNECTED:
+                new_args = [arg for arg in row["args"] if arg != "--no-create-session-in-dir"]
+                if reload_service(row, new_args):
+                    fixed.append(f"removed --no-create-session-in-dir from {work} — the flag archives the folder's sessions whenever the environment stops")
+                else:
+                    advisory.append(f"could not drop --no-create-session-in-dir from {work}")
+            else:
+                advisory.append(f"{work} still runs with --no-create-session-in-dir: run `crc down && crc up` when idle — the flag archives its sessions at every stop")
+        if row["stderr"] and "not trusted" in row["stderr"]:
+            if row["trusted"] is not True and set_trust(work):
+                fixed.append(f"accepted workspace trust for {work} in ~/.claude.json")
+            else:
+                advisory.append(f"{work}: claude still refuses this folder — run `claude` there once and accept the trust dialog")
+        if row["stderr"] and "not a git repo" in row["stderr"]:
+            new_args = list(row["args"])
+            index = new_args.index("--spawn")
+            if new_args[index + 1] == "worktree":
+                new_args[index + 1] = "session"
+                if reload_service(row, new_args):
+                    fixed.append(f"reconfigured {work} to --spawn session (folder is not a git repo)")
+                else:
+                    advisory.append(f"could not reconfigure {work}")
+                continue
+        if row["crash"]:
+            if reload_service(row):
+                fixed.append(f"restarted crash-looping {work} (exit {row['info']['exit']})")
+            else:
+                advisory.append(f"could not restart {work}")
+            continue
+        if row["stuck"]:
+            if reload_service(row):
+                fixed.append(f"restarted {work}: sat in {row['panel']} with no session attached")
+            else:
+                advisory.append(f"could not restart {work}")
+            continue
+        if row["info"]["state"] == "down":
+            if subprocess.run(["launchctl", "bootstrap", domain, str(row["path"])], capture_output=True).returncode == 0:
+                fixed.append(f"rebootstrapped {work}")
+    for message in fixed:
+        print(f"fixed: {message}")
+    for message in removed:
+        print(f"removed: {message}")
+    for message in advisory:
+        print(f"attention: {message}")
+    if not (fixed or removed or advisory):
+        print("nothing to fix")
+    print()
+    fresh = collect()
+    print_table(fresh)
+    print()
+    summarize(fresh)
+
+
+
+
+
+try:
+    {"up": start, "down": stop, "status": status, "fix": fix, "clean": clean}[operation]()
+except (OSError, subprocess.CalledProcessError) as error:
+    sys.exit(f"crc {operation} failed: {error}")
+PY
