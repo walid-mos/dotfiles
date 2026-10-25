@@ -180,10 +180,11 @@ its execution details remain authoritative.
 - [x] Custom message cards: registered per `customType` through `registerMessageRenderer`; the
   house cards reuse the tool-panel geometry (square frame on the shared content column, status
   glyph on the title edge, quiet details, dim footer) with the frame ink blended toward the
-  status role like the mutation panels, and expansion rides global Ctrl+O
-  (`CustomMessageComponent.setExpanded` re-runs the renderer). Producers own their wire ids and
+  status role like the mutation panels. A stationary left click anywhere on a card toggles it
+  through Pi's public `MouseRegion`; drag, selection and wheel gestures pass through.
+  Global Ctrl+O still rebuilds cards through `CustomMessageComponent.setExpanded`. Producers own their wire ids and
   payloads, and renderers never re-etch stored text: `tools/guard/bash-job-card.ts` renders
-  `pi-bash-job-complete` (the completion follow-up for owned background commands; the minted
+  `pi-bash-job-complete` (the completion notification for owned background commands; the minted
   snapshot line parses through the live `jobSnapshotSchema`, the card is titled by the
   job's program identity derived from the minted command (`pnpm lint`, `grep`,
   `node render-cards.mjs`) instead of the generic `job`, collapsed keeps a bounded output
@@ -210,8 +211,8 @@ its execution details remain authoritative.
   `web-search-content-ready`) keep pi's default box on purpose: no back-compat for dead
   minters. A malformed or foreign payload returns
   `undefined` so pi's native box keeps the stored text readable. Long minted bodies stay
-  capped at 6 collapsed rows until global Ctrl+O. Cards have no per-card click
-  toggle through the renderer path; the skill band's click lives on its patched native surface.
+  capped at 6 collapsed rows until a click or global Ctrl+O. `lib/ui/expandable-card.ts`
+  owns per-card expansion through the public renderer path; the skill band's click lives on its patched native surface.
 - [ ] Custom entry cards: `customMessageBg` (`registerEntryRenderer`, TUI-only, not in LLM context).
 - Event order fact (pi 0.85.1): `agent_start` → `turn_start` → the prompt's `message_start`/`message_end`, and a
   session entry is written **at that `message_end`**. Anything that must land *after* a submitted prompt
@@ -334,6 +335,45 @@ House rule per `ARCHITECTURE.md`: `palette.ts` reads `themes/catppuccin-latte.js
    Automated tests do not establish font-specific visual quality; inspect the live TUI after `/reload`.
 
 ## 10. Version-drift workflow
+
+Pending audit 1.1.0 → 1.4.0 (2026-10-25, `pi-updated`): installed bundle reports
+1.4.0. Extension API and class-level ABI audits pass. Hygiene's real loader loads
+32 extensions with zero errors and warnings. The configured Syneva package path has
+no resolved package.json and is skipped by the manifest audit.
+
+Changelog review covers 1.2.0, 1.3.0 and 1.4.0. Prompt-reading
+`before_agent_start` handlers already guard `messageType === 'user'`; system-prompt
+handlers use fields shared by both event variants. No house handler uses
+`before_provider_headers`, summary `reserveTokens`, or MCP resource counts.
+The Latte theme schema URL now points to the published theme schema. Existing
+colors already live under `vars`. Workspace Pi development dependencies now match
+1.4.0 so type-checking uses the installed API. Busy-during-start, restored active
+tools, queued codemode workers and dialog ownership fixes need no adapter changes.
+
+Renderer diff against npm-packed 1.1.0: bash delegates timing to shared helpers,
+read and tree labels use normalized line ranges, settings add share destination
+and clarify hardware cursor behavior, and the compaction indicator accepts editor
+colors. User/assistant/tool component implementations are unchanged. Markdown adds
+CJK emphasis handling and prevents unclosed display math from consuming tables.
+Accept these upstream fixes without replacing their parsers or drawing code.
+
+All four registered dist patch scripts ran. Prompt history was already patched;
+Mermaid readable and bundled implementations, clipboard OSC52 and copy-command
+removal were reapplied. Marker checks and inode equality confirm patcher aliases
+reach the audited running tree. Mermaid readable and bundled files pass
+`node --check`. The complete renderer/Markdown diff is in the disposable
+`/tmp/pi-audit-1.1-to-1.4.diff`.
+
+Close-out is blocked, so `AUDITED_PI_VERSION` and the verified header remain
+1.1.0. Root lint fails on the untouched `ghostex-session.ts` and warns in
+`tools/workspace/remote-grep.ts`; type-check fails on two possibly undefined
+strings at `ghostex-session.ts:47–48`. Do not hide these failures with a version
+bump. A fresh headless `pi -p 'Reply READY without calling tools.'` from
+`/Users/walid-mos/Development` timed out after 120 seconds without a reply, so
+end-to-end startup is not proven despite the clean live loader. The live §9
+visual pass remains unverified. The stale-session check flagged
+PIDs 30042, 72121, 44501 and 89024. Exit and relaunch those sessions instead of
+using `/reload`, then finish the visual pass and gates before closing this audit.
 
 There is no hard pin. `lib/ui/pi-runtime.ts` exports `AUDITED_PI_VERSION` (the release the adapters
 were last audited against) and `detectPiDrift`; the renderers extension mounts a warning widget

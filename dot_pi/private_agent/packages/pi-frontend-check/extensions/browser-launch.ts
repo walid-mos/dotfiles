@@ -22,6 +22,7 @@ export function launchOptions(config: Config): LaunchOptions {
 		headless: true,
 		timeout: config.NAV_TIMEOUT_MS,
 		chromiumSandbox: true,
+		ignoreDefaultArgs: ['--disable-extensions'],
 		// No disk or shader cache: a verification browser never serves a stale asset and its profile holds login state only.
 		args: ['--disk-cache-size=1', '--disable-gpu-shader-disk-cache'],
 	}

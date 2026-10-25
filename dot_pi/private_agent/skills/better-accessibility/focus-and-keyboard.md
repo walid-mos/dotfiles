@@ -115,6 +115,7 @@ Native elements come with these behaviors; custom widgets must implement them. A
 | Dialog | Tab/Shift+Tab cycle inside (wrap at ends); Escape closes |
 | Tabs | Arrow keys move between tabs (wrapping); Tab exits to the panel; Home/End jump to first/last |
 | Menu button | Enter/Space/ArrowDown opens and focuses first item; ArrowUp opens and focuses last; arrows navigate; Escape closes and refocuses the button |
+| Disclosure / accordion | Header is a `<button aria-expanded>`; Enter and Space toggle |
 | Combobox | ArrowDown opens/moves into the list; Enter accepts; Escape closes and returns to the input; typing filters |
 | Listbox / radio group | Arrow keys move selection; one Tab stop for the whole group |
 

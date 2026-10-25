@@ -27,6 +27,8 @@ Always use the dedicated Pi tool for the job: `read` (with `offset`/`limit`), `g
 
 **Never call `subagent`, `subagent_supervisor`, or `contact_supervisor` inside a `codemode` script** — pi registers them `exposure: "model-only"`, so the sandbox has no binding and the script throws `tools.subagent_supervisor does not exist`; compute the payload in the script, then issue the direct tool call. A plain `cat`/`ls`/`grep`/`find`/`head`/`sed -n` typed into `bash` runs through its dedicated tool automatically; any other lookup-shaped shell command is refused.
 
+**Never run validation (build, check, lint, test) inside a `codemode` script** — a non-zero exit rejects the script and skips every later step, and the guard refuses the call; finish the batch, then run the validation as a direct `bash` call.
+
 **Never use `bash`/`host` for that work** — reading, listing, searching and finding belong to the dedicated file tools, even through a pipe or redirect. Bash stays right for builds, tests, git and pipelines that transform or store (`jq`, `sed`, counts, redirects to a file).
 
 **Never bypass a tool refusal** by switching to `bash`/`host`, another interpreter, a wrapper, or a contrived pipeline — use the suggested tool or report the missing capability.
@@ -37,13 +39,13 @@ Always use the dedicated Pi tool for the job: `read` (with `offset`/`limit`), `g
 - an async subagent (its completion wakes this session)
 - `bg_wait` for detached work with no native notification
 
-If nothing can finish on its own, do other work or end the turn and come back when it reports. The only `sleep` allowed is a container keep-alive or a planted delay inside a test fixture.
+Never fill a wait with placeholder calls (`echo`, counters, repeated status checks): every call resends the whole context as a paid request. If nothing can finish on its own, do other work or end the turn and come back when it reports. The only `sleep` allowed is a container keep-alive or a planted delay inside a test fixture.
 
 **Keep slow commands owned and observable**: use bash's managed jobs for servers, builds and installs; follow its tool contract for status, cancellation and completion. Use async subagents for delegated work. A running job is not proof of success or readiness.
 
 **Reuse lookup results**: never request the same file or search again while its source is unchanged; use the result already in context, narrow the query, or report the blocker. Locate new evidence with `grep`, then `read` with `offset`/`limit`.
 
-**Never pour bulk output into context** — scope `find`/`grep` to the smallest likely directory or file; avoid dependency, build, and session trees unless needed. Use `read` with `offset`/`limit`, and send long command output to a file before extracting only what the decision needs.
+**Never pour bulk output into context** — scope `find`/`grep` to the smallest likely directory or file; avoid dependency, build, and session trees unless needed. Use `read` with `offset`/`limit`, and send long command output to a file before extracting only what the decision needs. Never redirect a validation command's output to a file: the guard saves its complete log and exit codes, and a redirect disables that.
 
 ## Artifact placement
 

@@ -21,18 +21,36 @@ local function on_attach(ev)
 	-- Format via conform.nvim, not the LSP
 	map("n", "<leader>cf", function() require("conform").format({ async = true, lsp_format = "never" }) end, "Format buffer")
 	map("n", "K", vim.lsp.buf.hover, "Hover documentation")
+	map("n", "gl", vim.diagnostic.open_float, "Diagnostic details")
+	map("i", "<C-Space>", vim.lsp.completion.get, "Trigger completion")
+
+	local client = ev.data.client or vim.lsp.get_client_by_id(ev.data.client_id)
+	if client and client:supports_method("textDocument/completion") then
+		local provider = client.server_capabilities.completionProvider
+		if provider then
+			local chars = vim.list_extend(vim.deepcopy(provider.triggerCharacters or {}), { "_" })
+			for i = 65, 90 do
+				chars[#chars + 1] = string.char(i)
+			end
+			for i = 97, 122 do
+				chars[#chars + 1] = string.char(i)
+			end
+			provider.triggerCharacters = chars
+		end
+		vim.lsp.completion.enable(true, client.id, ev.buf, { autotrigger = true })
+	end
 end
 
 local function setup_diagnostics()
 	vim.diagnostic.config({
-		virtual_text = { prefix = "●", spacing = 4 },
+		virtual_text = { prefix = "●", spacing = 2, format = function() return "" end },
 		virtual_lines = { current_line = true },
 		severity_sort = true,
 		underline = true,
 		float = { border = "rounded", source = true },
 	})
 
-	local signs = { Error = " ", Warn = " ", Hint = " ", Info = " " }
+	local signs = { Error = "●", Warn = "●", Hint = "●", Info = "●" }
 	for type, icon in pairs(signs) do
 		local hl = "DiagnosticSign" .. type
 		vim.fn.sign_define(hl, { text = icon, texthl = hl, numhl = hl })
@@ -46,7 +64,7 @@ return {
 		"williamboman/mason-lspconfig.nvim",
 		dependencies = { "williamboman/mason.nvim" },
 		opts = {
-			ensure_installed = { "lua_ls", "vtsls", "pyright", "clangd", "marksman" },
+			ensure_installed = { "lua_ls", "vtsls", "pyright", "clangd", "marksman", "rust_analyzer" },
 		},
 	},
 

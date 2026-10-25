@@ -1,0 +1,70 @@
+emulate -L zsh
+
+local -a profiles
+profiles=(${(f)"$(aws configure list-profiles 2>/dev/null)"})
+
+if [[ $1 == "-h" || $1 == "--help" ]]; then
+  print "usage: awsc             log in to AWS SSO"
+  print "       awsc <profile>   export AWS_PROFILE and open the AWS console for that account"
+  print "       awsc stats [profile]"
+  print "       awsc exec <profile> <cluster> [service] — shell into the running container"
+  print "profiles: ${profiles[*]}"
+  return 0
+fi
+
+if (( $# > 4 )); then
+  print -u2 "awsc: too many arguments"
+  return 1
+fi
+
+local action=login profile exec_cluster exec_service
+case $1 in
+  stats)
+    action=stats
+    profile=$2
+    ;;
+  exec)
+    if (( $# < 3 )); then
+      print -u2 "usage: awsc exec <profile> <cluster> [service]"
+      return 1
+    fi
+    action=exec
+    profile=$2
+    exec_cluster=$3
+    exec_service=$4
+    ;;
+  "")
+    ;;
+  *)
+    action=console
+    profile=$1
+    ;;
+esac
+[[ -n $profile ]] || profile=$AWS_PROFILE
+[[ -n $profile ]] || profile=$profiles[1]
+
+if ! (( ${profiles[(Ie)$profile]} )); then
+  print -u2 "awsc: unknown profile: $profile"
+  print -u2 "profiles: ${profiles[*]}"
+  return 1
+fi
+
+if ! aws sts get-caller-identity --no-cli-pager --profile "$profile" &>/dev/null; then
+  aws sso login --profile "$profile" || return 1
+fi
+
+case $action in
+  login)
+    print "SSO session active (profile $profile — all profiles share it)"
+    ;;
+  stats)
+    _awsc_stats "$profile"
+    ;;
+  exec)
+    _awsc_exec "$profile" "$exec_cluster" "$exec_service"
+    ;;
+  console)
+    export AWS_PROFILE=$profile
+    _awsc_console "$profile"
+    ;;
+esac

@@ -1,0 +1,23 @@
+emulate -L zsh
+
+local profile=$1
+local region sso_session start_url
+region=$(aws configure get region --profile "$profile") || return 1
+sso_session=$(aws configure get sso_session --profile "$profile") || return 1
+start_url=$(aws configure get sso_start_url --sso-session "$sso_session") || return 1
+
+local creds
+creds=$(aws configure export-credentials --profile "$profile") || return 1
+
+# sts:GetFederationToken rejects session credentials; the console federation endpoint getSigninToken accepts them, with SessionDuration capped at 3600 for temporary credentials.
+local session
+session=$(printf '%s' "$creds" | jq -c '{sessionId:.AccessKeyId,sessionKey:.SecretAccessKey,sessionToken:.SessionToken}') || return 1
+
+local enc_session enc_dest enc_issuer signin_token
+enc_session=$(printf '%s' "$session" | python3 -c 'import urllib.parse as u, sys; print(u.quote(sys.stdin.read(), safe=""))') || return 1
+enc_dest=$(python3 -c 'import urllib.parse as u, sys; print(u.quote(sys.argv[1], safe=""))' "https://${region}.console.aws.amazon.com/console/home?region=${region}")
+enc_issuer=$(python3 -c 'import urllib.parse as u, sys; print(u.quote(sys.argv[1], safe=""))' "$start_url")
+
+signin_token=$(curl -sf "https://signin.aws.amazon.com/federation?Action=getSigninToken&SessionDuration=3600&Session=${enc_session}" | jq -er .SigninToken) || return 1
+
+command open "https://signin.aws.amazon.com/federation?Action=login&Issuer=${enc_issuer}&Destination=${enc_dest}&SigninToken=${signin_token}"

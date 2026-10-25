@@ -14,12 +14,11 @@ Execute steps 0–6 in order and close each with its evidence before moving on.
 ## Facts (do not re-derive)
 
 - Sentry org: `nextnode` (sentry.io).
-- GitHub org secrets already exist on `NextNodeSolutions` (visibility: all repos):
-  `SENTRY_AUTH_TOKEN`, `SENTRY_ORG`. Never set them again, never print the token.
-- The token lives in the local env as `SENTRY_AUTH_TOKEN`; it powers both the Sentry
-  REST API (project creation, verification) and the build-time source-map upload.
-- Repo-level secrets are one-shot per repo, never per PR: `SENTRY_PROJECT`
-  (org-scoped slug) and `PUBLIC_SENTRY_DSN` (browser DSN — public by design).
+- Obtain `SENTRY_AUTH_TOKEN` through an authorized secure process for Sentry API
+  calls or local uploads. Never print it or request its value in chat.
+- `SENTRY_ORG`, `SENTRY_PROJECT` and DSNs are public settings. An upload token is
+  a build-only credential, not a Worker secret. Follow the Infisical workflow in
+  step 3 for placement and supported consumers.
 
 ## Step 0 — Detect the project and the stack
 
@@ -68,33 +67,28 @@ Follow the doc for the row from step 0. Defaults, decided once here — do not r
 - Browser stack (Astro, Next.js) → client DSN = `PUBLIC_SENTRY_DSN`; server/worker DSN
   = `SENTRY_DSN`. Node API → `SENTRY_DSN` only.
 
-## Step 3 — Set the secrets (one-shot per repo)
+## Step 3 — Configure the environment
 
-Follow the placement and stdin rules in
-`~/.pi/agent/skills/nextnode-deploy/github-org.md`: set these per-project values
-as repo **environment** secrets for each target environment. Hold the fetched DSN
-in a shell variable without printing it or placing its value in a command.
+Run "Project secret workflow" in
+`~/.pi/agent/skills/nextnode-deploy/github-org.md`. Reconcile actual SDK consumers,
+not a preset list of Sentry secret names. Keep upload credentials out of the
+application's Worker environment. Configure public settings through the supported
+runtime or build input, never GitHub secrets or removed TOML secret declarations.
 
-```bash
-printf '%s' "$SENTRY_PROJECT" | gh secret set SENTRY_PROJECT --repo "NextNodeSolutions/$REPO" --env "$ENVIRONMENT"
-printf '%s' "$PUBLIC_SENTRY_DSN" | gh secret set PUBLIC_SENTRY_DSN --repo "NextNodeSolutions/$REPO" --env "$ENVIRONMENT"  # browser stack only
-```
-
-For NextNode deploys, declare `SENTRY_DSN` in `nextnode.toml` `[deploy].secrets`
-and provision its actual value in each target environment before the first deploy:
-
-```bash
-printf '%s' "$SENTRY_DSN" | gh secret set SENTRY_DSN --repo "NextNodeSolutions/$REPO" --env "$ENVIRONMENT"
-```
-
-A fixed-value `[deploy].secrets` entry is not auto-generated; follow the
-set→re-trigger semantics in the linked deployment guide.
+Read "Build-time values" in
+`~/.pi/agent/skills/nextnode-deploy/deploy-env.md` before configuring CI uploads or
+browser DSNs. The current reusable deploy build cannot receive an upload token or
+public build inputs. Report that gap and the exact affected consumer. A local
+upload does not complete CI integration. Do not grant the caller build vault access
+to work around it.
 
 ## Step 4 — Verify end-to-end (the only accepted proof)
 
-- `pnpm build` (or the stack's build) with `SENTRY_ORG=nextnode
-  SENTRY_PROJECT=<slug> PUBLIC_SENTRY_DSN=<dsn>` in env → log must show
-  `> Uploaded files to Sentry`.
+- For an authorized local upload, run the stack's build with its required public
+  settings and securely injected upload token. Confirm `Uploaded files to Sentry`
+  without printing credentials. Report this as local evidence, separate from CI.
+- Verify the actual CI input path before claiming source-map uploads or browser
+  configuration work there. If step 3 found an unsupported input, keep it blocked.
 - Confirm the release exists, version = git sha:
   ```bash
   curl -s -H "Authorization: Bearer $SENTRY_AUTH_TOKEN" \

@@ -51,6 +51,7 @@ Create context-appropriate strategy:
 
 **Content Strategy**:
 - Progressive disclosure (don't show everything at once)
+- Prioritize primary content (secondary content in tabs/accordions)
 - Shorter text (more concise)
 - Larger text (16px minimum)
 

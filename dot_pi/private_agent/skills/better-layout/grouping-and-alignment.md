@@ -91,6 +91,7 @@ Where arrangement encodes progression, as in star ratings, step indicators and p
 
 ## Order by importance
 
+Readers scan top-to-bottom and leading-to-trailing. Place content accordingly:
 
 - The most important information sits near the top and the leading edge. The further down and trailing something sits, the less attention it gets.
 - Give essential information room. Never bury the one number the user came for under rows of secondary detail. Push that into collapsed sections, tabs, or detail views.

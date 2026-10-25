@@ -83,13 +83,11 @@ import { env } from 'cloudflare:workers'
 const { RESEND_API_KEY } = env
 ```
 
-Do not hand-write an `env.d.ts` shim: the deploy pipeline's `generate-worker-types`
-(or the standalone `@nextnode-solutions/worker-types` package) writes a committed
-`worker-configuration.d.ts` into the app package root that already types
-`import { env } from 'cloudflare:workers'` from the SAME wrangler config the deploy
-uses (secret NAMES from `nextnode.toml [deploy].secrets` included). Regenerate it on
-config change (`worker-types gen --config <app>/nextnode.toml`) and use its
-`Env` interface to type `buildSentryOptions`. Changing or authoring tests to match
+Use generated bindings for `import { env } from 'cloudflare:workers'`. Secret
+names are not generated from TOML. Follow "Generated Worker types" in
+`~/.pi/agent/skills/nextnode-deploy/cloudflare-workers.md` for generation and the
+app-owned `Cloudflare.Env` secret declaration. Use `Cloudflare.Env` to type
+`buildSentryOptions`. Changing or authoring tests to match
 (e.g. re-stubbing `locals.runtime.env` as `vi.mock('cloudflare:workers', ...)`) only
 under an explicit test authorization in the current request.
 

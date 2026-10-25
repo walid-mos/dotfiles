@@ -80,9 +80,10 @@ function wireTimingCollector(
 		)
 		store(closed)
 	})
-	pi.on('before_agent_start', event =>
-		collector.onBeforeAgentStart(event.prompt, nowMs()),
-	)
+	pi.on('before_agent_start', event => {
+		if (event.messageType !== 'user') return
+		collector.onBeforeAgentStart(event.prompt, nowMs())
+	})
 	pi.on('cache_warming_decision', event =>
 		collector.onCacheWarmingDecision(event),
 	)

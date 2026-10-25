@@ -43,7 +43,7 @@
 				"TFE_TOKEN",
 				"-e",
 				"ENABLE_TF_OPERATIONS",
-				"local/terraform-mcp-server:1.3.0",
+				"hashicorp/terraform-mcp-server:1.3.0",
 				"stdio",
 				"--toolsets=registry,terraform"
 			],

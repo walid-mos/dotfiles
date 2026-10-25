@@ -11,6 +11,7 @@
  * All of these minters write the human-readable text themselves, so the
  * cards re-frame it verbatim; an unreadable mint keeps Pi's default box
  * rather than a guess. */
+import { expandableCard } from '#lib/ui/expandable-card.ts'
 import { NoticeCard, messageBody, recordObject } from '#lib/ui/message-card.ts'
 
 import type {
@@ -204,7 +205,10 @@ function registerNoticeCard(
 	const render: MessageRenderer<unknown> = (message, { expanded }) => {
 		const spec = view(message)
 		if (!spec) return undefined
-		return new NoticeCard(spec, expanded)
+		return expandableCard(
+			{ expanded },
+			options => new NoticeCard(spec, options.expanded),
+		)
 	}
 	pi.registerMessageRenderer<unknown>(customType, render)
 }

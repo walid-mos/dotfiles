@@ -187,4 +187,11 @@ infisical-keyring
 
 # terraform: CLI checkpoint cache
 .terraform.d/
+.config/zsh/env/aws.zsh
+.config/aws
+.config/exercism
+.claude.json.backup
+.thumbnails
+.pi/agent/certs
+.pi/agent/trust.json
 

@@ -52,6 +52,7 @@ try {
 ### "Outbound Worker Not Intercepting Calls"
 
 **Cause:** Outbound Workers don't intercept Durable Object or mTLS binding fetch  
+**Solution:** Plan egress control accordingly; not all fetch calls are intercepted
 
 ### "TCP Socket Connection Failed"
 

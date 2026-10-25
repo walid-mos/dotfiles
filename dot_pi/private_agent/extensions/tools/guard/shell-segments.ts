@@ -80,10 +80,24 @@ function isValidationRunner(words: string[]): boolean {
 		return false
 	if (words.includes('oxfmt') && !words.includes('--check')) return false
 	return words.some(word =>
-		/^(?:test(?::[\w-]+)?|vitest|type-?check|lint(?::[\w-]+)?|format:check|build|tsc|oxlint|oxfmt)$/.test(
+		/^(?:test(?::[\w-]+)?|vitest|type-?check|check(?::[\w-]+)?|lint(?::[\w-]+)?|format:check|build|tsc|oxlint|oxfmt)$/.test(
 			word,
 		),
 	)
+}
+
+const LOOSE_OPERATOR = /\|\||&&|[|;\n]/
+const REDIRECTION = /(?:\d?>>?|&>>?|<)\s*\S+/g
+
+/** Whether any stage names a validation task, read loosely so redirected or unsupported shapes still count. */
+export function namesValidation(command: string): boolean {
+	return command
+		.split(LOOSE_OPERATOR)
+		.some(segment =>
+			isValidationRunner(
+				segment.replaceAll(REDIRECTION, ' ').trim().split(/\s+/),
+			),
+		)
 }
 
 export function validationCommand(command: string):

@@ -10,5 +10,6 @@ Use the actual error, model identifier, integration, and installed versions to c
 | Inference error or retry decision | [Error codes and HTTP statuses](https://developers.cloudflare.com/workers-ai/platform/errors/) |
 | Throttling or concurrency planning | [Current limits](https://developers.cloudflare.com/workers-ai/platform/limits/) |
 | Usage or cost estimate | [Current pricing](https://developers.cloudflare.com/workers-ai/platform/pricing/); use the selected model's billing units and expected workload |
+| Old SDK examples fail | [Native binding](https://developers.cloudflare.com/workers-ai/configuration/bindings/), [AI SDK](https://developers.cloudflare.com/workers-ai/configuration/ai-sdk/), or [OpenAI compatibility](https://developers.cloudflare.com/workers-ai/configuration/open-ai-compatibility/), according to the integration |
 
 Do not copy an error-code mapping, per-request neuron estimate, or context-window range from another model or an older example. Measure latency for the intended workload rather than promising a fixed cold-start or inference time.

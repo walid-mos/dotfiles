@@ -8,7 +8,6 @@
 import { writeCheckpointBudget } from '#lib/context-budget/budget-writer.ts'
 import { BUDGET_SAVED_EVENT } from '#lib/context-budget/events.ts'
 import {
-	checkpointWindowCap,
 	minimumCheckpointCeiling,
 	readCheckpointSettings,
 } from '#lib/context-budget/model.ts'
@@ -27,7 +26,7 @@ function limitText(ctx: ExtensionContext): string {
 	const configured = readCheckpointSettings().maxContextTokens
 	const effective = Math.min(
 		configured,
-		checkpointWindowCap(ctx.model?.contextWindow),
+		ctx.model?.contextWindow ?? Number.POSITIVE_INFINITY,
 	)
 	return `${ceilingLabel(configured)} configured · ${ceilingLabel(effective)} in use`
 }
@@ -69,7 +68,8 @@ async function openLimitPicker(
 				minimumTokens: minimumCheckpointCeiling(
 					settings.keepRecentTokens,
 				),
-				modelCapTokens: checkpointWindowCap(ctx.model?.contextWindow),
+				modelCapTokens:
+					ctx.model?.contextWindow ?? Number.POSITIVE_INFINITY,
 				height: () => tui.terminal.rows,
 				repaint: () => tui.requestRender(),
 				done,

@@ -5,12 +5,11 @@
  * module state belongs to this extension's own module registry. */
 import {
 	checkpointSettingsVersion,
-	checkpointWindowCap,
 	readCheckpointSettings,
 } from '#lib/context-budget/model.ts'
 
 export type FooterBudget = {
-	/** Effective ceiling: the configured limit under the model-window cap. */
+	/** Effective ceiling: the configured limit clamped to the model window. */
 	limit: number
 	/** The same model window the usage gauge is measured against. */
 	window: number
@@ -53,7 +52,7 @@ export function footerBudget(
 	)
 		return undefined
 	return {
-		limit: Math.min(limit, checkpointWindowCap(contextWindow)),
+		limit: Math.min(limit, contextWindow),
 		window: contextWindow,
 	}
 }

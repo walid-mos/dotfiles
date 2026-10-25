@@ -1,254 +1,93 @@
-# Pipeline Architecture
+# GitHub Actions pipelines
 
-> Extends the CLI commands table in `SKILL.md` — read that section first; its core rules are not restated here.
+Extends the reusable-workflow reference in `SKILL.md`. Read the current workflows under `NextNodeSolutions/core/.github/workflows/` and `.github/actions/setup/action.yml` before editing callers.
 
-## Workflows
+## Current entry points
 
-Five reusable workflows + standalone ops workflows.
+| Workflow | Invocation | Purpose |
+|---|---|---|
+| `deploy.yml` | `workflow_call` | Deploy `app` or `static` projects to Workers |
+| `plan-diff.yml` | `workflow_call` | Report Terraform changes on pull requests |
+| `publish-package.yml` | `workflow_call`, core only | Publish core's own packages from main |
+| `teardown.yml` | `workflow_dispatch` in core | Delete a selected project's deployed resources |
+| `seed-vault.yml` | `workflow_dispatch` in core | Transitional one-shot copy of GitHub secrets into the vault |
 
-**Reusable (called via `workflow_call` from caller repos)**:
-- `publish-package.yml` - `type=package`
-- `deploy.yml` - `type=app` (Hetzner VPS)
-- `deploy-static.yml` - `type=static` (Cloudflare Pages)
-- `deploy-workers.yml` - `type=app` with `target = "cloudflare-workers"` (Cloudflare Workers). See [cloudflare-workers.md](cloudflare-workers.md).
-- `plan-workers-diff.yml` - `workflow_call`, PR-only Terraform plan diff for the Workers target (below).
+## Deploy caller
 
-**Standalone ops workflows (live in `NextNodeSolutions/core/.github/workflows/`)**:
-- `build-golden-image.yml` - `workflow_dispatch`. Triggers the `build-golden-image` CLI command. See [golden-image.md](golden-image.md).
-- `teardown-vps.yml` - `workflow_dispatch`. Tears down a Hetzner VPS (server + DNS + state).
-- `teardown-pages.yml` - `workflow_dispatch`. Tears down a Cloudflare Pages project (project + domains + R2 if any).
-- `teardown-workers.yml` - `workflow_dispatch`. Tears down a Cloudflare Workers project (Worker scripts via wrangler + `terraform destroy`; HCP workspace kept). See [cloudflare-workers.md](cloudflare-workers.md).
-- `prune-postgres-backups.yml` - `schedule` (daily 04:17 UTC) + `workflow_dispatch`. GFS prune of every project's `<project>-backups-dump` R2 bucket, enumerating the fleet from the R2 state files (wal-g manages its own bucket's retention independently). Runs the `prune-backups` CLI command.
-- `reconcile-tailnet-acl.yml` - `workflow_dispatch`. Ensures the one tailnet ACL grant the monitoring stack needs is present in the live Tailscale policy. Idempotent and non-fatal. Runs the `reconcile-tailnet-acl` CLI command. See [observability-service.md](observability-service.md).
-- `worker-types.yml` - package CI for `@nextnode-solutions/worker-types` (push/PR on `packages/worker-types/**`).
-
-Callers choose the deploy workflow: `type` selects package/app/static, and an `app` project on `target = "cloudflare-workers"` points at `deploy-workers.yml` instead of `deploy.yml` (no runtime routing in YAML):
-
-### `publish-package.yml` (type=package)
-
-```
-plan -> quality (matrix) -> publish (semantic-release)
-```
-
-- Publish only runs on `main` branch and when `plan.outputs.publish == 'true'`
-- Uses `semantic-release` via `pnpm exec` (plugins come from `@nextnode-solutions/standards` deps)
-- After publish: runs `publish-result` command to parse output and write summary
-- Requires `NEXTNODE_APP_ID`, `NEXTNODE_APP_PRIVATE_KEY`, `NPM_TOKEN` secrets
-- Does NOT pass `PIPELINE_ENVIRONMENT` - the CLI auto-resolves environment to `'none'` when `type=package`
-
-### `deploy.yml` (type=app - Hetzner VPS)
-
-```
-plan ---+--- check-secrets
-        |
-        +--- quality (matrix with prod-gate if prod)
-        |
-        +--- provision (needs quality + check-secrets) --- dns (conditional, needs provision)
-        |
-        +--- build-image (needs quality + check-secrets + image_source == "build")
-        |
-        +--- detect-migrations (job; runs the detect-migration-changes command, outputs migrations_changed)
-        |
-        +--- migrate (needs provision + build-image + detect-migrations + has_postgres == "true" + migrations_changed == "true")
-        |
-        \--- deploy (needs provision + build-image + migrate)
-```
-
-Inputs:
-
-| Input | Type | Default | Description |
-|-------|------|---------|-------------|
-| `environment` | string | required | `development` or `production` |
-| `config_file` | string | `nextnode.toml` | Path to nextnode.toml in the caller repo |
-| `dev_workflow_file` | string | `deploy-dev.yml` | Filename of dev workflow (for prod gate) |
-
-Jobs:
-
-| Job | Depends on | What it does |
-|-----|-----------|-------------|
-| `plan` | -- | Parse config, output quality matrix + project_name + has_prod_gate + has_domain + has_postgres + image_source + upstream_image_refs |
-| `check-secrets` | plan | `node src/index.ts check-secrets` — fail the pipeline in seconds if a `[deploy].secrets` name is missing from GitHub (reports ALL missing names at once) |
-| `quality` | plan | Run lint/test/prod-gate matrix |
-| `provision` | plan + quality + check-secrets | `node src/index.ts provision` - ensure Hetzner VPS, Tailscale join, firewall, convergence (Caddy/Vector) |
-| `dns` | plan + quality + provision | `node src/index.ts dns` - reconcile Cloudflare DNS A records. **Only runs if `has_domain == 'true'`** |
-| `build-image` | plan + quality + check-secrets | `compute-image-ref` CLI renders `docker-bake.json` from `nextnode.toml` at the workspace root and emits `image_refs` (JSON Record) + `bake_file` (its basename). A single `docker/bake-action` (`source: .`, `files: <bake_file>`) runs all `build` targets in one shot, pushes to GHCR, uses a two-layer cache: a fast ephemeral GHA scope (listed first) + a durable registry scope (`type=registry,ref=ghcr.io/<repo>-<service>:buildcache`, `mode=max,ignore-error=true`) that survives GHA eviction and keeps layers warm across runs. **Skipped when `image_source == "upstream"`** — plan's `upstream_image_refs` carries the refs instead. |
-| `detect-migrations` | -- | Job running `node src/index.ts detect-migration-changes` — compares the `base..head` git range (`PIPELINE_BASE_SHA` = `github.event.before`) against `migrations_folder` (default `drizzle`) and emits `migrations_changed`. **Fails safe to `true`** on an undiffable range (first push, manual dispatch, shallow-clone git failure) so a needed migration is never skipped. |
-| `migrate` | plan + provision + build-image + detect-migrations | `node src/index.ts migrate-remote` — stage rollout + run `migrate_command` in an ephemeral container on the project network. No pre-migrate snapshot (wal-g continuous archiving covers it). **Only runs if `has_postgres == 'true'` AND `migrations_changed == 'true'`.** Receives `IMAGE_REFS` (JSON Record) — built path from `build-image`, upstream path from plan. |
-| `deploy` | plan + provision + build-image + migrate | `node src/index.ts deploy` - SSH to VPS, render per-service compose + `.env.<name>` files, docker compose pull, bring postgres up (phase 1), rotate user services (phase 2), reload Caddy. |
-
-Permissions (declared at workflow level): `contents: read`, `actions: read`, `packages: write` (GHCR push).
-
-Infra secrets live at the **GitHub org level** on `NextNodeSolutions` — callers only need `secrets: inherit`, no per-repo configuration. Do NOT maintain a secret list here: query it live and read the consuming workflow to know what each one is for. See [github-org.md](github-org.md) for the full layer model (org / repo-env / repo), retrieval commands, and the `nextnode-ci` GitHub App that mints `GH_TOKEN`.
-
-```sh
-gh secret list --org NextNodeSolutions
-```
-
-**Tailscale**: Both `provision` and `deploy` jobs connect the CI runner to the tailnet via `tailscale/github-action@v4` with OAuth credentials. SSH to the VPS goes through the tailnet IP - never the public IP.
-
-**Image ref flow**: build path — `compute-image-ref` renders `docker-bake.json` from `nextnode.toml` (`renderBakeFile` in `domain/deploy/bake-file.ts`), writes it at the workspace root (`writeBakeFile` in `adapters/build-output/bake-file.ts`), and emits `image_refs` (JSON Record) + `bake_file` to `GITHUB_OUTPUT`; `docker/bake-action` consumes it with `source: .` + `files: <bake_file>`. Upstream path — `build-image` is skipped; `plan`'s `upstream_image_refs` is fed as `IMAGE_REFS`. Both paths produce the SAME JSON shape, consumed by `parseImageRefsEnv`. Projects never reference `ghcr.io/…` in their own code.
-
-**DNS reconciliation**: The `dns` job runs after provision and creates/updates Cloudflare A records — **one A record per routed service** (each `[deploy.services.<name>]` that declares a `url`). Internal projects point to the Tailscale CGNAT IP (never proxied). Public projects point to the VPS public IP: proxied in production only for the apex + one-label subdomains Universal SSL covers, grey-clouded (DNS-only) for two+ label subdomains so Caddy's origin cert serves them, unproxied in development. See [hetzner-vps.md](hetzner-vps.md).
-
-**Multi-service**: N services per project, with strict cross-service rules and per-service runtime primitives — see [multi-service.md](multi-service.md).
-
-See [hetzner-caller.md](hetzner-caller.md) for the caller-side project convention (Dockerfile, `nextnode.toml` build shape, infra-owned runtime concerns).
-
-### `deploy-static.yml` (type=static - Cloudflare Pages)
-
-```
-plan ---+--- check-secrets
-        +--- quality (matrix with prod-gate if prod)
-        +--- provision (Pages project; needs check-secrets)
-        +--- dns (CNAME reconciliation, if domain)
-        \--- deploy (build -> seo-guard -> wrangler pages deploy)
-```
-
-Inputs:
-
-| Input | Type | Default | Description |
-|-------|------|---------|-------------|
-| `environment` | string | required | `development` or `production` |
-| `config_file` | string | `nextnode.toml` | Path to nextnode.toml in the calling repo |
-| `dev_workflow_file` | string | `deploy-dev.yml` | Filename of the dev workflow (for prod gate) |
-
-Jobs:
-
-| Job | Depends on | What it does |
-|-----|-----------|-------------|
-| `plan` | -- | Parse config, output matrix + project name + build_directory |
-| `check-secrets` | plan | `node src/index.ts check-secrets` — fail fast on missing `[deploy].secrets` |
-| `quality` | plan | Run lint/test/prod-gate matrix |
-| `provision` | plan + check-secrets | Create CF Pages project, attach domains, sync env vars |
-| `dns` | plan + provision | Reconcile Cloudflare DNS CNAMEs (only if domain configured) |
-| `deploy` | plan + quality + provision | Deploy command -> pnpm build -> SEO guard -> wrangler pages deploy |
-
-Plan outputs: see the full table in [config.md](config.md) → "Plan outputs".
-
-### `deploy-workers.yml` (type=app + `target = "cloudflare-workers"` - Cloudflare Workers)
-
-```
-plan ---+--- check-secrets
-        |
-        +--- quality (matrix with prod-gate folded in when producing prod)
-        |
-        +--- provision (terraform apply; needs plan + quality + check-secrets)
-        |
-        +--- migrate (needs plan + provision; if has_d1 — every deploy, wrangler apply is idempotent)
-        |
-        \--- deploy (needs plan + quality + provision + migrate)
-```
-
-Inputs: `environment` (required), `config_file` (default `nextnode.toml`), `dev_workflow_file` (default `deploy-dev.yml`) — the same contract as the other two.
-
-Jobs:
-
-| Job | Depends on | What it does |
-|-----|-----------|-------------|
-| `plan` | -- | Parse config, output `quality_matrix` + `project_name` + `has_prod_gate` + `has_domain` + `has_d1` + `package_dir` |
-| `check-secrets` | plan | `node src/index.ts check-secrets` — fail fast on missing `[deploy].secrets` |
-| `quality` | plan | Run lint/test/**prod-gate** matrix — the prod gate is a matrix task (via `has_prod_gate` + `dev_workflow_file`), NOT a separate job |
-| `provision` | plan + quality + check-secrets | `node src/index.ts provision` — ensure the HCP workspace, `terraform apply` (D1/KV/Queues/R2 + DNS + Redirect Rules), map outputs → ServiceEnv. DNS is absorbed here — **no standalone `dns` job**. |
-| `migrate` | plan + provision | `node src/index.ts migrate-remote` (the shared command; the Workers target dispatches it to `wrangler d1 migrations apply <db> --remote`) between provision and deploy. Runs on **every** deploy when `has_d1 == 'true'` — idempotent, no git-diff gating (the deployed D1 is the source of truth, not the push's diff). |
-| `deploy` | plan + quality + provision + migrate | `node src/index.ts deploy` — build + inject SEO guard per service + generate the ephemeral `wrangler.json` + `wrangler deploy` (in `depends_on` order) + `/healthz` smoke check, all in one CLI step. **No separate `seo-guard` step.** |
-
-**No `build-image` job** (no Docker build), **no `dns` job** (folded into provision), **no `prod-gate` job** (folded into `quality`), **no `detect-migrations` job** (D1 migrations run every deploy — `wrangler d1 migrations apply --remote` is idempotent). Terraform is set up per job with `hashicorp/setup-terraform@v3` (`terraform_version: '~> 1.9'`, `terraform_wrapper: false`); `wrangler` runs via `npx --yes` from the app's devDependency.
-
-CLI env vars: the Cloudflare subset + `TF_TOKEN_app_terraform_io` (from the `TF_CLOUD_TOKEN` org secret), `ALL_SECRETS`, `GH_TOKEN`. **No Hetzner/SSH/Tailscale vars.** Full table in [config.md](config.md) → "Cloudflare Workers commands". See [cloudflare-workers.md](cloudflare-workers.md) for the caller convention (no Dockerfile, no committed wrangler config).
-
-### `teardown-workers.yml` (`workflow_dispatch`)
-
-Parity with `teardown-vps.yml` / `teardown-pages.yml`. Inputs: `repository` (target `owner/repo`), `environment` (choice), `confirm` (type the project name → `TEARDOWN_CONFIRM`), `wipe_data` (boolean → `TEARDOWN_WIPE_DATA`, **required when D1 or R2 is declared**), `config_file`. Sparse-checks-out the target repo, runs `teardown-guard` then `teardown` — deletes every Worker script via `wrangler delete --force`, then `terraform destroy`; the HCP workspace is kept so state history survives.
-
-### `plan-workers-diff.yml` (`workflow_call`)
-
-PR-only Terraform diff for the Workers target. Inputs `environment` + `config_file`; permission `pull-requests: write`. The caller triggers it on `nextnode.toml` changes and it runs `node src/index.ts plan-infra` (`terraform plan -detailed-exitcode`), commenting the create/update/delete diff on the PR (`PIPELINE_PR_NUMBER` + `GH_TOKEN`) so a reviewer sees the infra change before merge. The plan is env-specific (workspace `<project>-<env>`).
+Development conventionally runs on a push to main. Production is manually dispatched. Both call the same reusable workflow:
 
 ```yaml
-# caller-repo/.github/workflows/plan-infra.yml
+name: Deploy development
+
 on:
-  pull_request:
-    paths: ['**/nextnode.toml']
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
 jobs:
-  plan-infra:
-    uses: NextNodeSolutions/core/.github/workflows/plan-workers-diff.yml@main
+  deploy:
+    uses: NextNodeSolutions/core/.github/workflows/deploy.yml@main
     with:
       environment: development
-      config_file: apps/web/nextnode.toml
-    secrets: inherit
 ```
 
-## The `environment` input
+The caller grants `id-token: write` so the called jobs can log in to the vault, and declares every permission so it keeps working if the organization default token becomes read-only. It passes no `secrets: inherit` and no `secrets:` block. A caller workflow with `secrets.<NAME>` is a leftover of the migration.
 
-`deploy.yml`, `deploy-static.yml`, and `deploy-workers.yml` are all generic - the caller invokes one twice (once per env) from two thin caller-repo workflows:
+The inputs are `environment`, required as `development` or `production`, `config_file`, default `nextnode.toml`, and `dev_workflow_file`, default `deploy-dev.yml`. Match the latter to the caller's development workflow filename for production gating. Monorepo callers set `config_file` to their package's TOML and use path filters appropriate to its dependencies.
 
-```yaml
-# caller-repo/.github/workflows/deploy-dev.yml
-jobs:
-  pipeline:
-    uses: NextNodeSolutions/core/.github/workflows/deploy-static.yml@main
-    with:
-      environment: development
-    secrets: inherit
+Deployable projects require a valid `PIPELINE_ENVIRONMENT`. Packages resolve to `none` without this variable.
 
-# caller-repo/.github/workflows/deploy-prod.yml
-jobs:
-  pipeline:
-    uses: NextNodeSolutions/core/.github/workflows/deploy-static.yml@main
-    with:
-      environment: production
-    secrets: inherit
+## Deployment order
+
+```mermaid
+flowchart TD
+    plan --> quality
+    plan --> build[Build, no credential]
+    quality --> provision[Provision, platform secrets]
+    provision --> migrate[D1 and PlanetScale migrations when declared]
+    provision --> deploy[Deploy and sync Worker secrets]
+    migrate --> deploy
+    quality --> deploy
+    build --> deploy
 ```
 
-The CI passes the workflow's `environment` input to CLI commands via `PIPELINE_ENVIRONMENT` env var.
+- `plan` emits quality tasks, `has_migrations`, `has_planetscale`, `package_dir` and `config_name`. `has_migrations` is true when D1 or PlanetScale is declared, including implied PlanetScale.
+- `quality` runs lint, existing tests, optional D1 `check_command` and the production gate. Project scripts run without a core checkout. Only infrastructure tasks set the setup action's `infra` input.
+- `build` installs the caller's dependencies and runs `pnpm build` at the workspace root, without `id-token: write` and without any secret. It uploads the package directory, minus `node_modules` and `.git`, as an artifact.
+- `provision` loads platform secrets only, creates backing resources and applies Terraform. It never touches Worker secrets.
+- `migrate` runs on every deployment with `has_migrations = true`. There is no git-diff migration detector. D1 runs before PlanetScale when both are declared. A PlanetScale migration installs the caller's dependencies and runs its migrate command, the one place caller code runs with vault access.
+- `deploy` tolerates a skipped migration job, but not failed prerequisites. It downloads the build into the runner's temporary directory, outside the checkout, installs no caller dependency, loads platform and repository secrets, deploys each Worker and syncs its secrets. The Worker bundle must be self-contained.
 
-## The `dev_workflow_file` input
+Every job granted `id-token: write` runs core's CLI only, PlanetScale migration excepted. Never add a caller script, build or dependency install to such a job. The secret flow lives in [deploy-env.md](deploy-env.md).
 
-Multi-app repos with custom workflow names (e.g. `landing-dev.yml` instead of `deploy-dev.yml`) pass this input so the prod gate can find the correct dev run:
+Deployment is serialized by config path and environment with cancellation disabled. There is no Docker build, GHCR push or separate DNS job. SEO files are injected inside deployment before asset upload.
 
-```yaml
-# caller-repo/.github/workflows/landing-prod.yml
-jobs:
-  pipeline:
-    uses: NextNodeSolutions/core/.github/workflows/deploy-static.yml@main
-    with:
-      environment: production
-      dev_workflow_file: landing-dev.yml
-    secrets: inherit
-```
+The quality matrix uses `[scripts].lint` and `[scripts].test`. A false value omits that task. With no tasks, plan emits a single skip task rather than an empty matrix. `project.filter` changes project task commands to filtered Turbo commands. It does not filter the workflow's unconditional root `pnpm build`.
 
-Passed as `DEV_WORKFLOW_FILE` env var in the quality step. The CLI prepends `.github/workflows/` to build the full path for matching against the GitHub API response.
+## Production gate
 
-## Quality matrix
+`cli/pipeline/prod-gate.command.ts` fetches development workflow runs for the current commit and evaluates them through `domain/pipeline/prod-gate.ts`. A production quality matrix includes this task only when `environment.development` is enabled. Read the implementation before changing its allowed statuses or commit matching. Disabling the field removes the gate, it does not forbid development deploys.
 
-Generated by `buildQualityMatrix(scripts, project, pipeline)`:
+## Pull-request infrastructure plan
 
-| Task | Condition | Command |
-| ---- | --------- | ------- |
-| `lint` | `scripts.lint` is not false | `pnpm {lint}` or `pnpm turbo run {lint} --filter={filter}` |
-| `test` | `scripts.test` is not false | `pnpm {test}` or `pnpm turbo run {test} --filter={filter}` |
-| `prod-gate` | `environment=production` AND `developmentEnabled=true` | `cd .infra/packages/infrastructure && node src/index.ts prod-gate` |
+A caller uses `NextNodeSolutions/core/.github/workflows/plan-diff.yml@main` with `environment` and optional `config_file`. It grants `contents: read`, `pull-requests: write` and `id-token: write`, with no `secrets: inherit`. Trigger on the project's TOML and affected deployment configuration. The job loads platform secrets only.
 
-Empty matrix -> skip sentinel (`{ id: 'skip', cmd: 'echo skipped' }`).
+The CLI writes a PR comment when `PIPELINE_PR_NUMBER` is set, otherwise a step summary. Terraform detailed exit status distinguishes changes from failure. `plan-infra` does not apply the resource plan, but initializes HCP-backed Terraform state and can write a PR comment. Treat it as a CI infrastructure operation, not a local configuration validator.
 
-## prod-gate
+## Publishing
 
-- Calls GitHub API `GET /repos/{repo}/actions/runs?head_sha={sha}`
-- Looks for a run matching `.github/workflows/{DEV_WORKFLOW_FILE}` with `status=completed` + `conclusion=success`
-- `DEV_WORKFLOW_FILE` defaults to `deploy-dev.yml` when not set
-- When present in the quality matrix, the quality job checks out `.infra` too via `infra: ${{ needs.plan.outputs.has_prod_gate }}`
-- Requires `actions: read` permission and `GH_TOKEN` env var
+`publish-package.yml` accepts `config_file`. Plan emits `publish = true` when the package table is present. The publish job additionally requires the `NextNodeSolutions/core` repository, main and successful quality jobs. Any other caller gets plan and quality, never publication: the release tooling is caller code running with vault access. It loads platform secrets, runs a filtered Turbo build, generates a GitHub App token and invokes semantic-release from `packages/<project.name>`.
 
-## SEO guard step
+Keep packages at that path when using this workflow. Its package-directory convention is not derived from `config_file`. Read [kickstart-package.md](kickstart-package.md) before adding a package caller.
 
-Runs in the deploy job between `pnpm build` and `wrangler pages deploy` (working dir `.infra/packages/infrastructure`, env: `PIPELINE_CONFIG_FILE`, `PIPELINE_ENVIRONMENT`, `BUILD_DIRECTORY`). Production: no-op. Development: injects `_headers` (X-Robots-Tag: noindex) and `robots.txt` (Disallow: /).
+Tag clearing runs only in the disposable publish runner. It is not an instruction for a developer checkout. `publish-result` runs even when publication fails and writes the resulting status.
 
-## DNS reconciliation (dns job)
+## Teardown
 
-Runs only when `has_domain == 'true'`. Reconciles CNAMEs (creates or updates, never deletes), zone lookup cached per root domain:
-- Production: `{domain}` + `redirect_domains` -> `{project}.pages.dev` (proxied, TTL=1)
-- Development: `dev.{domain}` -> `{project}-dev.pages.dev` (unproxied, TTL=300)
+Dispatch `teardown.yml` in core, where it loads platform secrets through the vault, with `repository`, `environment`, exact project-name `confirm`, optional `config_file` and `wipe_data` when required. Read [multi-service.md](multi-service.md) before dispatching. Teardown is destructive and separate from deployment.
 
-## Cloudflare Pages composite action
-
-`.github/actions/deploy-cloudflare-pages/action.yml` wraps `npx wrangler pages deploy`. Required inputs: `directory`, `project-name`, `account-id`, `api-token`. Always deploys to `--branch=main` (dev and prod both treat main as production branch).
+The workflow's help text still names only D1 and R2. The code also guards KV. Use `domain/cloudflare/workers/teardown.ts` as the authority.

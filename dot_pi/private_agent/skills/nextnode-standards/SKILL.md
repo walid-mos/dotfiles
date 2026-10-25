@@ -1,114 +1,42 @@
 ---
 name: nextnode-standards
 description: >-
-  Use when configuring NextNode tooling or pull-request CI.
-  Shared @nextnode-solutions/standards configs for oxlint, oxfmt, TypeScript,
-  tsdown, Vitest, commitlint, semantic-release and Tailwind, plus the common
-  CI convention. Also load when the package appears in package.json.
+  NextNode project conventions, compliance audits, shared tooling and PR CI.
+  Load in NextNodeSolutions repositories, when any @nextnode-solutions/*
+  dependency is present, or for NextNode setup, audits, tooling changes,
+  integrations or new environment variables.
 ---
 
-# @nextnode-solutions/standards
-
-**Source**: @nextnode/core @ 649362a (standards v1.25.0; verified 2026-09-24 against packages/standards)
-
-Centralized development standards for all NextNode projects. This is a **config-only** package - no runtime code, no build step. It exports configuration files that projects extend.
-
-## Arguments
-
-- No argument: full setup guide
-- `oxlint`: linting config details
-- `typescript`: TypeScript config details
-- `tsdown`: bundler config details (for publishable packages)
-- `vitest`: test config details
-- `ci`: common pull-request CI, naming and verification
-- `configs`: smaller configs (commitlint, lint-staged, oxfmt, Tailwind, editorconfig, npmrc)
+# NextNode project standards
 
 ## Instructions
 
-### Phase 1: Read the project
+1. Read the project's agent instructions, package manifests, scripts and affected configs.
+2. For setup or an audit, read [audit.md](audit.md) and [setup.md](setup.md). Check the installed package versions, not dependency ranges.
+3. For a specific tooling change, read its reference below before proposing a fix.
+4. During project setup or when an integration adds or changes an environment variable, run the project secret workflow in `~/.pi/agent/skills/nextnode-deploy/github-org.md`. Reconcile required names and populate authorized missing secrets before calling the integration ready. Audits run it read-only and report gaps.
+5. For deployment or infrastructure work, load `~/.pi/agent/skills/nextnode-deploy/SKILL.md`. PR quality checks belong here.
 
-1. Read `package.json` - check if `@nextnode-solutions/standards` is installed and which configs are in use
-2. Read existing config files (`oxlint.config.ts`, `oxfmt.config.ts`, `tsconfig.json`, `vitest.config.ts`, etc.)
-3. Identify gaps - missing or misconfigured standards
+Every NextNode project uses `@nextnode-solutions/standards`. Use pnpm, ESM and Node >=24. Resolve the exact pnpm version from the core monorepo's `packageManager` field.
 
-### Phase 2: Provide guidance
+Infisical is required for project secrets. Read "Secrets and local environment" in [setup.md](setup.md) for its workflow and local setup pointers.
 
-Based on the argument, explain the specific config. If no argument, do a full audit of the project's standards compliance.
+Use `Temporal` from `@js-temporal/polyfill` for new date/time code. Read "Date handling" in [audit.md](audit.md) before changing it.
 
-Use the relevant sub-file for details:
-- [oxlint.md](oxlint.md) - linting rules and overrides
-- [typescript.md](typescript.md) - TypeScript configs (library, Next.js, Astro)
-- [tsdown.md](tsdown.md) - bundler config base for publishable packages
-- [vitest.md](vitest.md) - test configs and all export paths (backend, frontend, astro, vite-plugin)
-- [configs.md](configs.md) - commitlint, lint-staged, oxfmt, Tailwind theme, editorconfig, .npmrc, semantic-release
-- [ci.md](ci.md) - common PR CI; read before adding or renaming the workflow or its required check
+## References
 
----
+| Read when | File |
+|---|---|
+| Setting up a project or checking required configs and scripts | [setup.md](setup.md) |
+| Adding an integration, reconciling required secrets, setting up local env or secret types | [setup.md](setup.md), section "Secrets and local environment" |
+| Auditing a project, checking package freshness or changing date/time code | [audit.md](audit.md) |
+| Configuring oxlint rules or overrides | [oxlint.md](oxlint.md) |
+| Configuring TypeScript or choosing the compiler for a framework | [typescript.md](typescript.md) |
+| Bundling a publishable package | [tsdown.md](tsdown.md) |
+| Configuring an existing test suite | [vitest.md](vitest.md) |
+| Configuring formatting, commits, releases, Tailwind, editorconfig or npmrc | [configs.md](configs.md) |
+| Applying repository rules on a newly created repository | [scripts/apply-repo-rules.sh](scripts/apply-repo-rules.sh) |
+| Adding or renaming PR CI or its required check | [ci.md](ci.md), [templates/parallel-ci.yml](templates/parallel-ci.yml) |
+| Updating this skill against upstream | [SOURCE.md](SOURCE.md), [audit-source.md](audit-source.md) |
 
-## Installation
-
-```bash
-# Required peer dependencies
-pnpm add -D @nextnode-solutions/standards oxlint oxfmt
-
-# Optional peer dependencies (install only what you use)
-pnpm add -D vitest                                              # If you have tests
-pnpm add -D oxlint-tsgolint                                     # If you want type-aware oxlint rules (--type-aware)
-pnpm add -D @commitlint/cli @commitlint/config-conventional     # If you want commit linting
-pnpm add -D tailwindcss                                         # If you use Tailwind
-```
-
----
-
-## Complete project setup checklist
-
-For a typical NextNode project, you need these files:
-
-```
-oxlint.config.ts          # extends standards/oxlint (requires oxlint >=1.62.0)
-oxfmt.config.ts           # extends standards/oxfmt (requires oxfmt >=0.43.0)
-tsconfig.json             # extends standards/typescript/{library|nextjs|astro}
-tsdown.config.ts          # imports standards/tsdown (publishable packages)
-vitest.config.ts          # imports standards/vitest/{backend|frontend}
-commitlint.config.js      # imports standards/commitlint
-lint-staged.config.js     # imports standards/lint-staged
-.releaserc.json           # extends standards/semantic-release (for publishable packages)
-.editorconfig             # copied from standards
-.npmrc                    # copied from standards
-.github/workflows/ci.yml  # common pull-request CI; see ci.md
-```
-
-And these package.json fields:
-
-```json
-{
-  "packageManager": "pnpm@<current-pnpm-version>",
-  "scripts": {
-    "lint": "oxlint",
-    "format": "oxfmt --write .",
-    "format:check": "oxfmt --check .",
-    "test": "vitest run",
-    "type-check": "tsc --noEmit"
-  }
-}
-```
-
-**`packageManager` is required** - The NextNode CI pipeline (`pnpm/action-setup`) reads the pnpm version from this field. Without it, the pipeline will fail. Always pin to the exact version in use in the monorepo (check the root `package.json`) - never a range or major-only.
-
-## Pull-request CI
-
-Use an agent-neutral PR workflow across NextNode projects, separate from deployment and human approval. Read [ci.md](ci.md) before creating or renaming it; naming, gates and verification have one home there. A standard convention does not authorize a fleet-wide rollout.
-
-## Rules
-
-| FORBIDDEN | MANDATORY |
-|-----------|-----------|
-| Weakening core oxlint rules (`no-explicit-any`, `eqeqeq`, `strict`, etc.) | Add project-specific overrides only on top of the base config |
-| Hand-formatting against oxfmt (spaces, semicolons, double quotes, manual import order) | Let oxfmt enforce: tabs, no semis, single quotes (JSX double), auto import sort |
-| Inline type imports: `import { type Foo }` | Separate type imports: `import type { Foo }` |
-| Skipping `astro check` on Astro projects | Run both `pnpm run lint` (oxlint) AND `pnpm astro check` |
-| Relying on extended tsconfig to inherit `exclude` | Add `"exclude": ["vitest.config.ts"]` in every project's own `tsconfig.json` |
-| Ranging or omitting `packageManager` field | Pin exact pnpm version matching the monorepo root `package.json` |
-| Copying a tooling pattern from an existing repo without checking upstream | ALWAYS fetch the current best practice from the tool's official docs (husky, pnpm, turbo, …) before scaffolding — patterns in older repos (and even in this skill) can lag upstream. Canonical example: the husky CI guard (`.husky/install.mjs`, see configs.md for the docs link) — not a `[ -n "$CI" ] \|\| husky` shell one-liner |
-| Scaffolding or pinning a new Astro app on astro 6 | New Astro apps ALWAYS use Astro 7 (`pnpm create astro@latest`); astro 6 is legacy-only for apps not yet migrated (peer range `^6.0.0 \|\| ^7.0.0` since core#55) |
-| Pinning a new project to TypeScript 5.x/6.x | New projects ALWAYS use TypeScript 7 (`typescript@^7`, native compiler, `tsc` drop-in); 5.x/6.x are legacy-only for repos not yet migrated. EXCEPTION: Astro apps stay on `^6` — `astro check` hard-fails on ts7 (missing programmatic API, see typescript.md for the upstream link) |
+Arguments select the matching reference. No argument selects project setup.

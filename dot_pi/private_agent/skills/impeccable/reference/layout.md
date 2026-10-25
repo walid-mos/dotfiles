@@ -40,6 +40,7 @@ Before editing, name:
 - the intended density and spacing rhythm;
 - how the structure changes across containers, viewports, input modes, and content extremes.
 
+Choose the simplest structural model that expresses those relationships. Use layout primitives according to the relationships they control, and name reusable spacing and container roles semantically.
 
 ## Apply
 

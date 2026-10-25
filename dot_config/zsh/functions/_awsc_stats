@@ -1,0 +1,21 @@
+emulate -L zsh
+
+local profile=$1
+local region
+region=$(aws configure get region --profile "$profile") || return 1
+
+local identity account arn role
+identity=$(aws sts get-caller-identity --no-cli-pager --profile "$profile") || return 1
+account=$(jq -r .Account <<<"$identity")
+arn=$(jq -r .Arn <<<"$identity")
+role=${${arn#*assumed-role/}%%/*}
+
+local ec2_running lambda_functions rds_instances s3_buckets ecs_clusters
+ec2_running=$(aws ec2 describe-instances --profile "$profile" --no-cli-pager --query 'length(Reservations[].Instances[?State.Name==`running`])' --output text 2>/dev/null) || ec2_running='-'
+lambda_functions=$(aws lambda list-functions --profile "$profile" --no-cli-pager --query 'length(Functions[])' --output text 2>/dev/null) || lambda_functions='-'
+rds_instances=$(aws rds describe-db-instances --profile "$profile" --no-cli-pager --query 'length(DBInstances[])' --output text 2>/dev/null) || rds_instances='-'
+s3_buckets=$(aws s3api list-buckets --profile "$profile" --no-cli-pager --query 'length(Buckets[])' --output text 2>/dev/null) || s3_buckets='-'
+ecs_clusters=$(aws ecs list-clusters --profile "$profile" --no-cli-pager --query 'length(clusterArns[])' --output text 2>/dev/null) || ecs_clusters='-'
+
+print "$profile — account $account ($role) @ $region"
+print "  ec2 running $ec2_running | lambda $lambda_functions | rds $rds_instances | s3 buckets $s3_buckets | ecs clusters $ecs_clusters"

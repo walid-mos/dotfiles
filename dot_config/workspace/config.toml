@@ -1,0 +1,13 @@
+provider = "boat"
+[providers.boat]
+from = "agent"
+type = "small"
+
+[profiles.pi]
+infisical_project = "ce69a081-6aec-472d-9ee8-edbb7ed2b72e"
+infisical_env = "main"
+secrets = ["GITHUB_TOKEN", "env:INFISICAL_UNIVERSAL_AUTH_CLIENT_ID", "env:INFISICAL_UNIVERSAL_AUTH_CLIENT_SECRET"]
+
+[profiles.claude]
+infisical_project = "ce69a081-6aec-472d-9ee8-edbb7ed2b72e"
+infisical_env = "main"

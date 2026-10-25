@@ -4,3 +4,5 @@
 # Default 500ms trips on cold binary execs (Gatekeeper check after a brew
 # upgrade) and spams "Executing command timed out" warnings
 command_timeout = 2000
+[aws]
+disabled = true

@@ -1,0 +1,53 @@
+emulate -L zsh
+
+local profile=$1 cluster_q=$2 service_q=$3
+local -a cluster_arns service_arns task_arns matches
+local cluster service task container
+
+cluster_arns=(${(f)"$(aws ecs list-clusters --profile "$profile" --query 'clusterArns' --output text 2>/dev/null | tr '\t' '\n')"})
+matches=(${(M)cluster_arns:#*${cluster_q}*-${profile}})
+if (( ${#matches} == 0 )); then
+  print -u2 "awsc exec: no cluster matching '$cluster_q' in $profile"
+  print -u2 "clusters:" ${cluster_arns##*/}
+  return 1
+fi
+if (( ${#matches} > 1 )); then
+  print -u2 "awsc exec: ambiguous cluster '$cluster_q':"
+  print -u2 " " ${matches##*/}
+  return 1
+fi
+cluster=$matches[1]
+
+service_arns=(${(f)"$(aws ecs list-services --cluster "$cluster" --profile "$profile" --query 'serviceArns' --output text 2>/dev/null | tr '\t' '\n')"})
+matches=(${(M)service_arns:#*${service_q}*})
+if (( ${#matches} == 0 )); then
+  print -u2 "awsc exec: no service matching '$service_q' in ${cluster##*/}"
+  print -u2 "services:" ${service_arns##*/}
+  return 1
+fi
+if (( ${#matches} > 1 )); then
+  if (( ${+commands[fzf]} )); then
+    local pick
+    pick=$(printf '%s\n' "${matches[@]##*/}" | fzf --prompt="service> ") || return 1
+    service=${(M)matches:#*/$pick}
+  else
+    print -u2 "awsc exec: ambiguous service '$service_q':"
+    print -u2 " " ${matches##*/}
+    return 1
+  fi
+else
+  service=$matches[1]
+fi
+
+task_arns=(${(f)"$(aws ecs list-tasks --cluster "$cluster" --service "$service" --profile "$profile" --query 'taskArns' --output text 2>/dev/null | tr '\t' '\n')"})
+if (( ${#task_arns} == 0 )); then
+  print -u2 "awsc exec: no running task for ${service##*/}"
+  return 1
+fi
+task=$task_arns[1]
+
+containers=($(aws ecs describe-tasks --cluster "$cluster" --tasks "$task" --profile "$profile" --query 'tasks[0].containers[].name' --output text 2>/dev/null))
+container=$containers[1]
+
+print "→ ${service##*/} / $container (task ${task##*/}) — 'exit' to leave"
+aws ecs execute-command --cluster "$cluster" --task "$task" --container "$container" --profile "$profile" --command /bin/sh --interactive

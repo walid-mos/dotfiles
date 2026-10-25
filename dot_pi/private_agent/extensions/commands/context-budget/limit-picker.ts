@@ -42,12 +42,16 @@ export class LimitPicker implements Component, Focusable {
 	constructor(private readonly options: LimitPickerInput) {
 		this.ceilings = [
 			...new Set([
-				...CEILING_PRESETS.filter(
-					tokens => tokens >= options.minimumTokens,
-				),
+				...CEILING_PRESETS,
 				options.configuredTokens,
+				options.modelCapTokens,
 			]),
-		].toSorted((first, second) => first - second)
+		]
+			.filter(
+				tokens =>
+					Number.isFinite(tokens) && tokens >= options.minimumTokens,
+			)
+			.toSorted((first, second) => first - second)
 		this.selectList = this.buildList(options.configuredTokens)
 	}
 

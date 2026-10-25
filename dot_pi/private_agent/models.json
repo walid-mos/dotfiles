@@ -68,6 +68,46 @@
       ],
       "apiKey": "${INCO_API_KEY}"
     },
+    "accorgpt": {
+      "name": "AccorGPT",
+      "baseUrl": "https://api.accor-gpt.accor.net/v1",
+      "api": "openai-completions",
+      "apiKey": "!infisical secrets get ACCORGPT_API_KEY --plain --env main --path /pi --projectId ce69a081-6aec-472d-9ee8-edbb7ed2b72e",
+      "models": [
+        {
+          "id": "claude-opus-5-5",
+          "name": "Claude Opus 5.5 (AccorGPT)",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 200000,
+          "maxTokens": 32000
+        },
+        {
+          "id": "claude-sonnet-5-5",
+          "name": "Claude Sonnet 5.5 (AccorGPT)",
+          "reasoning": true,
+          "input": [
+            "text"
+          ],
+          "cost": {
+            "input": 0,
+            "output": 0,
+            "cacheRead": 0,
+            "cacheWrite": 0
+          },
+          "contextWindow": 200000,
+          "maxTokens": 32000
+        }
+      ]
+    },
     "openai": {
       "models": [
         {

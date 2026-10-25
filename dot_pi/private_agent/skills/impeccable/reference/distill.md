@@ -42,6 +42,7 @@ Systematically remove complexity across these dimensions:
 
 ### Information Architecture
 - **Reduce scope**: Remove secondary actions, optional features, redundant information
+- **Progressive disclosure**: Hide complexity behind clear entry points (accordions, modals, step-through flows)
 - **Combine related actions**: Merge similar buttons, consolidate forms, group related content
 - **Clear hierarchy**: ONE primary action, few secondary actions, everything else tertiary or hidden
 - **Remove redundancy**: If it's said elsewhere, don't repeat it here

@@ -41,6 +41,7 @@ export default function fetchSocial(pi: ExtensionAPI): void {
 	// System prompt: guidance is only relevant when the context WAS injected,
 	// keyed on the marker so both stay a single decision.
 	pi.on('before_agent_start', event => {
+		if (event.messageType !== 'user') return undefined
 		if (!event.prompt.includes(SOCIAL_AUTOFETCH_CONTEXT_MARKER))
 			return undefined
 		return {

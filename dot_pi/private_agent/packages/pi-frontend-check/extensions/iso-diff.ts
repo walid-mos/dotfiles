@@ -4,8 +4,9 @@ import { launchBrowser, openContext } from './browser-launch.ts'
 // session browser (frontend_compare mode=capture - the only way to reach pages behind
 // login or session-only navigation) or a cold URL. Matching component styles,
 // text, attributes and geometry avoid a model call; this is diagnostic, not a
-// pixel-level pass gate. Differing pairs are reported with code-computed deltas and, when TYPESAFE_API_KEY
-// is set, a batched Jev fidelity judgment (iso-judge.ts, report in iso-report.ts).
+// pixel-level pass gate. Differing pairs are reported with code-computed deltas, code-decided
+// color verdicts and, when TYPESAFE_API_KEY is set, a batched Jev judgment of the
+// remaining differences (iso-judge.ts, report in iso-report.ts).
 import { loadCapturedSpecimen } from './capture-specimen.ts'
 import { judgePairs } from './iso-judge.ts'
 import { formatIsoReport } from './iso-report.ts'
@@ -82,19 +83,11 @@ export async function runIsoDiff(
 			specimenFor(sides.b, config, browser, params),
 		])
 		const diff = diffSpecimens(implementation, baseline)
-		const judgment =
-			isJevAvailable() && diff.pairs.length
-				? await judgePairs(diff.pairs)
-				: undefined
-		return formatIsoReport(diff, judgment)
+		return formatIsoReport(diff, await judgePairs(diff.pairs))
 	} finally {
 		signal?.removeEventListener('abort', cancel)
 		await browser?.close()
 	}
-}
-
-function isJevAvailable(): boolean {
-	return Boolean(process.env.TYPESAFE_API_KEY?.trim())
 }
 
 async function extractFromPage(

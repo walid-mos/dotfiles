@@ -4,7 +4,7 @@
 import type { PageSpecimen, SpecimenComponent } from './page-specimen.ts'
 
 /** Sub-pixel rounding noise; smaller geometry differences are not reported. */
-const SIZE_TOLERANCE_PX = 2
+const GEOMETRY_TOLERANCE_PX = 2
 
 const ROLE_ORDER = [
 	'h1',
@@ -90,7 +90,10 @@ function sizeDeltaFor(
 ): { sizeDelta: { implementation: string; baseline: string } } | undefined {
 	const widthDelta = Math.abs(implementation.width - baseline.width)
 	const heightDelta = Math.abs(implementation.height - baseline.height)
-	if (widthDelta < SIZE_TOLERANCE_PX && heightDelta < SIZE_TOLERANCE_PX)
+	if (
+		widthDelta < GEOMETRY_TOLERANCE_PX &&
+		heightDelta < GEOMETRY_TOLERANCE_PX
+	)
 		return undefined
 	return {
 		sizeDelta: {
@@ -116,7 +119,9 @@ function positionDeltaFor(
 	implementation: SpecimenComponent['rect'],
 	baseline: SpecimenComponent['rect'],
 ): { positionDelta: { implementation: string; baseline: string } } | undefined {
-	if (implementation.x === baseline.x && implementation.y === baseline.y)
+	const xDelta = Math.abs(implementation.x - baseline.x)
+	const yDelta = Math.abs(implementation.y - baseline.y)
+	if (xDelta < GEOMETRY_TOLERANCE_PX && yDelta < GEOMETRY_TOLERANCE_PX)
 		return undefined
 	return {
 		positionDelta: {

@@ -16,7 +16,7 @@ import { Value } from 'typebox/value'
 import type { Static } from 'typebox'
 
 const MODEL_REFERENCE = /^[^/]+\/.+$/
-const MAX_WINDOW_SHARE = 0.5
+const MAX_KEEP_RECENT_SHARE = 0.5
 const MAX_RECENT_SHARE = 0.25
 export const CHECKPOINT_INDENT = '\t'
 const positiveTokens = Type.Integer({
@@ -38,7 +38,7 @@ export function checkpointModelPath(): string {
 }
 
 export function minimumCheckpointCeiling(keepRecentTokens: number): number {
-	return Math.floor(keepRecentTokens / MAX_WINDOW_SHARE) + 1
+	return Math.floor(keepRecentTokens / MAX_KEEP_RECENT_SHARE) + 1
 }
 
 export function validateCheckpointSettings(
@@ -76,20 +76,11 @@ export function readCheckpointSettings(): CheckpointSettings {
 	)
 }
 
-export function checkpointWindowCap(
-	contextWindow = Number.POSITIVE_INFINITY,
-): number {
-	return Math.floor(contextWindow * MAX_WINDOW_SHARE)
-}
-
 export function readCheckpointBudget(
 	contextWindow = Number.POSITIVE_INFINITY,
 ): { maxContextTokens: number; keepRecentTokens: number } {
 	const settings = readCheckpointSettings()
-	const ceiling = Math.min(
-		settings.maxContextTokens,
-		checkpointWindowCap(contextWindow),
-	)
+	const ceiling = Math.min(settings.maxContextTokens, contextWindow)
 	return {
 		maxContextTokens: ceiling,
 		keepRecentTokens: Math.min(

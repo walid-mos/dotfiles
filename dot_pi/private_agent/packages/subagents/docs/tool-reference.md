@@ -390,6 +390,7 @@ return runs.run("review", {
 
 Acceptance evidence levels are `auto`, `none`, `attested`, `checked`, and `verified`. `acceptance: "auto"` is the default.
 
+Automatic inference uses only the declared structured role: `acceptanceRole: "writer"` infers checked evidence, with `review: { agent: "reviewer", required: true }` for async and dynamic writers; `"read-only"` infers none; and an omitted role infers lightweight attestation. Task wording, risk vocabulary, and agent names do not affect inference. Explicit acceptance can raise or add policy, while `{ level: "none", reason: "..." }` disables inferred gates according to the existing policy rules.
 
 Agent frontmatter or `subagents.agentOverrides` may set `acceptanceRole`. The role affects acceptance inference only and does not change tool access. Review is a separate gate configured with `acceptance.review`.
 

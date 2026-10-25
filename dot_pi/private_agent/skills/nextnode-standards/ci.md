@@ -1,6 +1,6 @@
 # Common pull-request CI
 
-Extends the pull-request CI section in `SKILL.md`; the convention applies to every NextNode project, independently of the author or coding agent. This is a repository workflow convention, not an npm runtime export or a deployment pipeline.
+Extends the PR CI reference in `SKILL.md`; the convention applies to every NextNode project, independently of the author or coding agent. This is a repository workflow convention, not an npm runtime export or a deployment pipeline.
 
 ## Names and ownership
 

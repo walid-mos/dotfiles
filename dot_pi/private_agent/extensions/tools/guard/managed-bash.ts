@@ -12,7 +12,11 @@ import {
 } from './bash-job-schema.ts'
 import { BashJobs } from './bash-jobs.ts'
 import { executeWithEvidence } from './command-evidence.ts'
-import { MAX_IDENTICAL_CALLS, MAX_IDENTICAL_RESULTS } from './repeat-guard.ts'
+import {
+	MAX_IDENTICAL_CALLS,
+	MAX_IDENTICAL_RESULTS,
+	MAX_SIMILAR_CALLS,
+} from './repeat-guard.ts'
 import { shellLookupPlan } from './shell-guard.ts'
 
 import type {
@@ -33,7 +37,7 @@ function notifyCompletion(pi: ExtensionAPI, job: BashJob): void {
 			content: `Background command finished: ${JSON.stringify(job.snapshot())}\n${job.preview()}\nUse bash action=status with this jobId for details. Do not rerun the command to recover output.`,
 			display: true,
 		},
-		{ triggerTurn: true, deliverAs: 'followUp' },
+		{ triggerTurn: true, deliverAs: 'steer' },
 	)
 }
 
@@ -118,7 +122,7 @@ function managedTool(
 		description: `${BASH_PURPOSE} Runs in the session cwd: never prefix \`cd <cwd> &&\`. Use read/grep/find/ls (or lookup for several at once) for file lookups; a plain cat/ls/grep/find/head/sed -n typed here is executed through that tool automatically. Run returns within ${FOREGROUND_MS}ms with either the result or a running jobId, even when timeout is omitted or large. Use yieldMs:0 for servers. Manage jobs through this same tool with action:list/status/wait/stop; wait settles on completion or returns within ${COMPLETION_WAIT_MS}ms, stop cancels the process group. Do not poll status/wait in a loop: do independent work or end this turn and let the completion notification resume it. In one-shot sessions, finish or stop owned jobs before the final reply. Cancellation never restarts the agent. Running does not mean ready or successful. Owned jobs stop on reload, session replacement and exit. Explicit shell backgrounding or daemonization escapes job ownership; use yieldMs:0 instead. Native output truncation and validation logs are retained.`,
 		promptSnippet: BASH_PURPOSE,
 		promptGuidelines: [
-			`Validation commands save complete logs and exit evidence. Read those logs instead of rerunning to change head/tail/grep output. The same command is refused after ${MAX_IDENTICAL_CALLS} consecutive turns, and any command after ${MAX_IDENTICAL_RESULTS} consecutive turns of identical output; a sleep between commands is refused outright. Change hypothesis or end the turn instead.`,
+			`Validation commands save complete logs and exit evidence. Read those logs instead of rerunning to change head/tail/grep output. The same command is refused after ${MAX_IDENTICAL_CALLS} consecutive turns, a command whose arguments and output differ only in numbers after ${MAX_SIMILAR_CALLS}, and any command after ${MAX_IDENTICAL_RESULTS} consecutive turns of identical output; a sleep between commands and a command that only echoes, assigns or reads the clock are refused outright. Every call resends the whole conversation as a paid request: never fill a wait with calls. Change hypothesis or end the turn instead.`,
 			'Bash automatically yields long commands as owned jobs. Use yieldMs:0 for servers instead of nohup, setsid or shell backgrounding. Reuse the returned jobId; verify readiness separately. In one-shot sessions, finish or stop owned jobs before the final reply.',
 		],
 		execute: (...args) => executeManagedBash(pi, jobs, bash, args),

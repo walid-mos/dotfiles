@@ -16,18 +16,22 @@
  * New human input clears the request ledger; navigation restores that branch.
  * Nested calls made by another tool, such as a `codemode` script, keep the shell
  * guard and skip the read ledger: their results never enter the transcript.
- * Codemode budget: codemode-budget.ts adds the script output cap to the system prompt
- * guidelines at every prompt, so the model sizes `@options` before batching reads.
+ * Codemode guidelines: codemode-guidelines.ts adds the script output cap, failure handling
+ * and the no-validation-inside-a-script rule to the system prompt guidelines at every prompt;
+ * script-validation.ts refuses the validation a script issues anyway (parentToolCallId set),
+ * so the batch ends before the check runs instead of aborting on its exit code.
  *
  * High-risk gate: merges, protected-ref pushes, production deploys and remote writes
  * (high-risk-commands.ts) run only with a single-use operator grant minted by the
  * human-only /authorize command; grants restore from session entries like the ledger.
  *
  * Loop breaker: repeat-guard.ts refuses a call the model repeats with the same
- * arguments turn after turn, or a tool answering with the same output turn after
- * turn, and escalates on every further repeat (refuse, end the run, abort it);
- * fixed-delay.ts refuses a `sleep` stage between shell commands. Both are
- * announced to the human; a human prompt resets the streaks.
+ * arguments turn after turn, with arguments and output differing only in their
+ * numbers, or a tool answering with the same output turn after turn, and
+ * escalates on every further repeat (refuse, end the run, abort it);
+ * fixed-delay.ts refuses a `sleep` stage between shell commands and
+ * idle-command.ts a command that only echoes, assigns or reads the clock. All
+ * are announced to the human; a human prompt resets the streaks.
  */
 import { isToolCallEventType } from '@earendil-works/pi-coding-agent'
 
@@ -35,7 +39,7 @@ import { isHumanPrompt } from '#lib/human-prompt.ts'
 import { runTimedHook } from '#lib/telemetry/hook-timing.ts'
 
 import { registerJobDoneCard } from './bash-job-card.ts'
-import { addCodemodeBudgetGuideline } from './codemode-budget.ts'
+import { addCodemodeGuidelines } from './codemode-guidelines.ts'
 import { FIXED_DELAY_REFUSAL, isFixedDelay } from './fixed-delay.ts'
 import {
 	AUTHORIZATION_USAGE,
@@ -45,10 +49,12 @@ import {
 	isGrantKind,
 	scanHighRisk,
 } from './high-risk-commands.ts'
+import { IDLE_COMMAND_REFUSAL, isIdleCommand } from './idle-command.ts'
 import { registerManagedBash } from './managed-bash.ts'
 import { READ_LEDGER_ENTRY, ReadLedger } from './read-ledger.ts'
 import { registerLookupRecovery } from './recovery.ts'
 import { RepeatGuard } from './repeat-guard.ts'
+import { scriptValidationRefusal } from './script-validation.ts'
 import { shellLookupPlan, shellLookupRefusal } from './shell-guard.ts'
 
 import type {
@@ -65,8 +71,11 @@ function shellDecision(
 	input: unknown,
 	cwd: string,
 ): { block: true; reason: string } | undefined {
-	if (isFixedDelay(commandText(input)))
+	const command = commandText(input)
+	if (isFixedDelay(command))
 		return { block: true, reason: FIXED_DELAY_REFUSAL }
+	if (isIdleCommand(command))
+		return { block: true, reason: IDLE_COMMAND_REFUSAL }
 	if (toolName === 'host')
 		return shellLookupRefusal(input, pi.getActiveTools())
 	const plan = shellLookupPlan(input, pi.getActiveTools(), cwd)
@@ -191,8 +200,14 @@ function wireReadLedger(pi: ExtensionAPI): void {
 
 	pi.on('tool_call', (event, ctx) =>
 		runTimedHook('tool_call', 'guard.lookup', async () => {
-			if (event.toolName === 'host' || event.toolName === 'bash')
+			if (event.toolName === 'host' || event.toolName === 'bash') {
+				const refusal = scriptValidationRefusal(
+					commandText(event.input),
+					Boolean(event.parentToolCallId),
+				)
+				if (refusal) return { block: true, reason: refusal }
 				return shellDecision(pi, event.toolName, event.input, ctx.cwd)
+			}
 			if (event.parentToolCallId) return undefined
 			if (!isToolCallEventType('read', event)) return undefined
 			if (!(await ledger.begin(event.toolCallId, ctx.cwd, event.input)))
@@ -281,6 +296,6 @@ export default function toolGuard(pi: ExtensionAPI): void {
 	wireReadLedger(pi)
 	wireLoopBreaker(pi)
 	pi.on('before_agent_start', event =>
-		addCodemodeBudgetGuideline(event.systemPromptOptions),
+		addCodemodeGuidelines(event.systemPromptOptions),
 	)
 }

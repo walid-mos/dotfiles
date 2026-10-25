@@ -307,6 +307,7 @@ Landing pages live on the **first impression**, not the full read. Cut ruthlessl
 * **Long lists need a different UI component, not a longer list.** Default `<ul>` with bullets / `divide-y` rows is the lazy choice. If you have > 5 items, reach for one of these instead:
   - 2-column split with grouped items
   - Card grid with image + label per item
+  - Tabs / accordion if items are categorisable
   - Horizontal scroll-snap pills
   - Carousel for breadth-heavy lists (testimonials, logos, capabilities)
   - Marquee for "lots-of-things-that-don't-need-individual-attention"
@@ -749,6 +750,7 @@ This is a vocabulary, not a library. The agent should KNOW these pattern names t
 * **Dome Gallery** - 3D panoramic gallery.
 * **Coverflow Carousel** - 3D carousel with angled edges.
 * **Drag-to-Pan Grid** - Boundless draggable canvas.
+* **Accordion Image Slider** - Narrow strips expanding on hover.
 * **Hover Image Trail** - Mouse leaves popping image trail.
 * **Glitch Effect Image** - RGB-channel shift on hover.
 

@@ -61,6 +61,7 @@ describe("project-local artifact paths", () => {
 		assert.equal(getArtifactsDir(null, cwd, "project"), path.join(cwd, ".pi/subagents", "artifacts"));
 	});
 
+	it("routes chain scratch files according to the artifact preference", () => {
 		const cwd = path.join("tmp", "repo");
 		assert.equal(getChainRunsDir(cwd), CHAIN_RUNS_DIR);
 		assert.equal(getChainRunsDir(cwd, "project"), getProjectChainRunsDir(cwd));
