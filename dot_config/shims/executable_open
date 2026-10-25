@@ -1,16 +1,7 @@
 #!/bin/sh
-# open — machine-wide `open` rule, resolved via PATH by every zsh session
-# (.zshenv prepends this dir; .zprofile re-prepends it after /etc/zprofile's
-# path_helper demotes it) and by pi's delegating bin shim.
-# Local `/usr/bin/open` when the person is at this machine; otherwise the
-# target shows on the machine `viewer-host` names (the SSH caller, or the
-# remote herdr client in use): a regular file, also as a file:// URL, is
-# copied there first (nothing on this disk is visible from there), a localhost
-# URL gets this machine's
-# Tailscale IP so the remote browser reaches a server bound to 0.0.0.0, every
-# other argument (flags, app names, public URLs) passes through unchanged. The
-# remote side calls /usr/bin/open by path: it runs this same shim and would
-# otherwise bounce the request back here.
+PATH="/opt/homebrew/bin:$PATH"
+export PATH
+
 target=$("$HOME/.config/shims/viewer-host")
 [ -n "$target" ] || exec /usr/bin/open "$@"
 
@@ -19,8 +10,8 @@ cache=Library/Caches/open-remote
 args=
 for arg in "$@"; do
 	case $arg in
-	http://localhost*|https://localhost*|http://127.0.0.1*|https://127.0.0.1*)
-		arg=$(printf '%s' "$arg" | sed -E "s#://(localhost|127\.0\.0\.1)#://$(tailscale ip -4)#")
+	http://localhost|https://localhost|http://127.0.0.1|https://127.0.0.1|http://localhost[:/?\#]*|https://localhost[:/?\#]*|http://127.0.0.1[:/?\#]*|https://127.0.0.1[:/?\#]*)
+		arg=$("$HOME/.config/shims/open-localhost" "$target" "$arg") || exit
 		;;
 	file://*)
 		arg=$(printf '%b' "$(printf '%s' "${arg#file://}" | sed -e 's|^localhost/|/|' -e 's/%\([0-9A-Fa-f][0-9A-Fa-f]\)/\\x\1/g')")
