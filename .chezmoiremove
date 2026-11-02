@@ -2,7 +2,6 @@
 .config/zsh/infisical
 .config/zsh/path.zsh
 .config/zsh/infisical.zsh
-.config/zsh/conf.d/00-ghostty.zsh
 .config/zsh/conf.d/completion.zsh
 .config/zsh/conf.d/fastfetch.zsh
 .config/zsh/conf.d/fzf.zsh

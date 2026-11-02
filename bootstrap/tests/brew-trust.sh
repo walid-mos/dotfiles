@@ -27,7 +27,7 @@ brew_trust_calls() {
         zsh -c "
             source '$repo_root/bootstrap/lib.sh'
             source '$repo_root/bootstrap/packages.sh'
-            BREW_CASKS=(ghostty brave-browser anomalyco/tap/hex)
+            BREW_CASKS=(brave-browser anomalyco/tap/hex)
             LAPTOP_CASKS=(tailscale-app)
             ensure_brew_trust" > /dev/null
     grep 'trust --cask' "$brew_calls" || true

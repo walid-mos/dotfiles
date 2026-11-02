@@ -12,7 +12,6 @@ end
 vim.opt.rtp:prepend(lazypath)
 
 require("core.options")
-require("core.clipboard")
 require("core.autocmd")
 
 require("lazy").setup({

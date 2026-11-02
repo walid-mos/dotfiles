@@ -10,7 +10,6 @@ insert-newline() {
   LBUFFER+=$'\n'
 }
 zle -N insert-newline
-# Shift+Enter as Ghostty sends it: the modifyOtherKeys and kitty keyboard protocol encodings.
 bindkey -M emacs $'\e[27;2;13~' insert-newline
 bindkey -M emacs $'\e[13;2u' insert-newline
 bindkey -M viins $'\e[27;2;13~' insert-newline
