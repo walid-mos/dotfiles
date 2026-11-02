@@ -82,7 +82,7 @@ The complete plain-JSON inventory is validated before the first launch (maximum 
 | `laneId` | string | - | Exact `runId` stored in the handoff manifest for `lane.status`, `lane.recordMerge`, or `lane.recordSupersession`. |
 | `merge` | object | - | Attested merge evidence for `lane.recordMerge`; requires a positive PR number, full reviewed/merge SHAs, tree-equivalence and post-merge-check statuses, attestor, and timestamp. |
 | `supersession` | object | - | Attested replacement-lane evidence for `lane.recordSupersession`; requires a different replacement lane id, attestor, and timestamp. |
-| `focus` | boolean | false | Focus the newly split host inspector pane for `action: "inspector.open"`; not a standalone action. `inspector.command` is read-only and does not contact Herdr or write a binding. Panes open in the background unless you set `focus: true`. |
+| `focus` | boolean | false | Focus the newly split host inspector pane for `action: "inspector.open"`; not a standalone action. `inspector.command` is read-only and does not contact the host terminal or write a binding. Panes open in the background unless you set `focus: true`. |
 | `view` | `fleet \| transcript` | - | Optional `status` view for the active fleet surface or transcript tail inspection. |
 | `lines` | number | `80` | Maximum transcript lines for `action: "status", view: "transcript"`; capped at 500. |
 | `agentScope` | `user \| project \| both` | `both` | Agent discovery scope. Project wins on collisions. |

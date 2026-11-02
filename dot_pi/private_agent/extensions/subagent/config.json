@@ -1,5 +1,6 @@
 {
 	"artifactDir": "temp",
+	"worktreeBaseDir": ".worktree",
 	"singleRunOutputBaseDir": "~/.pi/generated/subagents/outputs",
 	"missions": {
 		"directory": "~/.pi/generated/subagents/missions/projects",

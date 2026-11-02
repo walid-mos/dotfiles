@@ -42,13 +42,13 @@ Never install a skill through a package manager, marketplace, or registry CLI �
 - An agent-facing doc carries directions only — what a location is for, how to run it, what is binding. Never keep counts of files, folders, or functions in it: the directory is a source of truth the doc cannot outlive, and a doc restating the listing is a cache (see `~/.pi/agent/skills/writing-for-agents/SKILL.md`) that stales on the next added file.
 - Where work goes is stated as a placement rule — "new outputs go in the matching domain folder; opening a folder is reserved for a genuinely new domain" — not an enumeration of current contents. A specific file is found through the folder it lives in (or Spotlight), not through the doc.
 
-## Modifying pi or herdr
+## Modifying Pi
 
-Before any change to pi or herdr source, dist, or binary, apply this ladder in order:
+Before changing Pi source, dist, or binary:
 
-1. **Exhaust alternatives first** — everything that avoids a source change: pi extension/plugin APIs, keybindings, config; herdr `~/.config/herdr/config.toml`, plugins, socket API (`herdr api`), companion tools. Report which alternative was chosen.
-2. **Validate with the user** — only if no alternative covers the need: present the change (file, behavior, what an update does to it) and start on explicit approval.
-3. **Ship a maintained dist patch, never a repo commit** — patch script + `SOURCE.md` entry per the mechanics in `skills/pi-updated/SKILL.md`; reapply on every pi update. herdr ships as a third-party binary: never patch it, needs go upstream as feature requests.
+1. Exhaust the extension APIs, keybindings, and configuration first.
+2. If none covers the need, present the file, behavior, and update consequence, then obtain explicit approval.
+3. Maintain an audited dist patch using `skills/pi-updated/SKILL.md`, never a repository commit.
 
 ## Anti-duplication (the most important principle)
 

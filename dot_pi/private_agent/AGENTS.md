@@ -76,8 +76,19 @@ Never use `~/.pi/agent` as a scratch or deliverable directory (including `tmp/`)
 
 - Delete temporary test data you created in local services once the work ends, unless the user asks to keep it. A fixture that permanently locks a behavior belongs in the repo and stays.
 
+## Secrets
+
+- **Never let a secret value enter a tool argument, an output, a log or a transcript** — reference it by name or path; the blocking hook enforces `~/.config/agent-security/secret-policy.ts`.
+- For any Infisical operation, load the `infisical` skill first.
+
+## Dev servers
+
+- Bind a dev server to `0.0.0.0` so the phone and the MacBook reach it over Tailscale.
+- **Always give the exact address to open in one click** (`http://localhost:<port>/<path>`) whenever you propose checking code on a dev server or report a page it serves — never "check the dev server" without its URL. `open <url>` opens it; over SSH the shim rewrites localhost to this machine's Tailscale IP.
+
 ## Git
 
+- **Worktree placement**: use `worktreeBaseDir` from `~/.pi/agent/extensions/subagent/config.json` for every worktree, including manual flows. Resolve relative paths from the repository's main checkout, not a linked worktree; use Git's registered main worktree to find it.
 - **Never invent or override** Git author, committer, or signing identity through command flags, environment variables, config changes, or history rewriting, unless the user explicitly authorizes that specific identity change — use the existing configuration unchanged.
 - If identity is missing, conflicting, or suspect, stop and ask — never guess an email from a name or GitHub handle.
 - **Never overwrite or delete changes or data you did not create for the task** — ask first before any destructive or irreversible operation.
@@ -87,6 +98,7 @@ Never use `~/.pi/agent` as a scratch or deliverable directory (including `tmp/`)
 - **Never deploy to production or cloud infrastructure from the local machine** — deploys go through CI pipelines only (GitHub env-secrets, quality gates). Local cloud credentials (wrangler OAuth, API tokens) are for read-only inspection; a deploy request is fulfilled by wiring or triggering CI, never by running the deploy command locally.
 - **While an `ask_user_question` is paused for discussion, act on nothing in its scope** — only the user's explicit recorded answers authorize a pending choice; defaults apply only after they resume and answer.
 - **Atomic commit — one definition**: a commit is atomic only when all four hold: one intention (one behavior added or changed, one fix, or one refactor — revertible in a single command); self-contained (it compiles and passes its tests at that commit, not only at branch tip); one domain (config, migration, refactor and fix share a commit only when strictly dependent, otherwise separate ordered commits); faithful message (a Conventional Commit `type(scope): description` naming that single intention). Never a catch-all commit, never "WIP".
+- **Before a commit, reread the `AGENTS.md` guarantees and rules on the changed files' path against the diff** — a rule the diff weakens is a bug to fix before committing, and the pull request names each guarantee it touches with the check that covers it.
 
 ## Third-party code
 

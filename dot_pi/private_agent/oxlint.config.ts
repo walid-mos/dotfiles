@@ -14,9 +14,6 @@ export default defineConfig({
 		'npm/**',
 		'bin/**',
 		'backups/**',
-		// Vendor-managed by `herdr integration install pi`; never hand-edit.
-		'extensions/herdr-agent-state.ts',
-		'extensions/herdr-pane-meta.ts',
 		// Vendored third-party skill, not our codebase: never lint it.
 		'skills/impeccable/**',
 		// Disabled code kept for reference: frozen, not maintained here.

@@ -1,5 +1,4 @@
 import {
-	COMPLETION_WAIT_MS,
 	FOREGROUND_MS,
 	MAX_FINISHED_JOBS,
 	MAX_RUNNING_JOBS,
@@ -16,9 +15,13 @@ type LaunchOptions = Omit<BashJobOptions, 'command'> & {
 	signal: AbortSignal | undefined
 }
 
+const PROGRESS_ALREADY_REPORTED =
+	'Progress of this running job was already reported: a second status is a poll, and every call resends the whole conversation as a paid request. Completion notifies this session: do independent work or end this turn. Check readiness through the port, pid or file the work produces; stop cancels.'
+
 /** Session owner. Capacity refuses before spawn; it never falls back to an unbounded wait. */
 export class BashJobs {
 	readonly #jobs = new Map<string, BashJob>()
+	readonly #progressReported = new Set<string>()
 	#isClosed = false
 
 	isOpen(): boolean {
@@ -41,7 +44,7 @@ export class BashJobs {
 		this.#jobs.set(job.id, job)
 		const outcome = await waitForJob(
 			job.settled,
-			input.yieldMs ?? FOREGROUND_MS,
+			input.background ? 0 : (input.foregroundMs ?? FOREGROUND_MS),
 			options.signal,
 		)
 		if (outcome === 'aborted') job.stop()
@@ -59,8 +62,10 @@ export class BashJobs {
 			throw new Error('Command cancelled before starting.')
 		if (!input.command?.trim() || input.jobId)
 			throw new Error(
-				'Run requires command and no jobId. Use action status/wait/stop to manage an existing job.',
+				'Run requires command and no jobId. Use action status/stop to manage an existing job.',
 			)
+		if (input.background && input.foregroundMs)
+			throw new Error('background returns at once: omit foregroundMs.')
 		if (
 			[...this.#jobs.values()].filter(job => job.isRunning()).length >=
 			MAX_RUNNING_JOBS
@@ -74,9 +79,14 @@ export class BashJobs {
 		input: ManagedBashInput,
 		signal?: AbortSignal,
 	): Promise<AgentToolResult> {
-		if ('command' in input || 'timeout' in input || 'yieldMs' in input)
+		if (
+			'command' in input ||
+			'timeout' in input ||
+			'foregroundMs' in input ||
+			'background' in input
+		)
 			throw new Error(
-				'Job controls take only action and jobId; omit command, timeout and yieldMs.',
+				'Job controls take only action and jobId; omit command, timeout, foregroundMs and background.',
 			)
 		if (input.action === 'list') {
 			if (input.jobId) throw new Error('List takes no jobId.')
@@ -93,20 +103,29 @@ export class BashJobs {
 			throw new Error(
 				'Unknown job in this live session. Use bash action=list. Jobs stop on reload, session replacement or exit; saved receipts are evidence, not live handles.',
 			)
-		if (input.action === 'stop') job.stop()
-		const waitMs =
-			input.action === 'stop' ? STOP_GRACE_MS : COMPLETION_WAIT_MS
-		const outcome =
-			job.isRunning() && ['stop', 'wait'].includes(input.action ?? '')
-				? await waitForJob(job.settled, waitMs, signal)
-				: undefined
+		if (input.action === 'status') return this.#reportProgress(job)
+		if (input.action !== 'stop')
+			throw new Error('Job controls are list, status and stop.')
+		job.stop()
+		const outcome = job.isRunning()
+			? await waitForJob(job.settled, STOP_GRACE_MS, signal)
+			: undefined
 		return this.#report(job, outcome)
+	}
+
+	#reportProgress(job: BashJob): AgentToolResult {
+		if (job.isRunning()) {
+			if (this.#progressReported.has(job.id))
+				throw new Error(PROGRESS_ALREADY_REPORTED)
+			this.#progressReported.add(job.id)
+		}
+		return this.#report(job)
 	}
 
 	#report(job: BashJob, outcome?: string): AgentToolResult {
 		const snapshot = job.snapshot()
 		const guidance = job.isRunning()
-			? 'Command is still running, not successful or ready. Do not rerun it or poll status/wait in a loop. Do independent work or end this turn; completion notifies this session unless cancelled. Use status only for needed progress, wait for a bounded completion wait, or stop to cancel; check readiness separately. In one-shot sessions, finish or stop owned jobs before the final reply. Jobs stop on reload, session replacement or exit.'
+			? 'Command is still running, not successful or ready. Completion notifies this session: do independent work or end this turn. Never poll: status is one progress read per running job, stop cancels. Check readiness through the port, pid or file the work produces. In one-shot sessions, finish or stop owned jobs before the final reply. Jobs stop on reload, session replacement or exit.'
 			: 'Command finished. Receipts write asynchronously; check receiptPath/persistenceError and read the receipt or full-output/validation log before rerunning.'
 		return {
 			content: [
@@ -133,8 +152,10 @@ export class BashJobs {
 		for (const job of finished.slice(
 			0,
 			Math.max(0, finished.length - MAX_FINISHED_JOBS),
-		))
+		)) {
 			this.#jobs.delete(job.id)
+			this.#progressReported.delete(job.id)
+		}
 	}
 
 	async #settleClosedJobs(settled: AbortController): Promise<void> {

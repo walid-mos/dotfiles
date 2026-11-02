@@ -103,7 +103,7 @@ function exitHint(level: StopLevel): string {
 		return 'The run ends after this batch: report the current state in your reply.'
 	if (level === 'steer')
 		return 'Second refusal in a row: the next identical call ends the run. State in one sentence which signal you are waiting for, then wait on it or do other work.'
-	return 'Running it again yields nothing new. Wait on the real signal (a bash job wait, an async completion notice, a bounded readiness check on the port, pid or file the work produces), use a different tool, or end this turn and report the current state.'
+	return 'Running it again yields nothing new. Wait on the real signal (the completion notification of a bash job or an async subagent, a bounded readiness check on the port, pid or file the work produces), use a different tool, or end this turn and report the current state.'
 }
 
 export class RepeatGuard {

@@ -1,10 +1,11 @@
 /** Manifest and registration checks for the packages pi's settings load:
  * package resolution (mirroring pi's own rules), host-provided dependency
  * scan, and static command/tool/flag name extraction from extension entries. */
-import { existsSync, readFileSync, readdirSync } from 'node:fs'
+import { existsSync, readFileSync, readdirSync, realpathSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 
 import { readJson, reportLine } from './lib-hygiene.ts'
+import { vendoredRoots } from './lib-vendored-packages.ts'
 
 import type {
 	LoadedPackage,
@@ -36,17 +37,24 @@ export function collectPackages(agentDirectory: string): LoadedPackage[] {
 		join(agentDirectory, 'settings.json'),
 	)
 	const loaded: LoadedPackage[] = []
-	for (const rawEntry of settings.packages ?? []) {
+	const seen = new Set<string>()
+	for (const rawEntry of [
+		...(settings.packages ?? []),
+		...vendoredRoots(agentDirectory),
+	]) {
 		const manifestPath = manifestForEntry(agentDirectory, rawEntry)
 		if (!manifestPath || !existsSync(manifestPath)) {
 			reportLine(`? ${rawEntry}: no package.json resolved; skipping`)
 			continue
 		}
+		const root = realpathSync(dirname(manifestPath))
+		if (seen.has(root)) continue
+		seen.add(root)
 		const manifest = readJson<{ name?: string }>(manifestPath)
 		const manifestName = manifest.name ?? '(unnamed)'
 		loaded.push({
 			entry: rawEntry,
-			root: dirname(manifestPath),
+			root,
 			manifestName,
 		})
 	}
@@ -111,7 +119,7 @@ function collectSourceFiles(directory: string, sources: string[]): void {
 			/\.(test|spec)\./.test(dirent.name)
 		)
 			continue
-		sources.push(join(dirent.parentPath ?? dirent.path, dirent.name))
+		sources.push(join(dirent.parentPath, dirent.name))
 	}
 }
 

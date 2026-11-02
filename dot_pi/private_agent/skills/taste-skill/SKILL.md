@@ -25,7 +25,7 @@ Set explicitly, reasoned from the brief; baseline `8 / 6 / 4` only when nothing 
 | 4-7 | Offsets, overlaps, mixed aspect ratios, left-aligned headers | Fluid CSS transitions on `transform`/`opacity`, stagger cascades | Daily app: `py-16`-`py-24` |
 | 8-10 | Masonry, fractional grids (`2fr 1fr`), massive empty zones (`padding-left: 20vw`) | Scroll choreography (GSAP ScrollTrigger / CSS scroll-driven) | Cockpit: tight padding, no cards, 1px separators, `font-mono` numbers |
 
-Quick inference (§1.A): minimalist/Linear → 5-6 / 3-4 / 2-3 · premium consumer → 7-8 / 5-7 / 3-4 · Awwwards/agency → 9-10 / 8-10 / 3-4 · trust-first/public-sector → 3-4 / 2-3 / 4-5 · redesign-preserve → match existing, +1 motion · redesign-overhaul → +2 / +2 / match.
+Quick inference (§1.A): minimalist/clean → 5-6 / 3-4 / 2-3 · premium consumer → 7-8 / 5-7 / 3-4 · Awwwards/agency → 9-10 / 8-10 / 3-4 · trust-first/public-sector → 3-4 / 2-3 / 4-5 · redesign-preserve → match existing, +1 motion · redesign-overhaul → +2 / +2 / match.
 
 Mobile override: variance ≥ 4 collapses to strict single column below `md:`.
 

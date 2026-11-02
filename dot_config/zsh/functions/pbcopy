@@ -1,7 +1,0 @@
-emulate -L zsh
-# Inside a herdr pane the clipboard belongs to the machine running the herdr client, so copy through OSC 52.
-if [[ -n $HERDR_ENV ]]; then
-  printf '\033]52;c;%s\a' "$(base64 | tr -d '\n')" > /dev/tty
-else
-  command pbcopy "$@"
-fi

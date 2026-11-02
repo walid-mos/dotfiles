@@ -21,10 +21,6 @@
  * script-validation.ts refuses the validation a script issues anyway (parentToolCallId set),
  * so the batch ends before the check runs instead of aborting on its exit code.
  *
- * High-risk gate: merges, protected-ref pushes, production deploys and remote writes
- * (high-risk-commands.ts) run only with a single-use operator grant minted by the
- * human-only /authorize command; grants restore from session entries like the ledger.
- *
  * Loop breaker: repeat-guard.ts refuses a call the model repeats with the same
  * arguments turn after turn, with arguments and output differing only in their
  * numbers, or a tool answering with the same output turn after turn, and
@@ -41,14 +37,6 @@ import { runTimedHook } from '#lib/telemetry/hook-timing.ts'
 import { registerJobDoneCard } from './bash-job-card.ts'
 import { addCodemodeGuidelines } from './codemode-guidelines.ts'
 import { FIXED_DELAY_REFUSAL, isFixedDelay } from './fixed-delay.ts'
-import {
-	AUTHORIZATION_USAGE,
-	HIGH_RISK_GRANTS_ENTRY,
-	HighRiskGate,
-	highRiskBlockReason,
-	isGrantKind,
-	scanHighRisk,
-} from './high-risk-commands.ts'
 import { IDLE_COMMAND_REFUSAL, isIdleCommand } from './idle-command.ts'
 import { registerManagedBash } from './managed-bash.ts'
 import { READ_LEDGER_ENTRY, ReadLedger } from './read-ledger.ts'
@@ -89,92 +77,6 @@ function commandText(input: unknown): string {
 		if (typeof command === 'string') return command
 	}
 	return JSON.stringify(input) ?? ''
-}
-
-function registerGrantRestore(
-	pi: ExtensionAPI,
-	restoreGate: (ctx: ExtensionContext) => void,
-): void {
-	pi.on('session_start', (_event, ctx) => restoreGate(ctx))
-	pi.on('session_tree', (_event, ctx) => restoreGate(ctx))
-}
-
-function registerAuthorizeCommand(pi: ExtensionAPI, gate: HighRiskGate): void {
-	pi.registerCommand('authorize', {
-		description:
-			'Single-use grant for one high-risk call (merge/push/deploy/remote-write)',
-		handler: async (args, ctx) => {
-			const [kind, ...details] = args.trim().split(/\s+/).filter(Boolean)
-			if (!kind || !isGrantKind(kind)) {
-				if (ctx.hasUI)
-					await ctx.ui.notify(AUTHORIZATION_USAGE, 'warning')
-				return
-			}
-			if (!ctx.hasUI) return
-			const detail = details.join(' ')
-			const approved = await ctx.ui.confirm(
-				`Authorize ${kind}${detail ? ` (${detail})` : ''}?`,
-				'Single-use grant: consumed by the next matching high-risk call.',
-			)
-			if (!approved) {
-				await ctx.ui.notify(
-					'Not authorized - nothing granted.',
-					'warning',
-				)
-				return
-			}
-			gate.add(kind, detail)
-			pi.appendEntry(HIGH_RISK_GRANTS_ENTRY, gate.snapshot())
-			await ctx.ui.notify(
-				`Authorized: ${kind}${detail ? ` ${detail}` : ''} (single-use). Re-run the call.`,
-				'info',
-			)
-		},
-	})
-}
-
-function scanCommandForRisk(
-	pi: ExtensionAPI,
-	gate: HighRiskGate,
-	event: { toolName: string; input: unknown },
-): { block: true; reason: string } | undefined {
-	const text = commandText(event.input)
-	const hit = scanHighRisk(text)
-	if (!hit) return undefined
-	if (gate.tryConsume(hit.kind, text)) {
-		pi.appendEntry(HIGH_RISK_GRANTS_ENTRY, gate.snapshot())
-		return undefined
-	}
-	return { block: true, reason: highRiskBlockReason(hit) }
-}
-
-function registerToolCallScan(pi: ExtensionAPI, gate: HighRiskGate): void {
-	pi.on('tool_call', event =>
-		runTimedHook('tool_call', 'guard.high-risk', () => {
-			const guarded = ['bash', 'host', 'mcp', 'subagent'].includes(
-				event.toolName,
-			)
-			if (!guarded) return undefined
-			return scanCommandForRisk(pi, gate, event)
-		}),
-	)
-}
-
-function wireHighRiskGate(pi: ExtensionAPI): void {
-	const gate = new HighRiskGate()
-	const restoreGate = (ctx: ExtensionContext): void => {
-		const saved = ctx.sessionManager
-			.getBranch()
-			.findLast(
-				entry =>
-					entry.type === 'custom' &&
-					entry.customType === HIGH_RISK_GRANTS_ENTRY,
-			)
-		gate.restore(saved?.type === 'custom' ? saved.data : undefined)
-	}
-	registerGrantRestore(pi, restoreGate)
-	registerAuthorizeCommand(pi, gate)
-	registerToolCallScan(pi, gate)
 }
 
 function wireReadLedger(pi: ExtensionAPI): void {
@@ -292,7 +194,6 @@ export default function toolGuard(pi: ExtensionAPI): void {
 	registerManagedBash(pi)
 	registerJobDoneCard(pi)
 	registerLookupRecovery(pi)
-	wireHighRiskGate(pi)
 	wireReadLedger(pi)
 	wireLoopBreaker(pi)
 	pi.on('before_agent_start', event =>

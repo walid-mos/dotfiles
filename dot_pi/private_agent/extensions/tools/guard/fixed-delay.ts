@@ -12,7 +12,7 @@ const LONE_SLEEP = /^\s*sleep\s+\d+(?:\.\d+)?\s*$/
 const SLEEP_STAGE = /(?:^|[;&|(]|\n)\s*(?:command\s+)?sleep\s+\d/m
 
 export const FIXED_DELAY_REFUSAL =
-	'Fixed delay refused: a `sleep` between commands waits for nothing in particular. Wait on the real signal instead: a bounded readiness check on the port, pid or file the work produces, a bash job wait, an async subagent, or end this turn and resume on the completion notice.'
+	'Fixed delay refused: a `sleep` between commands waits for nothing in particular. Wait on the real signal instead: a bounded readiness check on the port, pid or file the work produces, an async subagent, or end this turn and resume on the completion notification of the bash job.'
 
 export function isFixedDelay(command: string): boolean {
 	const visible = command.replace(HEREDOC, '').replace(QUOTED, "''")

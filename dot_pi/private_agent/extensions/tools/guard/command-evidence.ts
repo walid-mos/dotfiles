@@ -123,10 +123,6 @@ function evidenceBash(cwd: string, steps: RecordedStep[]): BashDefinition {
 	const local = createLocalBashOperations()
 	const runtime = runtimeFor(cwd)
 	return createBashToolDefinition(cwd, {
-		spawnHook: context => ({
-			...context,
-			env: { ...context.env, HERDR_ENV: undefined },
-		}),
 		operations: {
 			exec: (_command, workingDirectory, options) =>
 				runtime.isRemote

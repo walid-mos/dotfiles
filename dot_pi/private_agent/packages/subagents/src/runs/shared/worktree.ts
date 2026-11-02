@@ -278,6 +278,12 @@ function runGitChecked(cwd: string, args: string[]): string {
 	return result.stdout;
 }
 
+function resolveMainWorktreeRoot(cwd: string): string {
+	const mainRoot = runGitChecked(cwd, ["worktree", "list", "--porcelain", "-z"]).match(/^worktree ([^\0]+)\0/u)?.[1];
+	if (!mainRoot) throw new Error("Cannot resolve the repository main checkout from git worktree list");
+	return mainRoot;
+}
+
 /** Validate a captured patch against the worktree index without changing either. */
 export function validateWorktreePatch(worktreePath: string, patchPath: string): string | undefined {
 	const result = runGit(worktreePath, [...PATCH_VALIDATION_OPTIONS, patchPath]);
@@ -553,7 +559,7 @@ function resolveWorktreeDedicatedRoot(configuredBaseDir: string | undefined, rep
 		if (!trimmed) throw new Error("worktree base directory cannot be empty");
 
 		const candidate = trimmed.startsWith("~/") ? path.join(os.homedir(), trimmed.slice(2)) : trimmed;
-		expanded = path.isAbsolute(candidate) ? candidate : path.resolve(repoRoot, candidate);
+		expanded = path.isAbsolute(candidate) ? candidate : path.resolve(resolveMainWorktreeRoot(repoRoot), candidate);
 	}
 	const extensionsDir = normalizeComparableCwd(path.join(getAgentDir(), "extensions"));
 	if (isPathInside(extensionsDir, normalizeComparableCwd(expanded))) {
@@ -563,7 +569,7 @@ function resolveWorktreeDedicatedRoot(configuredBaseDir: string | undefined, rep
 }
 
 function buildNativeProjectPath(dedicatedRoot: string, repoRoot: string): string {
-	return path.join(dedicatedRoot, path.basename(repoRoot));
+	return path.join(dedicatedRoot, path.basename(resolveMainWorktreeRoot(repoRoot)));
 }
 
 /**
@@ -598,7 +604,9 @@ function isStrictChildPath(parent: string, child: string): boolean {
 /** Fail closed before `git worktree add`: reject unsafe planned/realpath locations. */
 function assertSafeWorktreeLocation(worktreePath: string, repoRoot: string, dedicatedRoot: string): void {
 	const resolvedLeaf = normalizeComparableCwd(worktreePath);
-	const resolvedRepoRoot = normalizeComparableCwd(repoRoot);
+	const resolvedRepoRoot = normalizeComparableCwd(resolveMainWorktreeRoot(repoRoot));
+	const resolvedDedicatedRoot = normalizeComparableCwd(dedicatedRoot);
+	const gitDirectory = normalizeComparableCwd(runGitChecked(repoRoot, ["rev-parse", "--path-format=absolute", "--git-common-dir"]).trim());
 	const projectDir = normalizeComparableCwd(buildNativeProjectPath(dedicatedRoot, repoRoot));
 	const repoParent = normalizeComparableCwd(path.dirname(resolvedRepoRoot));
 	const leafParent = normalizeComparableCwd(path.dirname(resolvedLeaf));
@@ -607,8 +615,13 @@ function assertSafeWorktreeLocation(worktreePath: string, repoRoot: string, dedi
 	if (isPathInside(extensionsDir, projectDir) || isPathInside(extensionsDir, resolvedLeaf)) {
 		throw new Error(`worktree path cannot be inside Pi extensions directory: ${extensionsDir}. Choose a directory outside it.`);
 	}
+	if (isPathInside(gitDirectory, resolvedDedicatedRoot) || isPathInside(gitDirectory, projectDir) || isPathInside(gitDirectory, resolvedLeaf)) {
+		throw new Error(`worktree path would land inside the repository Git directory: ${resolvedLeaf}`);
+	}
 	if (isPathInside(resolvedRepoRoot, resolvedLeaf)) {
-		throw new Error(`worktree path would land inside the repository checkout: ${resolvedLeaf}`);
+		const isIgnoredRoot = isStrictChildPath(resolvedRepoRoot, resolvedDedicatedRoot)
+			&& runGit(resolvedRepoRoot, ["check-ignore", "--quiet", "--", `${resolvedDedicatedRoot}${path.sep}`]).status === 0;
+		if (!isIgnoredRoot) throw new Error(`worktree path would land inside the repository checkout without an ignored dedicated root: ${resolvedLeaf}`);
 	}
 	if (leafParent === repoParent) {
 		throw new Error(`worktree path would be a direct child of the repository parent: ${resolvedLeaf}`);

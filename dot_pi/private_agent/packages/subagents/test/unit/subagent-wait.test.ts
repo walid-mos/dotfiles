@@ -809,12 +809,12 @@ describe("bg_wait tool", () => {
 				runId, mode: "single" as const, cwd: root, sessionId: "sess-1", updatedAt: 1,
 				children: [{ agent: "worker", index, status: "detached" as const, updatedAt: 1 }],
 			}]));
-			const provider = { provider: "herdr", id: "pane-a", sessionId: "sess-1" };
+			const provider = { provider: "pane", id: "pane-a", sessionId: "sess-1" };
 			const result = await waitForSubagents({ all: true }, undefined, baseDeps(root, state, {
 				hasPendingSupervisorRequest: () => true,
-				backgroundWork: { snapshot: () => ({ providers: ["herdr"], items: [provider] }), wakeChannels: () => [] },
+				backgroundWork: { snapshot: () => ({ providers: ["pane"], items: [provider] }), wakeChannels: () => [] },
 			}));
-			assertSupervisorYield(result, ["async-a", "fg-a", "fg-b"], [{ provider: "herdr", id: "pane-a" }]);
+			assertSupervisorYield(result, ["async-a", "fg-a", "fg-b"], [{ provider: "pane", id: "pane-a" }]);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -1652,15 +1652,15 @@ describe("bg_wait tool", () => {
 				sleep: async (ms) => { clock += ms + 10_000; },
 				backgroundWork: {
 					snapshot: () => ({
-						providers: ["herdr"],
-						items: [{ provider: "herdr", id: "pane-1", sessionId: "sess-1" }],
+						providers: ["pane"],
+						items: [{ provider: "pane", id: "pane-1", sessionId: "sess-1" }],
 					}),
 					wakeChannels: () => [],
 				},
 			}));
 
 			assert.equal(result.isError, undefined);
-			assert.deepEqual(result.details.wait?.activeProviderItems, [{ provider: "herdr", id: "pane-1" }]);
+			assert.deepEqual(result.details.wait?.activeProviderItems, [{ provider: "pane", id: "pane-1" }]);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}

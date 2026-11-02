@@ -6,8 +6,8 @@ import { runtimeFor } from '#lib/runtime/runtime.ts'
 import { nestedOptions, nestedText } from '#lib/tools/nested.ts'
 
 import {
-	COMPLETION_WAIT_MS,
 	FOREGROUND_MS,
+	MAX_FOREGROUND_MS,
 	managedBashSchema,
 } from './bash-job-schema.ts'
 import { BashJobs } from './bash-jobs.ts'
@@ -109,21 +109,17 @@ function managedTool(
 ): ToolDefinition<typeof managedBashSchema, unknown> {
 	const runtime = runtimeFor(process.cwd())
 	const bash = createBashToolDefinition(process.cwd(), {
-		spawnHook: context => ({
-			...context,
-			env: { ...context.env, HERDR_ENV: undefined },
-		}),
 		...(runtime.isRemote && { operations: bashOperations(runtime) }),
 	})
 	return {
 		name: bash.name,
 		label: bash.label,
 		parameters: managedBashSchema,
-		description: `${BASH_PURPOSE} Runs in the session cwd: never prefix \`cd <cwd> &&\`. Use read/grep/find/ls (or lookup for several at once) for file lookups; a plain cat/ls/grep/find/head/sed -n typed here is executed through that tool automatically. Run returns within ${FOREGROUND_MS}ms with either the result or a running jobId, even when timeout is omitted or large. Use yieldMs:0 for servers. Manage jobs through this same tool with action:list/status/wait/stop; wait settles on completion or returns within ${COMPLETION_WAIT_MS}ms, stop cancels the process group. Do not poll status/wait in a loop: do independent work or end this turn and let the completion notification resume it. In one-shot sessions, finish or stop owned jobs before the final reply. Cancellation never restarts the agent. Running does not mean ready or successful. Owned jobs stop on reload, session replacement and exit. Explicit shell backgrounding or daemonization escapes job ownership; use yieldMs:0 instead. Native output truncation and validation logs are retained.`,
+		description: `${BASH_PURPOSE} Runs in the session cwd: never prefix \`cd <cwd> &&\`. Use read/grep/find/ls (or lookup for several at once) for file lookups; a plain cat/ls/grep/find/head/sed -n typed here is executed through that tool automatically. Run keeps this call open up to ${FOREGROUND_MS}ms (foregroundMs lengthens that, up to ${MAX_FOREGROUND_MS}ms; an open call costs no tokens) and returns the result, or a running jobId when the command outlives the window. background:true returns at once (servers). A job notifies this session when it completes: there is no wait action, never poll status; do independent work or end this turn and let the completion notification resume it. Manage jobs through this same tool with action:list/status/stop; status is one progress read per running job, stop cancels the process group. In one-shot sessions, finish or stop owned jobs before the final reply. Cancellation never restarts the agent. Running does not mean ready or successful. Owned jobs stop on reload, session replacement and exit. Explicit shell backgrounding or daemonization escapes job ownership; use background:true instead. Native output truncation and validation logs are retained.`,
 		promptSnippet: BASH_PURPOSE,
 		promptGuidelines: [
 			`Validation commands save complete logs and exit evidence. Read those logs instead of rerunning to change head/tail/grep output. The same command is refused after ${MAX_IDENTICAL_CALLS} consecutive turns, a command whose arguments and output differ only in numbers after ${MAX_SIMILAR_CALLS}, and any command after ${MAX_IDENTICAL_RESULTS} consecutive turns of identical output; a sleep between commands and a command that only echoes, assigns or reads the clock are refused outright. Every call resends the whole conversation as a paid request: never fill a wait with calls. Change hypothesis or end the turn instead.`,
-			'Bash automatically yields long commands as owned jobs. Use yieldMs:0 for servers instead of nohup, setsid or shell backgrounding. Reuse the returned jobId; verify readiness separately. In one-shot sessions, finish or stop owned jobs before the final reply.',
+			'A command that outlives the foreground window becomes an owned job and notifies this session on completion; lengthen foregroundMs for a long command whose result this turn needs. Use background:true for servers instead of nohup, setsid or shell backgrounding. Reuse the returned jobId; verify readiness separately. In one-shot sessions, finish or stop owned jobs before the final reply.',
 		],
 		execute: (...args) => executeManagedBash(pi, jobs, bash, args),
 	}

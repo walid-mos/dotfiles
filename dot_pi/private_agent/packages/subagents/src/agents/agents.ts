@@ -974,7 +974,7 @@ function parseBuiltinOverrideEntry(
 		throw new Error(`Builtin override '${name}' in '${filePath}' uses removed field 'fallbackModels'; configure one model instead.`);
 	}
 	if (Object.hasOwn(input, "machine")) {
-		throw new Error(`Builtin override '${name}' in '${filePath}' uses removed field 'machine'; Herdr saved-machine placement is not supported.`);
+		throw new Error(`Builtin override '${name}' in '${filePath}' uses removed field 'machine'; saved-machine placement is not supported.`);
 	}
 	const override: BuiltinAgentOverrideConfig = {};
 
@@ -1924,7 +1924,7 @@ function loadAgentsFromDefinitionFiles(files: AgentDefinitionFile[], source: Age
 		runtimeName = buildRuntimeName(localName, packageName);
 
 		if (frontmatter.runner !== undefined) throw new Error(`Agent '${localName}' uses removed frontmatter field 'runner'. Only native Pi agents are supported.`);
-		if (frontmatter.machine !== undefined) throw new Error(`Agent '${localName}' uses removed frontmatter field 'machine'. Herdr saved-machine placement is not supported.`);
+		if (frontmatter.machine !== undefined) throw new Error(`Agent '${localName}' uses removed frontmatter field 'machine'. Saved-machine placement is not supported.`);
 		let advertise: boolean | undefined;
 		if (frontmatter.advertise !== undefined) {
 			if (frontmatter.advertise === "true") advertise = true;

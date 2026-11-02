@@ -1,9 +1,10 @@
 #!/bin/zsh
-# discover_laptop_magicdns feeds `herdr machine add <user>@<name>` on the Studio.
-# Matching the whole '"DNSName": "..."' pair and trimming quotes left the key
-# glued to the value, so the Studio tried to save a machine called
-# 'DNSName": "macbook-pro' and herdr refused it as "hostname contains invalid
-# characters". The first DNSName in the status output is this node's own.
+# discover_laptop_magicdns finds the short MagicDNS name the Studio uses as
+# its pointer back to this Mac. Matching the whole '"DNSName": "..."' pair and
+# trimming quotes left the key glued to the value, so a consumer once tried to
+# save a machine called 'DNSName": "macbook-pro' and it got refused as
+# "hostname contains invalid characters". The first DNSName in the status
+# output is this node's own.
 set -eu
 
 repo_root=${0:A:h:h:h}

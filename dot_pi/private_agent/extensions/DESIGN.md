@@ -3,7 +3,7 @@
 Single source of truth for restyling pi's TUI. Read this before migrating ANY render surface
 (tool rows, chrome, transcript surfaces) to the house design system.
 
-- Verified against installed `@earendil-works/pi-coding-agent@1.1.0` + `@earendil-works/pi-tui@1.1.0` dist sources.
+- Verified against installed `@earendil-works/pi-coding-agent@1.4.0` + `@earendil-works/pi-tui@1.4.0` dist sources.
 - Re-diff this matrix after every pi upgrade; glyph/format details can shift between versions.
 - Ownership rules live in `~/.pi/agent/ARCHITECTURE.md`. This file tracks *what renders*, not *who owns which module*.
 
@@ -336,7 +336,7 @@ House rule per `ARCHITECTURE.md`: `palette.ts` reads `themes/catppuccin-latte.js
 
 ## 10. Version-drift workflow
 
-Pending audit 1.1.0 → 1.4.0 (2026-10-25, `pi-updated`): installed bundle reports
+Compatibility audit 1.1.0 → 1.4.0 (2026-10-25, `pi-updated`): installed bundle reports
 1.4.0. Extension API and class-level ABI audits pass. Hygiene's real loader loads
 32 extensions with zero errors and warnings. The configured Syneva package path has
 no resolved package.json and is skipped by the manifest audit.
@@ -364,39 +364,38 @@ reach the audited running tree. Mermaid readable and bundled files pass
 `node --check`. The complete renderer/Markdown diff is in the disposable
 `/tmp/pi-audit-1.1-to-1.4.diff`.
 
-Close-out is blocked, so `AUDITED_PI_VERSION` and the verified header remain
-1.1.0. Root lint fails on the untouched `ghostex-session.ts` and warns in
-`tools/workspace/remote-grep.ts`; type-check fails on two possibly undefined
-strings at `ghostex-session.ts:47–48`. Do not hide these failures with a version
-bump. A fresh headless `pi -p 'Reply READY without calling tools.'` from
+`AUDITED_PI_VERSION` and the verified header now record 1.4.0 after the
+compatibility audits passed. A fresh headless `pi -p 'Reply READY without calling tools.'` from
 `/Users/walid-mos/Development` timed out after 120 seconds without a reply, so
 end-to-end startup is not proven despite the clean live loader. The live §9
 visual pass remains unverified. The stale-session check flagged
 PIDs 30042, 72121, 44501 and 89024. Exit and relaunch those sessions instead of
 using `/reload`, then finish the visual pass and gates before closing this audit.
 
-There is no hard pin. `lib/ui/pi-runtime.ts` exports `AUDITED_PI_VERSION` (the release the adapters
-were last audited against) and `detectPiDrift`; the renderers extension mounts a warning widget
-(`lib/ui/renderer-drift.ts`) on drift and installs anyway — a broken adapter still surfaces its own
-"missing; re-audit" error at install or render time. After upgrading pi, run the
-`pi-updated` skill: its changelog-diff script prints the installed CHANGELOG.md sections between the
-audited and installed versions (read every Breaking Changes entry against the surfaces the
-extensions use); `skills/pi-updated/scripts/extension-audit.ts` verifies every `pi.on` event,
-registration call and `ctx.ui` call under `extensions/` against the installed
-`ExtensionAPI`/`ExtensionUIContext` declarations; `skills/pi-updated/scripts/abi-audit.ts` checks
-class-level ABI (runtime exports + patched prototype methods against the running
-bundle); `skills/pi-updated/scripts/hygiene-audit.ts` re-establishes extension
-package hygiene — the loader's host-provided set must stay out of every
-settings-loaded package's `dependencies`, no loaded extension may shadow a
-replaceable builtin, and it closes with a live loader pass over the real
-settings — whenever the loading side changes (a pi upgrade adding builtins or
-host-provided packages, or a package changing its manifest or registrations).
-Then
-`rg` the new `dist/core/tools/renderers/*.js`, `dist/modes/interactive/components/*.js`, and
-`@earendil-works/pi-tui/dist/components/markdown.js` for glyph/format/token drift (line counts,
-strings, token names), fix the adapters, and bump `AUDITED_PI_VERSION` plus this file before
-continuing migration. The script cannot see instance-level fields (`host.text`, `contentContainer`,
-message shapes); those are covered by the §9 visual pass. Attachment composition also depends on
+Runtime coverage correction, 2026-10-30: the pass above did not exercise deferred
+vendored-package operations. Subagents still required `@earendil-works/chord` and
+its `/context` export, which installed Pi 1.4.0 no longer provides. The production
+runner peer resolver now removes those obsolete requirements. Extension loading
+alone could not catch that failure because resolution runs only when a child starts.
+
+`pnpm run audit:pi` passes against the installed global Pi 1.4.0. Report:
+`/var/folders/kx/jx7vscdj55s6djfrtk1_d1_c0000gn/T/pi-update-audit-DIBPK6/report.json`.
+The package audit resolves the production runner peers, creates foreground and
+background child sessions with production hooks, and shuts them down without a
+model request. The frontend package audit opens isolated Brave and executes
+navigation, DOM evaluation, screenshot capture and shutdown. Removing the
+frontend package's runtime entry made the gate exit 1, naming the missing
+`piAudit` field. Restoring the entry restored a passing gate. Root lint, root and
+package type checks, standalone audit-script type checks and drift checks pass.
+Lint retains the unrelated `remote-grep.ts` generic-name warning. The earlier
+unverified interactive and paid-model flows remain unverified by these operations.
+
+`lib/ui/pi-runtime.ts` owns `AUDITED_PI_VERSION` and `detectPiDrift`. The renderers
+warn on drift and still install, so an incompatible adapter can fail at install
+or render time. Read `~/.pi/agent/skills/pi-updated/SKILL.md` before upgrading Pi
+or changing a package's Pi integration. It owns the audit procedure and completion
+criteria. Static checks cannot see instance-level fields such as `host.text`,
+`contentContainer` or message shapes. Those need the §9 visual pass. Attachment composition also depends on
 `InteractiveMode.addCustomEntryToChat`, `CustomEntryComponent`'s native leading spacer/rebuild,
 and `UserMessageComponent`'s child layout. The thumbnail boundary separates iTerm2 cursor-up
 from its OSC with a style reset: Pi 0.85.1 otherwise mismeasures and can truncate the image payload.

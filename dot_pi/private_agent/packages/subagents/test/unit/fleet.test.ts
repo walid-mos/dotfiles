@@ -9,9 +9,7 @@ import { persistForegroundRunHistory, restoreForegroundRunHistory } from "../../
 import { FLEET_STATUS_WIDGET_KEY } from "../../src/tui/fleet-status.ts";
 import { setMainThinkingLevelSource } from "../../src/tui/running-tone.ts";
 import { getArtifactPaths, getArtifactsDir, getProjectArtifactsDir } from "../../src/shared/artifacts.ts";
-import type { HerdrClient } from "../../src/inspectors/herdr/client.ts";
 import type { InspectorPlugin } from "../../src/inspectors/types.ts";
-import { createHerdrInspectorPlugin } from "../../src/inspectors/herdr/plugin.ts";
 import type { SubagentState } from "../../src/shared/types.ts";
 import { updateActiveRunIndex } from "../../src/runs/background/active-run-index.ts";
 
@@ -1193,59 +1191,6 @@ describe("native subagent fleet", () => {
 		}
 	});
 
-	it("focuses an inspector provided after Fleet opens", async () => {
-		let inspectorPlugins: InspectorPlugin[] = [];
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-inspect-focus-"));
-		try {
-			const asyncDir = writeAsyncRun(root, { id: "run-focus", agents: ["worker"] });
-			const state = stateForTest();
-			state.asyncJobs.set("run-focus", {
-				asyncId: "run-focus",
-				asyncDir,
-				status: "running",
-				mode: "single",
-				agents: ["worker"],
-				startedAt: 100,
-				updatedAt: 200,
-			});
-			const calls: string[][] = [];
-			const client: HerdrClient = {
-				run: async <T>(args: string[]) => {
-					calls.push(args);
-					if (args[0] === "--version") return { ok: true, data: "herdr 0.7.5" as T };
-					if (args[0] === "pane" && args[1] === "split") return { ok: true, data: { pane: { pane_id: "w1:p9" } } as T };
-					return { ok: true, data: {} as T };
-				},
-			};
-			const ctx = {
-				hasUI: true,
-				ui: {
-					setWidget() {},
-					async custom(factory: (tui: unknown, theme: unknown, keybindings: unknown, done: (result: undefined) => void) => SubagentFleetComponent) {
-						const component = factory({ terminal: { rows: 32, columns: 100 }, requestRender() {} }, theme, undefined, () => {});
-						try {
-							component.render(100);
-							inspectorPlugins = [{ ...createHerdrInspectorPlugin({ client }), name: "test-host", available: () => true }];
-							component.handleInput("H");
-							for (let attempt = 0; attempt < 500 && !calls.some((args) => args[0] === "pane" && args[1] === "split"); attempt++) {
-								await new Promise((resolve) => setImmediate(resolve));
-							}
-						} finally {
-							component.dispose();
-						}
-					},
-				},
-			};
-
-			await openSubagentFleet(ctx as never, state, { asyncDirRoot: root, resultsDir: path.join(root, "results"), refreshMs: 60_000, inspectorPlugins: () => inspectorPlugins, inspectorEnv: {} });
-			const split = calls.find((args) => args[0] === "pane" && args[1] === "split");
-			assert.ok(split, `no pane split call: ${JSON.stringify(calls)}`);
-			assert.deepEqual(split.slice(-1), ["--focus"]);
-		} finally {
-			fs.rmSync(root, { recursive: true, force: true });
-		}
-	});
-
 	it("suppresses the status widget for the full inspector lifecycle", async () => {
 		const state = stateForTest();
 		let hidden = 0;
@@ -1377,7 +1322,7 @@ describe("native subagent fleet", () => {
 	it("opens the selected async child in an inspector", async () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-inspector-"));
 		try {
-			const asyncDir = writeAsyncRun(root, { id: "async-herdr" });
+			const asyncDir = writeAsyncRun(root, { id: "async-inspect" });
 			const calls: Array<{ runId: string; asyncDir: string; index?: number }> = [];
 			const component = new SubagentFleetComponent(
 				{ terminal: { rows: 28, columns: 100 }, requestRender() {} } as never,
@@ -1398,12 +1343,12 @@ describe("native subagent fleet", () => {
 			try {
 				component.handleInput("\r");
 				await new Promise((resolve) => setImmediate(resolve));
-				assert.deepEqual(calls, [{ runId: "async-herdr", asyncDir, index: 0 }]);
+				assert.deepEqual(calls, [{ runId: "async-inspect", asyncDir, index: 0 }]);
 				component.handleInput("H");
 				await new Promise((resolve) => setImmediate(resolve));
 				assert.deepEqual(calls, [
-					{ runId: "async-herdr", asyncDir, index: 0 },
-					{ runId: "async-herdr", asyncDir, index: 0 },
+					{ runId: "async-inspect", asyncDir, index: 0 },
+					{ runId: "async-inspect", asyncDir, index: 0 },
 				]);
 				assert.ok(component.render(100).some((line) => line.includes("Inspector opened.")));
 			} finally {

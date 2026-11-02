@@ -6,7 +6,7 @@
 # already-set-up machine: it reports and skips when the tool is present.
 
 BREW_FORMULAS=(neovim chezmoi gh starship zoxide fastfetch fzf ripgrep zsh-syntax-highlighting)
-BREW_CASKS=(ghostty brave-browser anomalyco/tap/hex)
+BREW_CASKS=(brave-browser anomalyco/tap/hex)
 BREW_TAPS=(anomalyco/tap)
 # GUI launcher for the laptop: the bootstrap disables Spotlight's cmd+space
 # hotkeys, so an actual launcher must be installed alongside them.
@@ -179,18 +179,6 @@ install_npm() {
         return 0
     fi
     act "install npm" pnpm add -g npm
-}
-
-install_herdr() {
-    # The installer drops the binary in ~/.local/bin, which a fresh bootstrap
-    # shell does not have on PATH yet - later herdr calls need it now. On an
-    # already-provisioned machine this is the only thing to do here.
-    export PATH="$HOME/.local/bin:$PATH"
-    if command_exists herdr; then
-        skip "herdr already installed"
-        return 0
-    fi
-    act "install herdr" sh -c 'curl -fsSL https://herdr.dev/install.sh | sh -'
 }
 
 # install_tailscale_daemon - server profile only: tailscaled as a boot-time

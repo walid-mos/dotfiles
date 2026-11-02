@@ -2,6 +2,7 @@
   "name": "pi-subagents",
   "version": "0.75.0",
   "private": true,
+  "piAudit": "./pi-audit.ts",
   "description": "Pi extension for single-agent delegation and scripted multi-agent workflows",
   "license": "MIT",
   "type": "module",

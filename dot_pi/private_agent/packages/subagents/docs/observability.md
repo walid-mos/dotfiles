@@ -125,7 +125,7 @@ Default keys:
 
 Set `fleetKeybindings` in the extension config to replace inspector-level keys when a terminal intercepts keys such as `PgUp`, `PgDn`, `Home`, or `End`. Prompt modes keep fixed keys such as `Esc`, `Enter`, `Tab`, and stop-confirmation `Y`/`N`.
 
-Enter and `H` use the available Inspect plugin. In a child-specific inspector, type ordinary guidance and press Enter to send it through the acknowledged steer channel; `steer <message>`, `status`, and `stop` remain available as explicit controls. The bundled Herdr plugin uses Herdr 0.7.5+.
+Enter and `H` use the available Inspect plugin. In a child-specific inspector, type ordinary guidance and press Enter to send it through the acknowledged steer channel; `steer <message>`, `status`, and `stop` remain available as explicit controls.
 
 Without a TUI, the textual `subagent({ action: "status", view: "fleet" })` is the fallback, and stopping a run uses `subagent({ action: "stop", id: "..." })`.
 

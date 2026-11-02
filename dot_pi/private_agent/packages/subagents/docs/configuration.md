@@ -439,12 +439,12 @@ Supervisor notifications and pending-request output guide the parent to resolve 
 ## `worktreeBaseDir`
 
 ```json
-{ "worktreeBaseDir": "/Users/matt/code/.worktrees/pi-subagents" }
+{ "worktreeBaseDir": "ignored-checkouts" }
 ```
 
-Sets the dedicated root directory for `worktree: true` runs. Relative paths resolve from the repository root, `~/...` expands to your home directory, and `PI_SUBAGENTS_WORKTREE_DIR` is used when config is unset. When both are unset, the dedicated root defaults to `{dirname(repoRoot)}/worktrees`, a `worktrees` directory alongside the repository checkout.
+Sets the dedicated root directory for `worktree: true` runs. Relative paths resolve from the main checkout registered by Git, including when launched from a linked worktree. `~/...` expands to your home directory, and `PI_SUBAGENTS_WORKTREE_DIR` is used when config is unset. When both are unset, the dedicated root defaults to `{dirname(repoRoot)}/worktrees`, a `worktrees` directory alongside the repository checkout.
 
-Each worktree leaf is `{dedicatedRoot}/{projectName}/pi-worktree-{runId}-{index}`, where `{projectName}` is the repository directory name (`basename(repoRoot)`), `{runId}` identifies the run, and `{index}` counts the children within the run. `worktreeBaseDir` and `PI_SUBAGENTS_WORKTREE_DIR` override only the dedicated root; the `{projectName}/pi-worktree-{runId}-{index}` nesting under it always applies. Unsafe locations are rejected instead of created: setup fails when the dedicated root sits inside the repository checkout or the Pi extensions directory, or when a worktree would land directly inside the repository parent.
+Each worktree leaf is `{dedicatedRoot}/{projectName}/pi-worktree-{runId}-{index}`, where `{projectName}` is the repository directory name (`basename(repoRoot)`), `{runId}` identifies the run, and `{index}` counts the children within the run. `worktreeBaseDir` and `PI_SUBAGENTS_WORKTREE_DIR` override only the dedicated root; the `{projectName}/pi-worktree-{runId}-{index}` nesting under it always applies. Inside the main checkout, the dedicated root must be a strict child ignored by Git. Setup rejects the repository root itself, Git's common directory, Pi's extensions directory and leaves directly inside the repository parent. Realpath checks also apply to symlinked locations. The local placement policy is owned by `~/.pi/agent/AGENTS.md`, which points to its authoritative config.
 
 ## `worktreeBranchPrefix`
 

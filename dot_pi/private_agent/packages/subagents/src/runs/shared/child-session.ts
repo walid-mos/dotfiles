@@ -305,8 +305,8 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 	const live = new Set<ChildSession>();
 	/** Extension shutdowns still running for disposed children; `dispose()` waits for them. */
 	const shutdowns = new Set<Promise<void>>();
-	const sharedRuntime = async (pi: PiCodingAgentModule) => {
-		runtime ??= pi.ModelRuntime.create().catch((error: unknown) => {
+	const sharedRuntime = async (hostPi: PiCodingAgentModule) => {
+		runtime ??= hostPi.ModelRuntime.create().catch((error: unknown) => {
 			runtime = undefined;
 			throw error;
 		});
@@ -314,29 +314,29 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 	};
 	return {
 		async create(launch) {
-			const pi = await loadPiCodingAgent();
+			const hostPi = await loadPiCodingAgent();
 			const modelRuntime = launch.parentProviderRegistry
-				? await pi.ModelRuntime.create()
-				: await sharedRuntime(pi);
+				? await hostPi.ModelRuntime.create()
+				: await sharedRuntime(hostPi);
 			const agentDir = getAgentDir();
-			const settingsManager = pi.SettingsManager.create(launch.cwd, agentDir, { projectTrusted: launch.projectTrusted });
+			const settingsManager = hostPi.SettingsManager.create(launch.cwd, agentDir, { projectTrusted: launch.projectTrusted });
 			// Foreground children share Pi's global theme with the parent, so reinitializing it
 			// would overwrite the parent's active light/dark appearance. Detached runners have
 			// no initialized theme and must initialize one for headless extension renderers.
 			const themeKey = Symbol.for("@earendil-works/pi-coding-agent:theme");
 			const themeInitialized = Boolean((globalThis as Record<symbol, unknown>)[themeKey]);
-			if (!themeInitialized && typeof pi.initTheme === "function") pi.initTheme(settingsManager.getTheme());
+			if (!themeInitialized && typeof hostPi.initTheme === "function") hostPi.initTheme(settingsManager.getTheme());
 			// SDK sessions do not install Pi's CLI built-ins. Use the host's own
 			// codemode factory only when this child can select it; older Pi hosts
 			// without that factory retain the strict missing-tool diagnostic.
-			const createCodemodeExtension = (pi as PiCodingAgentModule & { createCodemodeExtension?: () => ChildHookExtension["factory"] }).createCodemodeExtension;
+			const createCodemodeExtension = (hostPi as PiCodingAgentModule & { createCodemodeExtension?: () => ChildHookExtension["factory"] }).createCodemodeExtension;
 			const codemode = typeof createCodemodeExtension === "function" &&
 				!launch.runtime.capabilityCeiling?.denyExtensions &&
 				(launch.tools === undefined || launch.tools.includes("codemode")) &&
 				!launch.excludeTools?.includes("codemode")
 				? [{ name: "codemode", factory: createCodemodeExtension(), replaceable: true }]
 				: [];
-			const loader = new pi.DefaultResourceLoader({
+			const loader = new hostPi.DefaultResourceLoader({
 				cwd: launch.cwd,
 				agentDir,
 				settingsManager,
@@ -385,17 +385,17 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 					}
 				}
 				const sessionManager = launch.storage.kind === "file"
-					? pi.SessionManager.open(launch.storage.sessionFile, undefined, launch.cwd)
+					? hostPi.SessionManager.open(launch.storage.sessionFile, undefined, launch.cwd)
 					: launch.storage.kind === "dir"
-						? pi.SessionManager.create(launch.cwd, launch.storage.sessionDir)
+						? hostPi.SessionManager.create(launch.cwd, launch.storage.sessionDir)
 						: launch.storage.kind === "memory"
-							? pi.SessionManager.inMemory(launch.cwd)
-							: pi.SessionManager.create(launch.cwd);
+							? hostPi.SessionManager.inMemory(launch.cwd)
+							: hostPi.SessionManager.create(launch.cwd);
 				const resolvedModel = launch.model
-					? pi.resolveCliModel({ cliModel: launch.model, modelRuntime })
+					? hostPi.resolveCliModel({ cliModel: launch.model, modelRuntime })
 					: undefined;
 				if (resolvedModel?.error) throw new Error(resolvedModel.error);
-				const { session } = await pi.createAgentSession({
+				const { session } = await hostPi.createAgentSession({
 					cwd: launch.cwd,
 					agentDir,
 					modelRuntime,

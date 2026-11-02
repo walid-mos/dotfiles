@@ -11,6 +11,7 @@
 		"lint:types": "oxlint --disable-nested-config --type-aware",
 		"type-check": "tsc --noEmit",
 		"drift": "node --experimental-transform-types bin/pi-drift.ts",
+		"audit:pi": "node skills/pi-updated/scripts/audit.ts",
 		"format": "oxfmt --write .",
 		"format:check": "oxfmt --check .",
 		"test": "node --input-type=module -e 'import {globSync} from \"node:fs\"; const n = globSync(\"tests/**/*.test.ts\").length; if (!n) { console.error(\"test: no files matched tests/**/*.test.ts - refusing to report success\"); process.exit(1); }' && node --experimental-transform-types --test 'tests/**/*.test.ts'"

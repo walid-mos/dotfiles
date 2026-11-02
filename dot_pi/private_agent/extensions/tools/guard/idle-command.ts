@@ -11,7 +11,7 @@ const IDLE_PROGRAMS = new Set(['echo', 'printf', 'true', ':', 'date'])
 const ASSIGNMENT = /^[A-Za-z_]\w*=/
 
 export const IDLE_COMMAND_REFUSAL =
-	'Idle command refused: it only prints, assigns or reads the clock, so it does no work, and every tool call resends the whole conversation as a paid request. Never fill a wait with calls. A running bash job notifies this session when it completes: end this turn now, do independent work, or make one bounded `wait` on the job.'
+	'Idle command refused: it only prints, assigns or reads the clock, so it does no work, and every tool call resends the whole conversation as a paid request. Never fill a wait with calls. A running bash job notifies this session when it completes: end this turn now or do independent work.'
 
 export function isIdleCommand(command: string): boolean {
 	const stages = shellStages(command)

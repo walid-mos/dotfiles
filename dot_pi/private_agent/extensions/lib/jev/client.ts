@@ -57,7 +57,7 @@ export function estimateUsd(inputTokens: number): number {
 
 export function missingKeyError(): Error {
 	return new Error(
-		'TYPESAFE_API_KEY is not set - add it to ~/.config/zsh/secrets and restart the session',
+		'TYPESAFE_API_KEY is not set - check ~/.config/agent-secrets/core-vault.json, run infisical-refresh, and restart Pi',
 	)
 }
 

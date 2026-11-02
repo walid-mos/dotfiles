@@ -72,16 +72,24 @@ this list is the only record of what the fork changes. Behavior changes:
     `found 0` errors quote the fence-like lines the reply actually contained,
     so a launch can self-correct in one retry.
 
+13. **Standalone inspectors** — use `inspector.command` to inspect subagent runs in a terminal.
+
+14. **Ignored repository-local worktrees** — relative `worktreeBaseDir` values resolve from Git's main checkout. Ignored dedicated roots inside that checkout are permitted, while Git internals and extension discovery remain protected. Local placement policy is linked from `~/.pi/agent/AGENTS.md`.
+
+15. **Current host peer aliases** — background runners no longer require the removed `@earendil-works/chord` package. Pi's published peer exports remain the startup requirements.
+
+16. **Installed-Pi runtime audit** — `piAudit` creates real foreground and background sessions with production hooks and the production peer loader, without model requests. The audit contract lives in `~/.pi/agent/skills/pi-updated/package-audits.md`.
+
 ## Removed subsystems
 
 Deleted with their schema fields, actions, config keys, docs and tests because
 the owner does not use them: external CLI/job runners and the external-runs
 registry; the watchdog subsystem (the reviewer keeps `watchdog_diff`); the
 prompt-template delegation bridge and structured delegation API; scheduled
-runs; Herdr project panes and saved-machine placement; the extension RPC
+runs; terminal pane status reporting and saved-machine placement; the extension RPC
 bridge; agent refinement overlays; the Orca progress observer; the legacy chain
 runtime, dynamic fanout and saved chains; run history, pi-web liveness, Gist
-share, the upgrade notice, inspector registration, Ghostty, required child
+share, the upgrade notice, inspector registration, required child
 extensions, command supervision, built-in MCP, MCP imports and prompt audit;
 `subagents_enable` tool activation and `disabledFeatures`; the mission goal
 driver, decisions and workflow state; the Worktrunk provider and

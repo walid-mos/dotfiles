@@ -5,6 +5,7 @@ plan dirs move whole (`active/` → `done/<year>/`) — see `README.md` before r
 
 | id (project/plan) | project | status | updated | path |
 | --- | --- | --- | --- | --- |
+| product-data-apps/accorgpt-step3-e2e | product-data-apps | review | 2026-10-27 | active/product-data-apps/accorgpt-step3-e2e.md |
 | wt/wt-core-and-hooks | wt | done | 2026-09-18 | done/2026/wt/wt-core-and-hooks.md |
 | wt/workspace-health-reporting | wt | done | 2026-09-18 | done/2026/wt/workspace-health-reporting.md |
 | wt/apple-container-hermeticity | wt | active | 2026-09-18 | active/wt/apple-container-hermeticity.md |
@@ -17,4 +18,5 @@ plan dirs move whole (`active/` → `done/<year>/`) — see `README.md` before r
 | syneva/test-suite-rebuild | syneva | done | 2026-09-18 | done/2026/syneva/test-suite-rebuild.md |
 | pi-subagents/vendor-into-pi-config | pi-subagents | review | 2026-10-04 | active/pi-subagents/vendor-into-pi-config.md |
 | workspace/mac-central-rebuild | workspace | review | 2026-10-07 | active/workspace/mac-central-rebuild.md |
-| hermes-exit/migration | hermes-exit | active | 2026-10-09 | active/hermes-exit/migration.md |
+| workspace/assistant-gui | workspace | draft | 2026-10-22 | active/workspace/assistant-gui.md |
+| hermes-exit/migration | hermes-exit | active | 2026-10-28 | active/hermes-exit/migration.md |

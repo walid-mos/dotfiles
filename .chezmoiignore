@@ -3,7 +3,6 @@
 .pi/agent/auth.json
 .pi/agent/sessions
 .pi/agent/models-store.json
-# herdr bin scripts are synced (herdr-jump picker + herdr-pick hotkey wrapper)
 # pi bin shims: arm64 binaries and generated shims stay out; open is synced
 # (machine-forwarding wrapper, small and reviewed)
 .pi/agent/bin/fd
@@ -13,7 +12,6 @@
 # managed, the extension layout depends on it
 .pi/agent/npm/node_modules
 .pi/web-search-cache
-.pi/agent/extensions/herdr-agent-state.ts
 
 # Pi: jev working data and session ledgers - throwaway
 .pi/agent/goals
@@ -27,8 +25,6 @@
 .ascii
 .bundle
 .cargo
-.herdr
-.herdr-boats
 Applications
 
 # Pi: pnpm regenerates the lock in the installed tree
@@ -48,10 +44,6 @@ Applications
 # chezmoi internal state
 .config/chezmoi
 
-# herdr: volatile state
-.config/herdr/.plugins.lock
-.config/herdr/*.log
-.config/herdr/session.json
 
 # gh: credentials (contains GitHub token)
 .config/gh/hosts.yml
@@ -77,8 +69,6 @@ bootstrap/
 # ssh: keys and credentials - never version
 .ssh
 
-# herdr: app-generated release notes
-.config/herdr/release-notes.json
 
 # pi: third-party dependencies and vendored repo clones - never version
 .pi/agent/node_modules
@@ -88,10 +78,6 @@ bootstrap/
 .config/browser-harness
 .config/colima
 .config/swiftpm
-.config/herdr-focus-pane
-.config/herdr/plugins.json
-.config/herdr/plugins
-.config/herdr/local-plugins
 .docker/contexts
 .cua-driver
 .galley
@@ -110,6 +96,9 @@ bin/
 .syneva
 .config/.wrangler
 .config/wt/secrets
+
+# agent vault: provider-key bindings and vault config - never version
+.config/agent-secrets
 
 # macOS home: volatile state, caches and user data - never version
 .bash_history
@@ -157,7 +146,6 @@ infisical-keyring
 # pi: runtime state files pi regenerates - never version
 .pi/agent/crashes.json
 .pi/agent/goal-widget.json
-.pi/agent/herdr-task-names.json
 .pi/agent/mcp-adapter.json
 .pi/agent/mcp-onboarding.json
 # pi: vendored extension packages are synced; their dependency trees are not
@@ -169,10 +157,6 @@ infisical-keyring
 # machine-local agent-tool state, synced on request only (2026-12)
 .claude
 .claude.json
-.config/herdr/herdr.sock.agent
-.config/herdr/session-snapshots
-.config/herdr/sessions
-.config/herdr/task-names
 
 # client-project agent config is machine-local, never versioned
 .pi/agent/skills/accor-*

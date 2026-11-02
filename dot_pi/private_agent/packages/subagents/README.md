@@ -84,7 +84,7 @@ Use `subagent({ action: "doctor" })` to check setup, and `subagent({ action: "gu
 | [Observability](docs/observability.md) | FleetView, the fleet inspector, lifecycle artifacts, events, logs. |
 | [Missions](docs/missions.md) | Explicit mission records and delivery receipts. |
 | [Configuration](docs/configuration.md) | Every `config.json` key and environment variable. |
-| [Extension API](docs/extension-api.md) | Foreground progress correlation, the agent-roster event, inspector actions, Herdr integration, host session lifetime. |
+| [Extension API](docs/extension-api.md) | Foreground progress correlation, the agent-roster event, inspector actions, host session lifetime. |
 
 ## License
 

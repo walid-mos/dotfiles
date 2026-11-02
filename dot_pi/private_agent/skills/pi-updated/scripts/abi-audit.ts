@@ -4,16 +4,16 @@
  * bundle. Run from ~/.pi/agent:
  *   node skills/pi-updated/scripts/abi-audit.ts
  * Keep COMPONENT_METHODS in sync with the *-surface.ts patch tables (see SKILL.md). */
-import { execFileSync } from 'node:child_process'
-import { readdirSync, readFileSync, realpathSync, existsSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { readdirSync, readFileSync, existsSync } from 'node:fs'
+import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 
 import { typedHost } from '#lib/ui/pi-members.ts'
 
+import { findPackage } from './lib-pi-package.ts'
+
 const AGENT_ROOT = process.cwd()
 const ADAPTER_DIRS = ['extensions/lib/ui', 'extensions/ui/renderers']
-const PACKAGE_NAME = '@earendil-works/pi-coding-agent'
 const BUNDLE_ENTRY = 'dist/bundle/index.js'
 
 /** Component class → prototype methods the adapters patch or invoke on the host itself. */
@@ -52,62 +52,11 @@ function newReport(): Report {
 	}
 }
 
-function isPackageRoot(directory: string): boolean {
-	const manifestPath = join(directory, 'package.json')
-	if (!existsSync(manifestPath)) return false
-	const manifest: unknown = JSON.parse(readFileSync(manifestPath, 'utf8'))
-	return (
-		typeof manifest === 'object' &&
-		manifest !== null &&
-		'name' in manifest &&
-		manifest.name === PACKAGE_NAME
-	)
-}
-
-/** Package root for a known CLI entry path, or undefined when none sits above it. */
-function packageRoot(entry: string): string | undefined {
-	let directory = dirname(realpathSync(entry))
-	while (dirname(directory) !== directory) {
-		if (isPackageRoot(directory)) return directory
-		directory = dirname(directory)
-	}
-	return undefined
-}
-
-/** The CLI entry a launcher shim execs, with `$basedir` resolved to the shim directory;
- * the Windows variant (`$basedir_win`) lines are skipped. */
-function shimCliTarget(shim: string): string | undefined {
-	const matches = readFileSync(shim, 'utf8').matchAll(
-		/([^"\s]*)@earendil-works\/pi-coding-agent\/dist\/bundle\/cli\.js/g,
-	)
-	for (const match of matches) {
-		const prefix = match[1] ?? ''
-		if (prefix.includes('$basedir_win')) continue
-		const target = resolve(
-			dirname(shim),
-			prefix.replaceAll('$basedir', dirname(shim)) +
-				match[0].slice(prefix.length),
-		)
-		if (existsSync(target)) return target
-	}
-	return undefined
-}
-
-/** Resolve the installed CLI bundle from the `pi` binary on PATH: a launcher
- * shim names its target, a symlinked bin sits inside the package itself. */
-function findBundle(): string {
-	const binary = execFileSync('which', ['pi'], { encoding: 'utf8' }).trim()
-	const root = packageRoot(binary) ?? packageRoot(shimCliTarget(binary) ?? '')
-	if (!root)
-		throw new Error(`no ${PACKAGE_NAME} package found above ${binary}`)
-	return join(root, BUNDLE_ENTRY)
-}
-
 function listSources(directory: string): string[] {
 	if (!existsSync(directory)) return []
 	return readdirSync(directory, { recursive: true, withFileTypes: true })
 		.filter(entry => entry.isFile() && entry.name.endsWith('.ts'))
-		.map(entry => join(entry.parentPath ?? entry.path, entry.name))
+		.map(entry => join(entry.parentPath, entry.name))
 }
 
 /** Reflected runtime members, derived from the adapter sources themselves. */
@@ -128,7 +77,7 @@ function reflectedMembers(): Set<string> {
 }
 
 async function main(): Promise<number> {
-	const bundle = findBundle()
+	const bundle = join(findPackage(), BUNDLE_ENTRY)
 	const runtime = typedHost(await import(pathToFileURL(bundle).href))
 	if (!runtime) throw new Error('pi bundle module is not object-like')
 	const report = newReport()

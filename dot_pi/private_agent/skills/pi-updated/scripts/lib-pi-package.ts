@@ -1,11 +1,6 @@
-/** Locate the installed pi package from the `pi` CLI on PATH: follow the
- * binary (realpath) or its shim script up the directory tree to the package
- * directory that owns @earendil-works/pi-coding-agent's manifest. Shared by
- * the pi-updated audit scripts; abi-audit.ts carries an acknowledged copy
- * until its next audit pass. */
 import { execFileSync } from 'node:child_process'
 import { existsSync, readFileSync, realpathSync } from 'node:fs'
-import { dirname, join, resolve } from 'node:path'
+import { delimiter, dirname, join, resolve } from 'node:path'
 
 const PACKAGE_NAME = '@earendil-works/pi-coding-agent'
 
@@ -21,7 +16,6 @@ function isPackageRoot(directory: string): boolean {
 	)
 }
 
-/** Package root for a known CLI entry path, mirroring abi-audit.ts. */
 export function packageRoot(entry: string): string | undefined {
 	let directory = dirname(realpathSync(entry))
 	while (dirname(directory) !== directory) {
@@ -48,9 +42,21 @@ function shimCliTarget(shim: string): string | undefined {
 	return undefined
 }
 
-/** Package directory of the installed pi release. */
 export function findPackage(): string {
-	const binary = execFileSync('which', ['pi'], { encoding: 'utf8' }).trim()
+	const hostOverride = process.env.PI_AUDIT_HOST_ROOT
+	if (hostOverride) {
+		if (!isPackageRoot(hostOverride))
+			throw new Error(`Invalid installed Pi root: ${hostOverride}`)
+		return realpathSync(hostOverride)
+	}
+	const path = (process.env.PATH ?? '')
+		.split(delimiter)
+		.filter(entry => !entry.endsWith('/node_modules/.bin'))
+		.join(delimiter)
+	const binary = execFileSync('which', ['pi'], {
+		encoding: 'utf8',
+		env: { ...process.env, PATH: path },
+	}).trim()
 	const root = packageRoot(binary) ?? packageRoot(shimCliTarget(binary) ?? '')
 	if (!root)
 		throw new Error(`no ${PACKAGE_NAME} package found above ${binary}`)

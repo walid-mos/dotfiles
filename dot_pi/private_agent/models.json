@@ -6,6 +6,24 @@
       "api": "openai-completions",
       "models": [
         {
+          "id": "deepseek-v4.1-flash",
+          "name": "DeepSeek V4.1 Flash 1017 (Inco)",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "cost": {"input": 0.3, "output": 1.2, "cacheRead": 0.006, "cacheWrite": 0},
+          "contextWindow": 1048576,
+          "maxTokens": 384000
+        },
+        {
+          "id": "deepseek-v4.1-flash:fast",
+          "name": "DeepSeek V4.1 Flash 1017 Fast (Inco)",
+          "reasoning": true,
+          "input": ["text", "image"],
+          "cost": {"input": 0.6, "output": 2.4, "cacheRead": 0.012, "cacheWrite": 0},
+          "contextWindow": 1048576,
+          "maxTokens": 384000
+        },
+        {
           "id": "glm-5.3-flash",
           "name": "GLM 5.3 Flash standard (Inco)",
           "reasoning": true,
@@ -66,50 +84,46 @@
           }
         }
       ],
-      "apiKey": "${INCO_API_KEY}"
+      "apiKey": "!python3 ~/.pi/agent/bin/provider-key.py INCO_API_KEY"
     },
     "accorgpt": {
       "name": "AccorGPT",
       "baseUrl": "https://api.accor-gpt.accor.net/v1",
       "api": "openai-completions",
-      "apiKey": "!infisical secrets get ACCORGPT_API_KEY --plain --env main --path /pi --projectId ce69a081-6aec-472d-9ee8-edbb7ed2b72e",
-      "models": [
-        {
-          "id": "claude-opus-5-5",
-          "name": "Claude Opus 5.5 (AccorGPT)",
-          "reasoning": true,
-          "input": [
-            "text"
-          ],
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "contextWindow": 200000,
-          "maxTokens": 32000
-        },
-        {
-          "id": "claude-sonnet-5-5",
-          "name": "Claude Sonnet 5.5 (AccorGPT)",
-          "reasoning": true,
-          "input": [
-            "text"
-          ],
-          "cost": {
-            "input": 0,
-            "output": 0,
-            "cacheRead": 0,
-            "cacheWrite": 0
-          },
-          "contextWindow": 200000,
-          "maxTokens": 32000
-        }
-      ]
+      "apiKey": "!python3 ~/.pi/agent/bin/provider-key.py ACCORGPT_API_KEY",
+      "models": []
     },
     "openai": {
       "models": [
+        {
+          "id": "gpt-6.1-terra",
+          "name": "GPT-6.1 Terra",
+          "api": "openai-responses",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "minimal": "low",
+            "xhigh": "xhigh",
+            "max": "max"
+          },
+          "input": ["text", "image"],
+          "contextWindow": 1050000,
+          "maxTokens": 128000,
+          "cost": {
+            "input": 1,
+            "output": 5,
+            "cacheRead": 0.05,
+            "cacheWrite": 1.25,
+            "tiers": [
+              {
+                "inputTokensAbove": 272000,
+                "input": 2,
+                "output": 7.5,
+                "cacheRead": 0.1,
+                "cacheWrite": 2.5
+              }
+            ]
+          }
+        },
         {
           "id": "gpt-6-sol",
           "name": "GPT-6 Sol",
@@ -187,6 +201,34 @@
     "openai-codex": {
       "models": [
         {
+          "id": "gpt-6.1-terra",
+          "name": "GPT-6.1 Terra (Codex)",
+          "reasoning": true,
+          "thinkingLevelMap": {
+            "minimal": "low",
+            "xhigh": "xhigh",
+            "max": "max"
+          },
+          "input": ["text", "image"],
+          "contextWindow": 1050000,
+          "maxTokens": 128000,
+          "cost": {
+            "input": 1,
+            "output": 5,
+            "cacheRead": 0.05,
+            "cacheWrite": 1.25,
+            "tiers": [
+              {
+                "inputTokensAbove": 272000,
+                "input": 2,
+                "output": 7.5,
+                "cacheRead": 0.1,
+                "cacheWrite": 2.5
+              }
+            ]
+          }
+        },
+        {
           "id": "gpt-6-sol",
           "name": "GPT-6 Sol (Codex)",
           "reasoning": true,
@@ -256,6 +298,7 @@
       }
     },
     "deepseek": {
+      "apiKey": "!python3 ~/.pi/agent/bin/provider-key.py DEEPSEEK_API_KEY",
       "models": [
         {
           "id": "deepseek-v4-flash",
@@ -321,7 +364,11 @@
         }
       ]
     },
+    "zai": {
+      "apiKey": "!python3 ~/.pi/agent/bin/provider-key.py ZAI_API_KEY"
+    },
     "openrouter": {
+      "apiKey": "!python3 ~/.pi/agent/bin/provider-key.py OPENROUTER_API_KEY",
       "models": [
         {
           "id": "stealth/union-alpha",

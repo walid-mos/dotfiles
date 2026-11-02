@@ -2,9 +2,14 @@ emulate -L zsh
 zmodload zsh/system
 
 local cache_file=$XDG_CACHE_HOME/zsh/infisical.env
-local project_id=ce69a081-6aec-472d-9ee8-edbb7ed2b72e
-local -a secret_names=(TYPESAFE_API_KEY LINEAR_API_KEY SENTRY_AUTH_TOKEN OPENROUTER_MANAGEMENT_KEY INCO_API_KEY)
-local access_token secret_exports
+local vault_config=$XDG_CONFIG_HOME/agent-secrets/core-vault.json
+local project_id environment secret_path secret_names folder_exports access_token
+local secret_exports
+local -a secret_paths
+secret_exports="unset $(jq -er '[.exports[][]] | join(" ")' $vault_config)" || return
+secret_paths=("${(@f)$(jq -r '.exports | keys[]' $vault_config)}") || return
+project_id=$(jq -er '.projectId' $vault_config) || return
+environment=$(jq -er '.environment' $vault_config) || return
 local -i lock_fd
 
 [[ -d ${cache_file:h} ]] || mkdir -p ${cache_file:h}
@@ -15,8 +20,20 @@ if ! zsystem flock -t 0 -f lock_fd $cache_file.lock 2> /dev/null; then
 fi
 {
   access_token=$(infisical login --method=universal-auth --silent --plain) || return
-  secret_exports=$(infisical secrets get --token=$access_token --projectId=$project_id --env=main --path=/ --output dotenv --silent $secret_names) || return
-  (umask 077 && print -r -- $secret_exports > $cache_file.tmp) && mv -f $cache_file.tmp $cache_file
+  for secret_path in $secret_paths; do
+    secret_names=$(jq -c --arg path "$secret_path" '.exports[$path]' $vault_config) || return
+    folder_exports=$(infisical export --token=$access_token --projectId=$project_id --env=$environment --path=$secret_path --format=json --include-imports=false --expand=false --silent) || return
+    folder_exports=$(print -r -- "$folder_exports" | jq -r --argjson names "$secret_names" '
+      if type != "array" then error("Expected a secret array") else . end
+      | .[] | select(.key as $key | $names | index($key))
+      | if (.value | type) != "string" then error("Expected a secret string") else . end
+      | if (.value | test("^\\*.*not found.*\\*$"; "i")) then error("Missing-secret marker refused") else . end
+      | select(.value != "") | "export \(.key)=\(.value | @sh)"
+    ') || return
+    [[ -z $folder_exports ]] || secret_exports+=$'\n'$folder_exports
+  done
+  (umask 077 && print -r -- "$secret_exports" > $cache_file.tmp) && mv -f $cache_file.tmp $cache_file
 } always {
+  rm -f $cache_file.tmp
   exec {lock_fd}>&-
 }

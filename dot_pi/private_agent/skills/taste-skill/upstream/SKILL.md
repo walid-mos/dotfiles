@@ -16,7 +16,7 @@ Before touching code or tweaking dials, **infer what the user actually wants**. 
 
 ### 0.A Read these signals first
 1. **Page kind** - landing (SaaS / consumer / agency / event), portfolio (dev / designer / creative studio), redesign (preserve vs overhaul), editorial / blog.
-2. **Vibe words** the user used - "minimalist", "calm", "Linear-style", "Awwwards", "brutalist", "premium consumer", "Apple-y", "playful", "serious B2B", "editorial", "agency-y", "glassy", "dark tech".
+2. **Vibe words** the user used - "minimalist", "calm", "restrained", "Awwwards", "brutalist", "premium consumer", "Apple-y", "playful", "serious B2B", "editorial", "agency-y", "glassy", "dark tech".
 3. **Reference signals** - URLs they linked, screenshots they pasted, products they named, brands they're competing with.
 4. **Audience** - B2B procurement panel vs. design-conscious consumer vs. recruiter scanning a portfolio. The audience picks the aesthetic, not your taste.
 5. **Brand assets that already exist** - logo, color, type, photography. For redesigns, these are starting material, not optional input (see Section 11).
@@ -26,12 +26,12 @@ Before touching code or tweaking dials, **infer what the user actually wants**. 
 Before any code, state in one line: **"Reading this as: \<page kind> for \<audience>, with a \<vibe> language, leaning toward \<design system or aesthetic family>."**
 
 Example reads:
-- *"Reading this as: B2B SaaS landing for technical buyers, with a Linear-style minimalist language, leaning toward Tailwind utilities + Geist + restrained motion."*
+- *"Reading this as: B2B SaaS landing for technical buyers, with a restrained minimalist language, leaning toward Tailwind utilities + Geist + restrained motion."*
 - *"Reading this as: solo designer portfolio for hiring managers, with an editorial / kinetic-type language, leaning toward native CSS + scroll-driven animation + custom typography."*
 - *"Reading this as: redesign of a public-sector service site, with a trust-first language, leaning toward GOV.UK Frontend or USWDS."*
 
 ### 0.C If the brief is ambiguous, ask one question, do not guess
-Ask exactly **one** clarifying question - never a multi-question dump - and only when the design read genuinely diverges. Example: *"Should this feel closer to Linear-clean or Awwwards-experimental?"*
+Ask exactly **one** clarifying question - never a multi-question dump - and only when the design read genuinely diverges. Example: *"Should this feel closer to restrained minimalism or Awwwards-experimental?"*
 
 If you can confidently infer from context, **do not ask**. Just declare the design read and proceed.
 
@@ -53,7 +53,7 @@ After the design read, set three dials. Every layout, motion, and density decisi
 ### 1.A Dial Inference (design read → dial values)
 | Signal | VARIANCE | MOTION | DENSITY |
 |---|---|---|---|
-| "minimalist / clean / calm / editorial / Linear-style" | 5-6 | 3-4 | 2-3 |
+| "minimalist / clean / calm / editorial / restrained" | 5-6 | 3-4 | 2-3 |
 | "premium consumer / Apple-y / luxury / brand" | 7-8 | 5-7 | 3-4 |
 | "playful / wild / Dribbble / Awwwards / experimental / agency" | 9-10 | 8-10 | 3-4 |
 | "landing page / portfolio / marketing site (default)" | 7-9 | 6-8 | 3-5 |
@@ -167,7 +167,7 @@ LLMs default to clichés. Override these defaults proactively. Each rule has a c
 * **Body / Paragraphs:** Default `text-base text-gray-600 leading-relaxed max-w-[65ch]`.
 * **Sans font choice:**
   * **Discouraged as default:** `Inter`. Pick `Geist`, `Outfit`, `Cabinet Grotesk`, `Satoshi`, or a brand-appropriate serif first.
-  * **Override:** Inter is acceptable when the user explicitly asks for a neutral / standard / Linear-style feel, or when the brief is a public-sector / accessibility-first site.
+  * **Override:** Inter is acceptable when the user explicitly asks for a neutral / standard / restrained feel, or when the brief is a public-sector / accessibility-first site.
 * **Pairings to know:** `Geist` + `Geist Mono`, `Satoshi` + `JetBrains Mono`, `Cabinet Grotesk` + `Inter Tight`, `GT America` + `IBM Plex Mono`.
 
 * **SERIF DISCIPLINE (VERY DISCOURAGED AS DEFAULT):**
@@ -271,7 +271,7 @@ Landing pages and portfolios are **visual products**. Text-only pages with fake-
    * Open-license sources (Unsplash via direct URL, Pexels) if explicitly allowed
 3. **Last resort: tell the user.** If neither is possible, do NOT fill the page with hand-rolled SVG illustrations or div-based "fake screenshots." Instead, leave clearly-labeled placeholder slots (`<!-- TODO: hero product photo, 1600x1200 -->`) and at the end of the response say: *"This page needs real images at: \[list of placements\]. Please generate or provide them."*
 
-**Even minimalist sites need real images.** A pure-text page is not minimalism. It is incomplete work. Even an editorial Linear-style site needs at least 2-3 real images (hero, one product/lifestyle shot, one supporting image). Generate B&W minimalist photography if the brief is restrained; do not skip images entirely because the dial is low.
+**Even minimalist sites need real images.** A pure-text page is not minimalism. It is incomplete work. Even a restrained editorial site needs at least 2-3 real images (hero, one product/lifestyle shot, one supporting image). Generate B&W minimalist photography if the brief is restrained; do not skip images entirely because the dial is low.
 
 **Real company logos for social proof.** When the brief calls for a "Trusted by / Used by / Customers" logo wall, do NOT default to plain text wordmarks (`<span>Acme Co</span>` styled in a row). Use real SVG logos:
 * **Source: Simple Icons** (`https://cdn.simpleicons.org/{slug}/ffffff` for any color, or `simple-icons` npm package). Covers most known brands.

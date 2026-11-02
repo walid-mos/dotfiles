@@ -1,41 +1,9 @@
 #!/bin/sh
-# viewer-host — prints the ssh host of the machine the person is working from,
-# nothing when it is this one. An SSH caller (SSH_CONNECTION) is that machine.
-# A herdr pane has no SSH context of its own and its viewer changes while it
-# runs, so there the candidates are the SSH origins of the attached remote herdr
-# clients plus any SSH caller, and one wins only when its keyboard or mouse was
-# used more recently than this machine's. A tailnet IP resolves to its node
-# name, any other address to macbook-pro.
-hid_idle_seconds() {
-	ioreg -c IOHIDSystem | awk '/HIDIdleTime/ { print int($NF / 1000000000); exit }'
-}
-
 host_of() {
 	name=$(tailscale status 2>/dev/null | awk -v ip="$1" '$1 == ip { print $2; exit }')
 	printf '%s\n' "${name:-macbook-pro}"
 }
 
 caller=${SSH_CONNECTION%% *}
-if [ "${HERDR_ENV:-}" != 1 ]; then
-	[ -n "$caller" ] && host_of "$caller"
-	exit 0
-fi
-
-origins=$caller
-for pid in $(pgrep -f 'herdr remote-client-bridge'); do
-	origins="$origins $(ps -Eww -o command= -p "$pid" | tr ' ' '\n' | sed -n 's/^SSH_CONNECTION=//p')"
-done
-
-viewer=
-viewer_idle=$(hid_idle_seconds)
-for ip in $(printf '%s\n' $origins | sort -u); do
-	host=$(host_of "$ip")
-	idle=$(ssh -o BatchMode=yes -o ConnectTimeout=2 "$host" \
-		"ioreg -c IOHIDSystem | awk '/HIDIdleTime/ { print int(\$NF / 1000000000); exit }'" 2>/dev/null) || continue
-	if [ "$idle" -lt "$viewer_idle" ] 2>/dev/null; then
-		viewer=$host
-		viewer_idle=$idle
-	fi
-done
-[ -n "$viewer" ] && printf '%s\n' "$viewer"
+[ -n "$caller" ] && host_of "$caller"
 exit 0

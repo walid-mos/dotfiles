@@ -31,5 +31,5 @@ Secret writes stay on the CLI:
 read -rs 'VALUE?Value: ' && echo
 infisical secrets set <KEY>="$VALUE" --env=<slug> --projectId=<projectId>
 unset VALUE
-infisical secrets get <KEY> --env=<slug> --projectId=<projectId> --plain | cut -c1-6
+node ~/.config/agent-security/secret-names.mjs --projectId <projectId> --env <slug> --path /
 ```

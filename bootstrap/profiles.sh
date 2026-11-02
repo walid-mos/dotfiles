@@ -25,7 +25,6 @@ setup_common() {
     install_node
     install_npm
     install_pi
-    install_herdr
 
     step "Dotfiles"
     apply_dotfiles

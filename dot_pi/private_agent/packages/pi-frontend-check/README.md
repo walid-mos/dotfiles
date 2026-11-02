@@ -2,6 +2,10 @@
 
 A local adaptation of [sebaxzero/pi-frontend-check](https://github.com/sebaxzero/pi-frontend-check), based on upstream commit `afd74c8`. It preserves the frontend testing tools while using **installed Brave**, not a downloaded Chromium build. Upstream license: MIT.
 
+## Pi update compatibility
+
+`package.json` declares `piAudit`, consumed by the harness update gate. It runs schema validation and isolated Brave navigation, batch, evaluation, screenshot and shutdown operations against installed Pi without credentials. The authoring contract lives in `~/.pi/agent/skills/pi-updated/package-audits.md`.
+
 ## Install and use
 
 The package is vendored at `~/.pi/agent/packages/pi-frontend-check` and loaded through `settings.json` `packages`. After changing dependencies:

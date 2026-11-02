@@ -53,7 +53,6 @@ import { applyIntercomBridgeToAgent, INTERCOM_BRIDGE_MARKER, resolveIntercomBrid
 import { formatControlNoticeMessage, resolveControlConfig, shouldNotifyControlEvent } from "../shared/subagent-control.ts";
 import { formatSpawnBudget, getSpawnBudgetSnapshot, grantSpawnBudget, preflightSpawnBudget, preflightSpawnBudgetGrant, reserveSpawnBudget } from "../shared/spawn-budget.ts";
 import { claimRunFanoutBatch, createRunFanoutBudget, formatRunFanoutBudget, getRunFanoutBudgetSnapshot, RunFanoutLimitError, writeRunFanoutBudgetDescriptor } from "../shared/run-fanout-budget.ts";
-import { HERDR_FOREGROUND_CONTROL_CHANGED_EVENT } from "../../integrations/herdr-status.ts";
 import { validateToolBudgetConfig } from "../shared/tool-budget.ts";
 import { usageBudgetExceededMessage, usageBudgetState, validateUsageBudgetConfig } from "../shared/usage-budget.ts";
 import { assertAgentAllowedByCapabilityCeiling, intersectSubagentCapabilityCeilings, type ResolvedSubagentCapabilityCeiling } from "../shared/capability-ceiling.ts";
@@ -3203,19 +3202,9 @@ async function runSinglePath(data: ExecutionContextData, deps: ExecutorDeps): Pr
 	let detachForeground: ((reason?: string) => boolean) | undefined;
 	let childSessionControls: ForegroundChildSessionControls | undefined;
 	const foregroundControl = deps.state.foregroundControls.get(runId);
-	const syncHerdrForegroundChild = () => {
-		if (!foregroundControl?.parentWorkflowRunId) return;
-		try {
-			deps.pi.events.emit(HERDR_FOREGROUND_CONTROL_CHANGED_EVENT, { runId: foregroundControl.parentWorkflowRunId });
-		} catch (error) {
-			console.error("Failed to sync Herdr foreground child:", error);
-		}
-	};
 	const finishTrackedForegroundChild = () => {
 		if (!foregroundControl) return;
-		const wasActive = foregroundControl.activeChildren?.has(0) === true;
 		finishForegroundChild(foregroundControl, 0);
-		if (wasActive) syncHerdrForegroundChild();
 	};
 	if (foregroundControl) {
 		const thinking = resolveEffectiveThinking(modelOverride, undefined);
@@ -3247,7 +3236,6 @@ async function runSinglePath(data: ExecutionContextData, deps: ExecutorDeps): Pr
 		}));
 		// Capture the owned mailbox before a child can start and finish between polling ticks.
 		if (deps.childRuntime?.fanoutChild) deps.activateSupervisorTransport?.();
-		syncHerdrForegroundChild();
 	}
 
 	const modelResponseAliases = deps.config.modelResponseAliases === undefined ? undefined : structuredClone(deps.config.modelResponseAliases);

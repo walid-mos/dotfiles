@@ -14707,6 +14707,7 @@ void main() {
 		loading: false,
 		error: null,
 		collapsed: {
+			// narrative-section accordion state
 			rules: true,
 			dosdonts: true,
 			overview: true,

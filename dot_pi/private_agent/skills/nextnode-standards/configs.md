@@ -72,7 +72,7 @@ export default config
 | `package.json` | `better-sort-package-json` |
 | `*.{js,mjs,cjs,jsx,ts,mts,cts,tsx,vue,svelte}` | `oxlint` then `oxfmt --write` |
 | `*.astro` | `oxlint` only - oxfmt 0.43.x has no astro support (errors with "Expected at least one target file") |
-| `*.json` except `package.json` | `oxfmt --write` |
+| Every other file (md, yaml, toml, css, json, ...) | `oxfmt --write --no-error-on-unmatched-pattern`, so the commit hook formats every file `oxfmt --check .` checks; oxfmt skips types it does not support |
 
 Requires `husky` (v9+) for git hook integration:
 

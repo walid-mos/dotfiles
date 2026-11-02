@@ -1,6 +1,6 @@
 # Extension and integration APIs
 
-Process-local seams for sibling Pi extensions and host integrations: foreground progress correlation, the agent-roster event, the inspector actions, the Herdr integration, and host session lifetime. The package exposes no import subpaths; Pi loads it through `pi.extensions`.
+Process-local seams for sibling Pi extensions and host integrations: foreground progress correlation, the agent-roster event, the inspector actions, and host session lifetime. The package exposes no import subpaths; Pi loads it through `pi.extensions`.
 
 ## Foreground progress correlation
 
@@ -63,28 +63,7 @@ subagent({ action: "inspector.close", id: "<run-id>", index: 0 })
 
 `inspector.command` returns a standalone runner command without contacting a host or writing a binding. `inspector.open` selects an available built-in inspector plugin. `status` and `close` select the plugin that owns the run binding and report clearly when that plugin does not support the requested lifecycle action. Without an available plugin, `open` fails closed with an actionable message; ordinary launches remain headless. Closing an inspector never stops the run.
 
-### Herdr inspector plugin
 
-The bundled Herdr inspector plugin supports Herdr 0.7.5+. It opens a raw dashboard pane, not the child session and not a literal attach. It reads lifecycle, status, output, and mission artifacts; steer and stop continue through pi-subagents' existing control inbox. Use `focus` only with `inspector.open`; Herdr 0.7.5 cannot focus an arbitrary existing raw pane id.
-
-## Herdr integration
-
-When Pi runs inside [Herdr](https://herdr.dev), pi-subagents automatically reports active async-run counts through Herdr pane metadata.
-
-- The bridge is enabled only when Herdr supplies `HERDR_ENV=1` and `HERDR_PANE_ID`; outside Herdr it registers no listeners or timers.
-- It restores current-session active runs after `/reload` or `/resume`, refreshes metadata while work is active, and clears it on completion or shutdown.
-- The bridge uses Herdr's existing `herdr:blocked` sibling event when an async child needs attention, and emits `herdr:busy` while async work remains. Herdr versions that support the sibling event keep the pane's semantic state `working`; older versions ignore it safely and still display the metadata label while the Pi integration remains the lifecycle authority.
-- The owning Pi session is the only publisher for its own pane metadata. When an active workflow has an explicit bounded `label`, the newest active label appears in the summary and compact `title-suffix`; overlapping completion restores the previous active label. Raw task and goal prompts never enter Herdr metadata. Without a label, one active run uses its agent name and two or more use the active-run count. Attention adds `⚠`, and the suffix is cleared when active work reaches zero.
-
-To show the reported label in the expanded Agent sidebar, include `state_text` or `$summary` in its row layout:
-
-```toml
-[ui.sidebar.agents]
-rows = [
-  ["state_icon", "workspace", "tab"],
-  ["agent", "state_text"],
-]
-```
 
 ## Host session lifetime and completion wakes
 

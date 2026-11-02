@@ -12,7 +12,6 @@ pinned=$(jq -s 'if length == 0 then $pinned else .[0] * $pinned end' --argjson p
     "extensions/model",
     "extensions/tools",
     "extensions/fetch",
-    "extensions/herdr",
     "extensions/ui",
     "extensions/commands",
     "-builtin:mcp"

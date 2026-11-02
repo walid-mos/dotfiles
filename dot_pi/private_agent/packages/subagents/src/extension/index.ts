@@ -52,7 +52,6 @@ import {
 	SUPERVISOR_REQUEST_MESSAGE_TYPE,
 	type SupervisorRequestMessageDetails,
 } from "../intercom/supervisor-ui.ts";
-import { registerHerdrStatusBridge, type HerdrStatusRun } from "../integrations/herdr-status.ts";
 import { clearSlashSnapshots, getSlashRenderableSnapshot, resolveSlashMessageDetails, restoreSlashFinalSnapshots, type SlashMessageDetails } from "../slash/slash-live-state.ts";
 import { resolveWaitToolConfig } from "../runs/background/subagent-wait.ts";
 import { registerWaitTool } from "../runs/background/wait-tool.ts";
@@ -247,53 +246,6 @@ class SubagentControlNoticeComponent implements Component {
 		lines.push(this.theme.fg("accent", `╰${borderChar.repeat(bodyWidth)}╯`));
 		return lines;
 	}
-}
-
-export function projectActiveHerdrRuns(state: SubagentState): HerdrStatusRun[] {
-	const active = (status: string) => status === "queued" || status === "running";
-	const foregroundChildrenByWorkflow = new Map<string, Array<{ agent: string; needsAttention: boolean }>>();
-	for (const control of state.foregroundControls.values()) {
-		if (!control.parentWorkflowRunId) continue;
-		const children = control.activeChildren?.size
-			? [...control.activeChildren.values()].map((child) => ({
-				agent: child.agent,
-				needsAttention: child.currentActivityState === "needs_attention" || child.currentActivityState === "stale",
-			}))
-			: control.currentAgent
-				? [{ agent: control.currentAgent, needsAttention: control.currentActivityState === "needs_attention" || control.currentActivityState === "stale" }]
-				: [];
-		if (children.length === 0) continue;
-		const existing = foregroundChildrenByWorkflow.get(control.parentWorkflowRunId) ?? [];
-		existing.push(...children);
-		foregroundChildrenByWorkflow.set(control.parentWorkflowRunId, existing);
-	}
-
-	// Keep each async child under its own ID: completion and attention events
-	// address that ID directly. The workflow row accounts only for foreground
-	// children; its own coordinator and step summaries are not leaf agents.
-	return [...state.asyncJobs.values()]
-		.filter((job) => active(job.status))
-		.map((job) => {
-			const currentStep = job.steps?.find((step) => step.status === "running")
-				?? (job.currentStep !== undefined ? job.steps?.[job.currentStep] : undefined)
-				?? job.steps?.find((step) => step.status === "pending");
-			if (job.mode === "workflow") {
-				const children = foregroundChildrenByWorkflow.get(job.asyncId) ?? [];
-				return {
-					id: job.asyncId,
-					coordinator: true as const,
-					agents: children.map((child) => child.agent),
-					...(currentStep?.label ? { taskLabel: currentStep.label } : {}),
-					needsAttention: job.activityState === "needs_attention" || job.activityState === "stale" || children.some((child) => child.needsAttention),
-				};
-			}
-			return {
-				id: job.asyncId,
-				agents: job.agents,
-				...(currentStep?.label ? { taskLabel: currentStep.label } : {}),
-				needsAttention: job.activityState === "needs_attention" || job.activityState === "stale",
-			};
-		});
 }
 
 export default function registerSubagentExtension(pi: ExtensionAPI): void {
@@ -704,14 +656,6 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	});
 
 	let visibleControlNotices = new Set<string>();
-	const activeHerdrRuns = () => projectActiveHerdrRuns(state);
-	const herdrStatusBridge = registerHerdrStatusBridge({
-		events: pi.events,
-		getRuns: activeHerdrRuns,
-		async runHerdr(args) {
-			await pi.exec(process.env.HERDR_BIN || "herdr", [...args], { timeout: 5_000 });
-		},
-	});
 	const controlEventHandler = (payload: unknown) => {
 		handleSubagentControlNotice({
 			pi,
@@ -745,16 +689,13 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		}),
 		pi.events.on(SUBAGENT_CONTROL_EVENT, controlEventHandler),
 		pi.events.on(SUBAGENT_STEERING_NOTICE_EVENT, steeringNoticeHandler),
-		herdrStatusBridge.dispose,
 	];
 
 	pi.on("tool_result", (event, ctx) => {
 		if (event.toolName !== "subagent") return;
 		if (!ctx.hasUI) return;
 		state.lastUiContext = ctx;
-		const activeJobCount = state.asyncJobs.size;
 		restoreActiveJobs(ctx);
-		if (state.asyncJobs.size > activeJobCount) herdrStatusBridge.syncRuns();
 		fleetStatus?.setContext(ctx);
 		fleetStatus?.refresh();
 		if (state.asyncJobs.size > 0) {
@@ -948,7 +889,6 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 
 	pi.on("agent_start", () => {
 		resumeWidgetsAfterCompaction();
-		herdrStatusBridge.agentStarted();
 	});
 
 	pi.on("agent_settled", () => {
@@ -979,10 +919,6 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		scheduleModulePreload();
 		const recovering = event.reason === "startup" || event.reason === "reload" || event.reason === "resume";
 		resetSessionState(ctx, recovering, event.previousSessionFile);
-		herdrStatusBridge.sessionStarted({
-			hasUI: ctx.hasUI === true,
-			runs: activeHerdrRuns(),
-		});
 		supervisorChannel.start();
 		supervisorChannel.activateTransport();
 	});
@@ -994,9 +930,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		} catch (error) {
 			console.error("Failed to dispose in-process child sessions:", error);
 		}
-		await herdrStatusBridge.flush();
 	});
 
-	// Child processes and Herdr panes never load this module; in-process children have no UI.
 	pi.on("session_start", (_event, ctx) => beginAdvertisement(ctx));
 }

@@ -18,9 +18,6 @@
 		"cloudflare-observability": {
 			"url": "https://observability.mcp.cloudflare.com/mcp"
 		},
-		"mcp": {
-			"url": "https://mcp.linear.app/mcp"
-		},
 		"jira": {
 			"url": "https://mcp.atlassian.com/v2/mcp"
 		},
@@ -29,7 +26,10 @@
 			"args": [
 				"-y",
 				"@infisical/mcp"
-			]
+			],
+			"env": {
+				"INFISICAL_MASK_SECRET_VALUES": "true"
+			}
 		},
 		"terraform": {
 			"command": "docker",
