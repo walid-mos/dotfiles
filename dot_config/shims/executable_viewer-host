@@ -1,9 +1,2 @@
 #!/bin/sh
-host_of() {
-	name=$(tailscale status 2>/dev/null | awk -v ip="$1" '$1 == ip { print $2; exit }')
-	printf '%s\n' "${name:-macbook-pro}"
-}
-
-caller=${SSH_CONNECTION%% *}
-[ -n "$caller" ] && host_of "$caller"
-exit 0
+exec "$(dirname "$0")/python-entry" open_router --viewer-host "$@"

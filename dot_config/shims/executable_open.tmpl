@@ -1,0 +1,6 @@
+{{- if eq .chezmoi.os "darwin" -}}
+{{- $entry := joinPath .chezmoi.sourceDir "dot_config" "shims" "executable_python-entry" -}}
+{{- $preflight := output "/bin/sh" $entry "open_router" "--help" -}}
+{{- end -}}
+#!/bin/sh
+exec "$(dirname "$0")/python-entry" open_router "$@"

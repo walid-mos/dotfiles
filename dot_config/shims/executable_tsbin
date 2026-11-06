@@ -1,0 +1,9 @@
+#!/bin/sh
+for tailScaleCli in tailscale /opt/homebrew/bin/tailscale /usr/local/bin/tailscale /Applications/Tailscale.app/Contents/MacOS/Tailscale; do
+	if [ -x "$(command -v "$tailScaleCli" 2>/dev/null)" ] || [ -x "$tailScaleCli" ]; then
+		printf '%s\n' "$tailScaleCli"
+		exit 0
+	fi
+done
+echo "tsbin: no tailscale cli on this machine" >&2
+exit 1
