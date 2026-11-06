@@ -1,10 +1,14 @@
-import { spawnSync } from 'node:child_process'
 import { parseArgs } from 'node:util'
+
+import { API, call, names, query, sessionToken } from './infisical-rest.ts'
+import {
+	parseLocation,
+	SECRET_NAME_PATTERN,
+	SECRET_PATH_PATTERN,
+} from './infisical-target.ts'
 
 const USAGE =
 	'node ~/.config/agent-security/secret-move.mjs --name NAME --from PROJECT_ID/ENV --to PROJECT_ID/ENV [--path /] [--keep] [--replace]'
-const API = 'https://app.infisical.com/api/v3/secrets/raw'
-const TIMEOUT_MS = 30_000
 
 function readOptions() {
 	const { values } = parseArgs({
@@ -19,69 +23,28 @@ function readOptions() {
 		},
 	})
 	if (values.help) return values
-	if (!values.name || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(values.name))
+	if (!values.name || !new RegExp(SECRET_NAME_PATTERN, 'u').test(values.name))
 		throw new Error('Invalid secret name')
-	if (!values.path.startsWith('/') || /[\r\n\0]/.test(values.path))
+	if (!new RegExp(SECRET_PATH_PATTERN, 'u').test(values.path))
 		throw new Error('Invalid secret path')
 	return {
 		...values,
-		from: location(values.from),
-		to: location(values.to),
+		from: parseLocation(values.from),
+		to: parseLocation(values.to),
 	}
-}
-
-function location(text) {
-	const match = /^([a-zA-Z0-9-]+)\/([a-zA-Z0-9_-]+)$/.exec(text ?? '')
-	if (!match) throw new Error('A location is PROJECT_ID/ENV')
-	return { workspaceId: match[1], environment: match[2] }
-}
-
-function sessionToken() {
-	const result = spawnSync('infisical', ['user', 'get', 'token', '--plain'], {
-		encoding: 'utf8',
-		stdio: ['ignore', 'pipe', 'ignore'],
-		timeout: TIMEOUT_MS,
-	})
-	const token = result.stdout?.trim()
-	if (result.status !== 0 || !token)
-		throw new Error('No Infisical session, run: infisical login')
-	return token
-}
-
-async function call(token, method, url, body) {
-	const response = await fetch(url, {
-		method,
-		headers: {
-			authorization: `Bearer ${token}`,
-			'content-type': 'application/json',
-		},
-		body: body === undefined ? undefined : JSON.stringify(body),
-		signal: AbortSignal.timeout(TIMEOUT_MS),
-	})
-	const json = await response.json().catch(() => ({}))
-	return { status: response.status, json }
-}
-
-function query(where, path) {
-	return new URLSearchParams({ ...where, secretPath: path }).toString()
-}
-
-async function names(token, where, path) {
-	const { status, json } = await call(token, 'GET', `${API}?${query(where, path)}`)
-	if (status !== 200) throw new Error(`Cannot list ${where.environment}: HTTP ${status}`)
-	return json.secrets.map(secret => secret.secretKey)
 }
 
 async function move(options) {
 	const token = sessionToken()
 	const { name, from, to, path } = options
 	const read = await call(token, 'GET', `${API}/${name}?${query(from, path)}`)
-	if (read.status !== 200 || read.json.secret?.secretValue === undefined)
+	const secretValue = read.json.secret?.secretValue
+	if (read.status !== 200 || secretValue === undefined)
 		throw new Error(`${name} is not in the source (HTTP ${read.status})`)
 	const existing = await names(token, to, path)
 	if (existing.includes(name) && !options.replace)
 		throw new Error(`${name} already exists in the target, pass --replace to overwrite it`)
-	const body = { ...to, secretPath: path, secretValue: read.json.secret.secretValue }
+	const body = { ...to, secretPath: path, secretValue }
 	const write = await call(token, existing.includes(name) ? 'PATCH' : 'POST', `${API}/${name}`, body)
 	if (write.status !== 200) throw new Error(`Write to the target failed: HTTP ${write.status}`)
 	if (!(await names(token, to, path)).includes(name))
