@@ -1,0 +1,11 @@
+{
+  "zoom": 1.1,
+  "sounds": {
+    "enabled": true
+  },
+  "font_size": 11.0,
+  "minimum_contrast": 1.0,
+  "option_as_alt": "on",
+  "appearance": "light",
+  "theme": "catppuccin-latte"
+}
