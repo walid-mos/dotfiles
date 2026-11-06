@@ -11,3 +11,4 @@ chezmoi source of the live config. The Mac Studio is the truth and pushes with t
 
 - Commit on a branch (`sync/<machine>-<yyyy-mm>` for a sync), one Conventional Commit (`type(scope): description`) per intention.
 - Never open a pull request or merge with `--no-ff` here: `git merge --ff-only` the branch into `main`, then delete the local branch.
+- Never leave a merged branch on origin or locally: after pushing `main`, `git push origin --delete <branch>` and `git branch -d <branch>`. `wt-archive` is an archive: never merge or delete it.
