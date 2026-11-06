@@ -51,6 +51,7 @@ Applications
 .pi/web-search.json
 
 # repository documentation and bootstrap scripts: live in the repo, never applied to $HOME
+AGENTS.md
 README.md
 bootstrap.sh
 bootstrap/
