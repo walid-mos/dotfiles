@@ -12,6 +12,9 @@ vim.opt.cursorline = true
 vim.opt.ruler = false
 
 vim.opt.mouse = "a"
+vim.schedule(function()
+	vim.opt.clipboard = "unnamedplus"
+end)
 
 vim.opt.tabstop = 4
 vim.opt.shiftwidth = 4
