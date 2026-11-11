@@ -1,6 +1,6 @@
 #!/bin/zsh
 # pi installs its user-scoped npm packages on its first run, and the layout it
-# leaves depends on the managed ~/.pi/agent/npm/pnpm-workspace.yaml - so the
+# leaves depends on the pi-agent checkout's npm/pnpm-workspace.yaml - so the
 # setup installs them itself and refuses to end on a tree pi cannot load.
 set -eu
 
