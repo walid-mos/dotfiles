@@ -1,39 +1,11 @@
-# Pi: volatile state and secrets - never version
-.pi/generated
-.pi/agent/auth.json
-.pi/agent/sessions
-.pi/agent/models-store.json
-# pi bin shims: arm64 binaries and generated shims stay out; open is synced
-# (machine-forwarding wrapper, small and reviewed)
-.pi/agent/bin/fd
-.pi/agent/bin/rg
-.pi/agent/bin/syneva
-# only the installed tree is volatile - pi's pnpm-workspace.yaml there is
-# managed, the extension layout depends on it
-.pi/agent/npm/node_modules
-.pi/web-search-cache
-
-# Pi: jev working data and session ledgers - throwaway
-.pi/agent/goals
-.pi/agent/jev
-
-# Pi: plans are throwaway; closed ones are archived locally only
-.pi/agent/plans/active
-.pi/agent/plans/done/**
+# Pi: ~/.pi is not managed here; ~/.pi/agent is a checkout of NextNodeSolutions/pi-agent
+.pi
 
 # tool caches, installs and worktree state at $HOME root: binaries, caches, sessions - never version
 .ascii
 .bundle
 .cargo
 Applications
-
-# Pi: pnpm regenerates the lock in the installed tree
-.pi/agent/npm/package-lock.json
-.pi/agent/npm/pnpm-lock.yaml
-
-# Pi: transient handoffs and run history
-.pi/agent/handoffs
-.pi/agent/run-history.jsonl
 
 # nextnode-qonto: Python cache, backups and superseded iterations
 .config/nextnode-qonto/__pycache__
@@ -44,11 +16,8 @@ Applications
 # chezmoi internal state
 .config/chezmoi
 
-
 # gh: credentials (contains GitHub token)
 .config/gh/hosts.yml
-# Pi: web search cache
-.pi/web-search.json
 
 # repository documentation and bootstrap scripts: live in the repo, never applied to $HOME
 AGENTS.md
@@ -56,24 +25,15 @@ README.md
 bootstrap.sh
 bootstrap/
 
-# pi: frontend-check specimens are throwaway test data
-.pi/agent/frontend-check
-
 # zsh: machine-local config and secrets - never version
 .config/zsh/local.zsh
 .config/zsh/secrets
 
 # infisical CLI state (sessions, cache) - never version
 .config/infisical/
-.pi/agent/.infisical.json
 
 # ssh: keys and credentials - never version
 .ssh
-
-
-# pi: third-party dependencies and vendored repo clones - never version
-.pi/agent/node_modules
-.pi/agent/git
 
 # app/tool runtime state (regenerated, machine-local) - never version
 .config/browser-harness
@@ -84,7 +44,6 @@ bootstrap/
 .galley
 .storybook
 .xurl
-.pi/agent/missions
 
 # user bin: one-off utility scripts, not synced
 bin/
@@ -106,7 +65,6 @@ bin/
 .docker/.token_seed
 .docker/.token_seed.lock
 .docker/buildx
-.pi/agent/context-artifacts
 .sentry
 .DS_Store
 .CFUserTextEncoding
@@ -129,43 +87,17 @@ Music
 Pictures
 Public
 
-# pi: regenerated MCP tool cache and runtime state (caches, deps, git, packages)
-.pi/agent/mcp-cache.json
-.pi/agent/mcp-npx-cache.json
-.pi/generated
-
 # cups: printer daemon state, machine-local
 .cups
-
-# pi: prototypes are throwaway working data
-.pi/agent/prototypes
 
 # macOS metadata files at any depth
 **/.DS_Store
 .infisical
 infisical-keyring
-# pi: runtime state files pi regenerates - never version
-.pi/agent/crashes.json
-.pi/agent/goal-widget.json
-.pi/agent/mcp-adapter.json
-.pi/agent/mcp-onboarding.json
-# pi: vendored extension packages are synced; their dependency trees are not
-.pi/agent/packages/**/node_modules
-
-# shared-web-logins broker: python cache
-.pi/agent/packages/**/__pycache__
 
 # machine-local agent-tool state, synced on request only (2026-12)
 .claude
 .claude.json
-
-# client-project agent config is machine-local, never versioned
-.pi/agent/skills/client-*
-.pi/agent/skills.json
-.pi/agent/lazy-load.json
-
-# pi: MCP OAuth token cache - empty today, holds tokens when populated
-.pi/agent/mcp-auth.json
 
 # mole: generated clean-list (151KB, regenerated on every run)
 .config/mole/
@@ -177,9 +109,6 @@ infisical-keyring
 .config/exercism
 .claude.json.backup
 .thumbnails
-.pi/agent/certs
-.pi/agent/trust.json
-
 
 # aws / cloudflared: credentials, SSO cache, tunnel certs - never version
 .aws

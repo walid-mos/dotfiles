@@ -15,6 +15,7 @@ SERVER_FORMULAS=(tailscale)
 
 NERD_FONTS_SOURCE="$HOME/Library/Mobile Documents/com~apple~CloudDocs/Fonts/Nerd Font"
 PI_PACKAGE="@earendil-works/pi-coding-agent"
+PI_AGENT_REPOSITORY="https://github.com/NextNodeSolutions/pi-agent.git"
 
 install_homebrew() {
     if command_exists brew; then
@@ -102,10 +103,26 @@ install_pi() {
     act "install pi-coding-agent" pnpm add -g --ignore-scripts "$PI_PACKAGE"
 }
 
+# install_pi_agent - ~/.pi/agent is a checkout of the public pi-agent
+# repository, not chezmoi state. A directory that predates the checkout is never
+# overwritten here: adopting it is the reviewed step of the pi-agent README.
+install_pi_agent() {
+    agent="$HOME/.pi/agent"
+    if [ -d "$agent/.git" ]; then
+        skip "pi agent directory already cloned (update with: git -C ~/.pi/agent pull --ff-only)"
+    elif [ -e "$agent" ]; then
+        skip "$agent exists without git: adopt it in place as the pi-agent README (Install) says"
+        return 0
+    else
+        act "clone pi-agent into $agent" git clone --quiet "$PI_AGENT_REPOSITORY" "$agent"
+    fi
+    act "apply pi's shared settings and install its dependencies" node "$agent/bin/setup.ts"
+}
+
 # install_pi_extensions - pi installs its user-scoped npm packages on its first
 # run; doing it here means an unusable extension tree fails the setup instead of
-# breaking the first agent session. Must run after apply_dotfiles: the layout pi
-# leaves behind depends on the managed ~/.pi/agent/npm/pnpm-workspace.yaml.
+# breaking the first agent session. Must run after install_pi_agent: the layout
+# pi leaves behind depends on the checkout's npm/pnpm-workspace.yaml.
 install_pi_extensions() {
     if ! command_exists pi; then
         skip "pi not installed; leaving its extensions alone"

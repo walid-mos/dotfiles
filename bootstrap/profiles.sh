@@ -30,9 +30,10 @@ setup_common() {
     apply_dotfiles
     configure_zsh_secrets
 
-    # After apply_dotfiles: the extension tree pi installs depends on the managed
-    # ~/.pi/agent/npm/pnpm-workspace.yaml.
-    step "pi extensions"
+    step "pi agent"
+    install_pi_agent
+    # After install_pi_agent: the extension tree pi installs depends on the
+    # checkout's npm/pnpm-workspace.yaml.
     install_pi_extensions
 
     configure_development_dirs
