@@ -24,17 +24,10 @@ setup_common() {
     install_pnpm
     install_node
     install_npm
-    install_pi
 
     step "Dotfiles"
     apply_dotfiles
     configure_zsh_secrets
-
-    step "pi agent"
-    install_pi_agent
-    # After install_pi_agent: the extension tree pi installs depends on the
-    # checkout's npm/pnpm-workspace.yaml.
-    install_pi_extensions
 
     configure_development_dirs
 
@@ -55,6 +48,13 @@ setup_laptop() {
 
 setup_server() {
     setup_common
+    # Server only: the laptop runs its agents on the server over ssh.
+    step "pi agent"
+    install_pi
+    install_pi_agent
+    # After install_pi_agent: the extension tree pi installs depends on the
+    # checkout's npm/pnpm-workspace.yaml.
+    install_pi_extensions
     install_tailscale_daemon
     configure_headless_server
     step "SSH identity (named after this Mac; the laptop authorizes it)"
