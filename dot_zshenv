@@ -18,4 +18,4 @@ fpath=($XDG_CONFIG_HOME/zsh/functions $fpath)
 source $XDG_CONFIG_HOME/zsh/env/path.zsh
 [[ -r $XDG_CONFIG_HOME/zsh/secrets ]] && source $XDG_CONFIG_HOME/zsh/secrets
 source $XDG_CONFIG_HOME/zsh/env/infisical.zsh
-source $XDG_CONFIG_HOME/zsh/env/aws.zsh
+[[ -r $XDG_CONFIG_HOME/zsh/env/aws.zsh ]] && source $XDG_CONFIG_HOME/zsh/env/aws.zsh
