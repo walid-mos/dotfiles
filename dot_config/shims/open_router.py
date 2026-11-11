@@ -10,7 +10,7 @@ from urllib.parse import unquote, urlsplit
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from link_runtime import (PAIR_NAMES, browser_url, caller_node, dns_name, fetch_file,
                           find_node, paired_node, report_error, require_desktop, run,
-                          serve_config, snapshot, ssh, stage_file)
+                          snapshot, ssh, stage_file)
 
 
 def ancestry():
@@ -74,10 +74,10 @@ def file_argument(argument, origin, identity):
     return source, path
 
 
-def prepare_argument(argument, viewer, origin, identity, mode, config):
+def prepare_argument(argument, viewer, origin, identity, mode):
     parsed = urlsplit(argument)
     if parsed.scheme and parsed.scheme != "file":
-        return browser_url(argument, viewer, origin, identity, config)
+        return browser_url(argument, viewer, origin, identity, mode)
     source, path = file_argument(argument, origin, identity)
     require_desktop(source)
     if mode == "dry":
@@ -126,8 +126,7 @@ def routed_open(values, mode, names):
             raise ValueError("Native open flags are not supported on rewritten or remote routes. Use /usr/bin/open on the viewer.")
         dispatch(["/usr/bin/open", *values], mode, identity, viewer)
         return
-    config = serve_config() if any(urlsplit(value).scheme in ("http", "https") for value in values) else {}
-    prepared = [prepare_argument(value, viewer, origin, identity, mode, config) for value in values]
+    prepared = [prepare_argument(value, viewer, origin, identity, mode) for value in values]
     dispatch(["/usr/bin/open", *prepared], mode, identity, viewer)
 
 

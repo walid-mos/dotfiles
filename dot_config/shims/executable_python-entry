@@ -10,7 +10,7 @@ if [ ! -x "$developer/usr/bin/python3" ] && [ ! -x "$developer/Toolchains/XcodeD
     exit 2
 fi
 case ${1:-} in
-    open_router|tailnet_link) module=$1; shift ;;
+    open_router) module=$1; shift ;;
     *) echo 'open tools: unknown entry point' >&2; exit 2 ;;
 esac
 exec /usr/bin/python3 -I -B "$root/$module.py" "$@"

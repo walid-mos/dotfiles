@@ -14,3 +14,6 @@
 .config/zsh/conf.d/zz-syntax-highlighting.zsh
 .config/zsh/conf.d
 .config/agent-security
+.config/shims/tailnet-link
+.config/shims/tailnet_link.py
+.config/shims/deliverables.py

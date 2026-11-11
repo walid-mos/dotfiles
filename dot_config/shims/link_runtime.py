@@ -13,6 +13,7 @@ SSH_FLAGS = ("-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
              "-o", "ClearAllForwardings=yes", "-o", "ControlPath=none")
 COMMAND_TIMEOUT = 15
 TRANSFER_TIMEOUT = 60
+TAILNET_LINK = Path.home() / ".local/bin/tailnet-link"
 
 
 def run(arguments, **options):
@@ -125,26 +126,15 @@ def stage_file(viewer, path):
     return destination
 
 
-def serve_config():
-    return json.loads(tailscale("serve", "status", "--json"))
+def preview_url(local, mode):
+    if mode == "dry":
+        print("planned-preview: " + local)
+        return local
+    return subprocess.run([str(TAILNET_LINK), local], check=True, timeout=TRANSFER_TIMEOUT,
+                          text=True, capture_output=True).stdout.strip()
 
 
-def assert_no_funnel(config):
-    if any(config.get("AllowFunnel", {}).values()):
-        raise ValueError("Funnel is enabled. This command supports tailnet-only serving and will not change that configuration.")
-
-
-def https_url(port, identity, config):
-    host = dns_name(identity["Self"])
-    handler = config.get("Web", {}).get(host + ":" + str(port), {}).get("Handlers", {}).get("/")
-    expected = {"Proxy": "http://127.0.0.1:" + str(port)}
-    if handler != expected or config.get("TCP", {}).get(str(port)) != {"HTTPS": True}:
-        raise ValueError("No matching HTTPS preview. On " + host + ", run: tailnet-link preview " + str(port))
-    authority = host if port == 443 else host + ":" + str(port)
-    return "https://" + authority + "/"
-
-
-def browser_url(argument, viewer, origin, identity, config):
+def browser_url(argument, viewer, origin, identity, mode):
     parsed = urlsplit(argument)
     if parsed.scheme not in ("http", "https"):
         return argument
@@ -157,12 +147,12 @@ def browser_url(argument, viewer, origin, identity, config):
     if parsed.hostname not in (*local_names, *own_names):
         return argument
     if parsed.hostname in local_names and dns_name(origin) != dns_name(identity["Self"]):
-        raise ValueError("Ambiguous remote localhost URL. Run tailnet-link preview on the serving host and use its HTTPS URL.")
+        raise ValueError("Ambiguous remote localhost URL. Run tailnet-link with it on the serving host and use the HTTPS URL it prints.")
     if parsed.scheme == "https" and parsed.hostname in own_names:
         return argument
     port = parsed.port or (443 if parsed.scheme == "https" else 80)
-    base = urlsplit(https_url(port, identity, config))
-    return urlunsplit((base.scheme, base.netloc, parsed.path, parsed.query, parsed.fragment))
+    local = urlunsplit(("http", "localhost:" + str(port), parsed.path, parsed.query, parsed.fragment))
+    return preview_url(local, mode)
 
 
 def report_error(error):
