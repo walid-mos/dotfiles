@@ -13,3 +13,4 @@
 .config/zsh/conf.d/zoxide.zsh
 .config/zsh/conf.d/zz-syntax-highlighting.zsh
 .config/zsh/conf.d
+.config/agent-security
