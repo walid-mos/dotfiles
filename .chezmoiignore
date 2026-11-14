@@ -24,6 +24,7 @@ AGENTS.md
 README.md
 bootstrap.sh
 bootstrap/
+macbook/
 
 # zsh: machine-local config and secrets - never version
 .config/zsh/local.zsh
