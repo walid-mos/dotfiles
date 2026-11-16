@@ -46,6 +46,15 @@ chezmoi update    # pull and apply in one step
 Secrets (`~/.config/zsh/secrets`, ssh keys, tokens) stay outside the repo by
 design and are scaffolded, never versioned.
 
+## Herdr
+
+`~/.config/herdr-app` is not managed here. [walid-mos/agent-herdr](https://github.com/walid-mos/agent-herdr)
+is the one source of Herdr's settings, keys, themes, layouts, mods and installer on
+every desktop machine, and Herdr writes its own state in the same folder.
+`.chezmoiignore` ignores the whole folder: `chezmoi apply` leaves it alone, and
+`chezmoi add`, `re-add` and `unmanaged` never see it. chezmoi deletes a live file
+only through `.chezmoiremove`, which never lists a Herdr path.
+
 ## Checks
 
 ```sh
