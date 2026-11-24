@@ -1,0 +1,24 @@
+# ~/.config/zsh/.zprofile — shells de login (chargé avant .zshrc).
+# Tout le PATH est ici : les agents que Herdr lance avec `zsh -l -c …` ne lisent pas .zshrc.
+source "$ZDOTDIR/lib.zsh"
+typeset -U path   # pas de doublons dans PATH
+
+# Homebrew en tête du PATH, avant /usr/bin : les outils brew passent devant ceux de macOS
+# (python3 brew au lieu du python3 3.9 système). Sortie de `brew shellenv` mise en cache.
+_cached brew-shellenv /opt/homebrew/bin/brew shellenv zsh
+
+export PNPM_HOME="$HOME/Library/pnpm"
+
+# Priorité, du plus fort au plus faible :
+#   pnpm · npm global · scripts perso (fbx…) · ~/.local/bin (claude, herdr…)
+#   · rustup (keg-only) et ~/.cargo/bin · python brew non versionné (python, pip) · Homebrew
+path=(
+  "$PNPM_HOME/bin"
+  "$HOME/.config/.npm-global/bin"
+  "$ZDOTDIR/bin"
+  "$HOME/.local/bin"
+  /opt/homebrew/opt/rustup/bin
+  "$HOME/.cargo/bin"
+  /opt/homebrew/opt/python/libexec/bin
+  $path
+)

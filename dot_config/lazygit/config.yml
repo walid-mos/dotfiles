@@ -1,0 +1,5 @@
+# lazygit — icônes Nerd Font, bordures arrondies. Couleurs ANSI par défaut (suivent le terminal).
+gui:
+  nerdFontsVersion: "3"
+  border: rounded
+  showFileIcons: true

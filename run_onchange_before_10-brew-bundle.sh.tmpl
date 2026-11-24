@@ -1,0 +1,9 @@
+#!/bin/bash
+# Installe Homebrew si besoin, puis tout le Brewfile. Relancé par chezmoi quand le Brewfile change.
+# Brewfile hash : {{ include "dot_config/homebrew/Brewfile" | sha256sum }}
+set -euo pipefail
+if ! command -v brew >/dev/null && [[ ! -x /opt/homebrew/bin/brew ]]; then
+  /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+fi
+eval "$(/opt/homebrew/bin/brew shellenv)"
+brew bundle --no-upgrade --file="{{ .chezmoi.sourceDir }}/dot_config/homebrew/Brewfile"

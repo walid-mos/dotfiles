@@ -1,0 +1,2 @@
+# Clés de ~/.claude/settings.json propres à chaque machine : jamais versionnées.
+claudeLocalKeys = ["model"]

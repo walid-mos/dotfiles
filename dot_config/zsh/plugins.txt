@@ -1,0 +1,6 @@
+# Plugins zsh, gérés par antidote (bundle statique régénéré quand ce fichier change).
+# Ordre important : fzf-tab après compinit, puis les plugins qui enveloppent des widgets.
+zsh-users/zsh-completions kind:clone
+Aloxaf/fzf-tab
+zsh-users/zsh-autosuggestions
+zdharma-continuum/fast-syntax-highlighting

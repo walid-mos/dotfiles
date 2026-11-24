@@ -1,0 +1,12 @@
+# Repos indépendants, clonés/mis à jour par `chezmoi apply` (privés : clé SSH GitHub requise).
+[".pi/agent"]
+  type = "git-repo"
+  url = "git@github.com:walid-mos/pi-agent.git"
+  refreshPeriod = "168h"
+  pull.args = ["--ff-only"]
+
+[".config/pi-vendor"]
+  type = "git-repo"
+  url = "git@github.com:walid-mos/pi-vendor.git"
+  refreshPeriod = "168h"
+  pull.args = ["--ff-only"]

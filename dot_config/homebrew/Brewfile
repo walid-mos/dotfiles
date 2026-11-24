@@ -1,0 +1,66 @@
+# Paquets Homebrew de toutes les machines. Installés par `chezmoi apply` (run_onchange).
+# Mettre à jour après un brew install : brew bundle dump --file=~/.config/homebrew/Brewfile --force --tap --formula --cask
+
+tap "infisical/get-cli"
+# Plugin manager for zsh, inspired by antigen and antibody
+brew "antidote"
+# Improved shell history for zsh, bash, fish and nushell
+brew "atuin"
+# Clone of cat(1) with syntax highlighting and Git integration
+brew "bat"
+# Bash Automated Testing System
+brew "bats-core"
+# Resource monitor. C++ version and continuation of bashtop and bpytop
+brew "btop"
+# Manage your dotfiles across multiple diverse machines, securely
+brew "chezmoi"
+# Modern, maintained replacement for ls
+brew "eza"
+# Like neofetch, but much faster because written mostly in C
+brew "fastfetch"
+# Simple, fast and user-friendly alternative to find
+brew "fd"
+# Command-line fuzzy finder written in Go
+brew "fzf"
+# GitHub command-line tool
+brew "gh"
+# Syntax-highlighting pager for git and diff output
+brew "git-delta"
+# Audit git repos for secrets
+brew "gitleaks"
+# Command-line benchmarking tool
+brew "hyperfine"
+# Simple terminal UI for git commands
+brew "lazygit"
+# Ambitious Vim-fork focused on extensibility and agility
+brew "neovim"
+# Programming language with focus on simplicity, performance and modern systems
+brew "odin"
+# Interpreted, interactive, object-oriented programming language
+brew "python@3.15"
+# Search tool like grep and The Silver Searcher
+brew "ripgrep"
+# Rust toolchain installer
+brew "rustup"
+# Cross-shell prompt for astronauts
+brew "starship"
+# Parser generator tool
+brew "tree-sitter-cli"
+# Shell extension to navigate your filesystem faster
+brew "zoxide"
+# The official Infisical CLI
+brew "infisical/get-cli/infisical", trusted: true
+# On-device voice dictation
+cask "anomaly-hex"
+# Anthropic's official Claude AI desktop app
+cask "claude"
+cask "font-geist-mono-nerd-font"      # police du terminal (Herdr)
+cask "font-jetbrains-mono-nerd-font"
+cask "font-commit-mono-nerd-font"
+cask "font-iosevka-term-nerd-font"
+cask "font-maple-mono-nf"
+cask "font-monaspice-nerd-font"
+# Mesh VPN based on WireGuard
+cask "tailscale-app"
+# Application launcher and command palette
+cask "vicinae"

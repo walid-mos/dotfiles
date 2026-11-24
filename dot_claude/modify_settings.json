@@ -1,0 +1,13 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /*
+  ~/.claude/settings.json = .settings.base.json (versionné, écrit par `dots`)
+  + les clés propres à cette machine (claudeLocalKeys, ex. model) gardées telles quelles.
+*/ -}}
+{{- $settings := include "dot_claude/.settings.base.json" | fromJson -}}
+{{- if .chezmoi.stdin -}}
+{{-   $current := .chezmoi.stdin | fromJson -}}
+{{-   range .claudeLocalKeys -}}
+{{-     if hasKey $current . -}}{{- $_ := set $settings . (get $current .) -}}{{- end -}}
+{{-   end -}}
+{{- end -}}
+{{ toPrettyJson $settings }}

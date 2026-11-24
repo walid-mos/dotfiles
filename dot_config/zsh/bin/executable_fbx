@@ -1,0 +1,119 @@
+#!/usr/bin/env zsh
+# fbx — mini client API Freebox OS (zsh + curl + jq + openssl).
+# Token dans le Trousseau (service: freebox-api). Aucun secret n'apparaît en argv (ps) :
+# HMAC calculé via builtins + openssl sur stdin, en-tête de session passé à curl par -K <(...).
+setopt no_unset pipe_fail
+
+USAGE="Usage: fbx auth | fbx perms | fbx get|delete <path> | fbx put|post <path> <json>
+<path> relatif à /api/vN/ (ex: lan/browser/pub/). Hôte par défaut : passerelle macOS, surchargeable via FBX_URL."
+APP_ID=fr.local.fbx-cli
+KC=(-s freebox-api -a $APP_ID)
+
+die() { print -ru2 -- "$*"; exit 1 }
+
+# passerelle par défaut = la box sur son LAN. Pas mafreebox.freebox.fr (IP publique Free)
+# ni Freebox-Server.local (~5 s de résolution mDNS, IPv6 sans API).
+gateway() { route -n get default 2>/dev/null | awk '/gateway:/{print $2}' }
+
+# http METHOD URL [BODY] [SESSION] → JSON sur stdout (erreur HTTP non-JSON normalisée)
+http() {
+  local method=$1 url=$2 body=${3-} sess=${4-} out code
+  local -a args=(-sS --max-time 10 -X $method -H 'Content-Type: application/json' -w '\n%{http_code}')
+  if [[ -n $body ]]; then
+    out=$(curl $args -K <(print -r -- ${sess:+"header = \"X-Fbx-App-Auth: $sess\""}) --data-binary @- $url 2>/dev/null <<<$body)
+  else
+    out=$(curl $args -K <(print -r -- ${sess:+"header = \"X-Fbx-App-Auth: $sess\""}) $url 2>/dev/null)
+  fi || die "Freebox injoignable ($url)"
+  code=${out##*$'\n'} out=${out%$'\n'*}
+  if jq -e 'type == "object"' >/dev/null 2>&1 <<<$out; then print -r -- $out
+  else jq -n --argjson c ${code:-0} --arg b ${out[1,500]} '{success:false, http_status:$c, body:$b}'
+  fi
+}
+
+# ok : lit une réponse API sur stdin, imprime .result ou l'erreur (stderr) et échoue
+ok() {
+  local r; r=$(<&0)
+  jq -e '.success == true' >/dev/null <<<$r || { jq -c . <<<$r >&2; return 1 }
+  jq '.result' <<<$r
+}
+
+req() { http $1 "$BASE${2#/}" "${3-}" "${4-}" }
+
+# hmac_sha1 KEY MSG → hex. Clé ≤ 64 octets (token Freebox = 64 car.). printf/print sont des builtins.
+hmac_sha1() {
+  local key=$1 msg=$2 ipad= opad= hex c i b
+  (( ${#key} <= 64 )) || die "clé HMAC trop longue"
+  for (( i = 1; i <= 64; i++ )); do
+    b=0; c=${key[i]-}; [[ -n $c ]] && b=$(( #c ))
+    printf -v hex '\\x%02x' $(( b ^ 0x36 )); ipad+=$hex
+    printf -v hex '\\x%02x' $(( b ^ 0x5c )); opad+=$hex
+  done
+  { print -n -- $opad; { print -n -- $ipad; print -rn -- $msg } | openssl dgst -sha1 -binary } \
+    | openssl dgst -sha1 -binary | xxd -p -c 256
+}
+
+token() { security find-generic-password $KC -w 2>/dev/null || die "Pas de token. Lance: fbx auth" }
+
+login() {
+  local ch tok pw
+  ch=$(req GET login/ | ok) || exit 1; ch=$(jq -r .challenge <<<$ch)
+  tok=$(token) || exit 1
+  pw=$(hmac_sha1 $tok $ch)
+  req POST login/session/ "{\"app_id\":\"$APP_ID\",\"password\":\"$pw\"}" | ok
+}
+
+auth() {
+  local app res s i
+  app=$(jq -nc --arg id $APP_ID --arg dev "$(scutil --get LocalHostName 2>/dev/null || hostname -s)" \
+    '{app_id:$id, app_name:"fbx CLI (Claude)", app_version:"2.0", device_name:$dev}')
+  res=$(req POST login/authorize/ $app | ok) || exit 1
+  print ">>> Valide la demande sur l'écran de la Freebox (flèche droite / OK)..."
+  for (( i = 0; i < 120; i++ )); do
+    s=$(req GET "login/authorize/$(jq -r .track_id <<<$res)" | ok) || exit 1
+    case $(jq -r .status <<<$s) in
+      granted)
+        # token passé via stdin (mode interactif de security), jamais en argv
+        print -r -- "add-generic-password -U $KC -w \"$(jq -r .app_token <<<$res)\"" | security -i >/dev/null \
+          || die "Échec d'écriture dans le Trousseau"
+        print "OK, token enregistré dans le Trousseau."; return ;;
+      pending) sleep 2 ;;
+      *) die "Statut: $(jq -r .status <<<$s)" ;;
+    esac
+  done
+  die Timeout
+}
+
+call() { # METHOD PATH [BODY]
+  local sess
+  sess=$(login) || exit 1; sess=$(jq -r .session_token <<<$sess)
+  { req $1 $2 "${3-}" $sess } always { req POST login/logout/ "" $sess >/dev/null }
+}
+
+[[ -n ${FBX_LIB-} ]] && return 0   # `FBX_LIB=1 source fbx` : charge les fonctions seulement (tests)
+
+# --- validation des arguments AVANT tout accès réseau
+local mode body=
+if   [[ $# == 1 && $1 == (auth|perms) ]]; then mode=$1
+elif [[ $# == 2 && $1 == (get|delete) ]] || [[ $# == 3 && $1 == (put|post) ]]; then mode=call
+  if (( $# == 3 )); then
+    jq -e . >/dev/null 2>&1 <<<$3 || die "JSON invalide: $3"
+    body=$(jq -c . <<<$3)
+  fi
+else die $USAGE
+fi
+
+# --- découverte de la box
+HOST=${FBX_URL:-http://$(gateway)}; HOST=${HOST%/}
+[[ $HOST != http:// ]] || die "Pas de passerelle par défaut"
+info=$(http GET $HOST/api_version) || exit 1
+jq -e '.api_base_url' >/dev/null 2>&1 <<<$info || die "$HOST n'est pas une Freebox: ${info[1,200]}"
+BASE=$HOST$(jq -r '.api_base_url + "v" + (.api_version | split(".")[0]) + "/"' <<<$info)
+
+case $mode in
+  auth)  auth ;;
+  perms) login | jq .permissions ;;
+  call)
+    resp=$(call ${(U)1} $2 $body) || exit 1
+    jq . <<<$resp
+    jq -e '.success == true' >/dev/null <<<$resp ;;
+esac

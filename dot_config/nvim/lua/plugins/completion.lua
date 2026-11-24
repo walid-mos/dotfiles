@@ -1,0 +1,19 @@
+return {
+  {
+    "saghen/blink.cmp",
+    version = "1.*",
+    event = { "InsertEnter", "CmdlineEnter" },
+    opts = {
+      keymap = { preset = "default" },
+      completion = { documentation = { auto_show = true } },
+      signature = { enabled = true },
+      sources = {
+        default = { "lazydev", "lsp", "path", "snippets", "buffer" },
+        providers = {
+          lazydev = { name = "LazyDev", module = "lazydev.integrations.blink", score_offset = 100 },
+        },
+      },
+      fuzzy = { implementation = "prefer_rust_with_warning" },
+    },
+  },
+}

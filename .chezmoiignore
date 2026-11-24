@@ -1,0 +1,12 @@
+# Jamais dans le repo : historiques, caches, état local des apps.
+README.md
+.config/zsh/.zsh_history
+.config/zsh/**/*.zwc
+
+# Herdr : état local et fichiers livrés avec l'app (seuls tes layouts/thèmes sont versionnés).
+.config/herdr-app/layouts/.state
+.config/herdr-app/layouts/main.json
+.config/herdr-app/layouts/terminals.json
+.config/herdr-app/layouts/win98.*
+.config/herdr-app/themes/win98.json
+.config/herdr-app/themes/atom-one-dark.json

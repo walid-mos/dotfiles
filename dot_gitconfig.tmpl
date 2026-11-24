@@ -1,0 +1,12 @@
+[user]
+	name = walid-mos
+	email = walidmostefaoui@nextnode.fr
+	signingkey = {{ .chezmoi.homeDir }}/.ssh/github.pub
+[gpg]
+	format = ssh
+[commit]
+	gpgsign = true
+[tag]
+	gpgsign = true
+[gpg "ssh"]
+	allowedSignersFile = {{ .chezmoi.homeDir }}/.config/git/allowed_signers

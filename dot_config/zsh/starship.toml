@@ -1,0 +1,44 @@
+# Prompt « D4 » : icônes colorées, séparateurs en point, aération intermédiaire.
+# Couleurs ANSI uniquement → suit le thème du terminal (clair/sombre).
+#
+#     demo-repo  ·   main   1 ?1  ·  󱎫 3s
+#   λ
+format = """$os$directory$git_branch$git_status$cmd_duration
+$character"""
+
+[os]
+disabled = false
+format = "[$symbol]($style)  "
+style = "bold purple"
+
+[os.symbols]
+Macos = ""
+
+[directory]
+style = "bold blue"
+format = "[\U000f024b ](cyan)[$path]($style)[$read_only]($read_only_style)"
+read_only = " \U000f033e"
+truncation_length = 3
+
+[git_branch]
+format = "[  ·  ](bright-black)[ ](purple)[$branch]($style)"
+style = "bold"
+
+[git_status]
+format = "[  $conflicted$modified$untracked$staged$ahead_behind]($style)"
+style = "yellow"
+conflicted = " ${count} "
+modified = " ${count} "
+untracked = "${count} "
+staged = " ${count} "
+ahead = "${count} "
+behind = "${count} "
+diverged = "${ahead_count}${behind_count} "
+
+[cmd_duration]
+format = "[  ·  ](bright-black)[\U000f13ab $duration]($style)"
+style = "cyan"
+
+[character]
+success_symbol = "[λ](bold purple)"
+error_symbol = "[λ](bold red)"

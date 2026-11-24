@@ -1,0 +1,12 @@
+# ~/.config/zsh/.zshrc — chargé via ZDOTDIR (défini dans ~/.zshenv).
+# Charge conf.d/*.zsh dans l'ordre de leur numéro, puis aliases.zsh.
+# Démarrage mesuré par tests/startup.bats (objectif : médiane < 80 ms).
+
+(( $+functions[_cached] )) || source "$ZDOTDIR/lib.zsh"   # déjà chargé par .zprofile en login
+
+for _rc in "$ZDOTDIR"/conf.d/*.zsh(N); do
+  source "$_rc"
+done
+unset _rc
+
+source "$ZDOTDIR/aliases.zsh"

@@ -1,0 +1,6 @@
+# atuin — historique sur ctrl-r. Style compact, s'ouvre sous le prompt (pas en plein écran).
+style = "compact"
+inline_height = 20
+show_preview = true
+enter_accept = false
+update_check = false

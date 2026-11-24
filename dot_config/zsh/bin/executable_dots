@@ -1,0 +1,38 @@
+#!/bin/zsh
+# dots : sauvegarde les dotfiles de cette machine dans le repo chezmoi et les pousse.
+#   1. recopie les fichiers suivis modifiés (chezmoi re-add)
+#   2. recopie ~/.claude/settings.json sans les clés propres à la machine (claudeLocalKeys)
+#   3. signale les nouveaux fichiers non suivis dans les dossiers suivis
+#   4. bloque si gitleaks trouve un secret, sinon commit + push
+# `dots -n` : tout sauf commit/push (pour voir ce qui partirait).
+emulate -L zsh -o err_return -o pipe_fail
+
+src=$(chezmoi source-path)
+dirs=(.config/{zsh,nvim,git,atuin,btop,fastfetch,lazygit} .config/herdr-app/{themes,layouts})
+
+chezmoi re-add
+
+local_keys=$(chezmoi execute-template '{{ .claudeLocalKeys | toJson }}')
+jq --argjson k "$local_keys" 'delpaths([$k[] | [.]])' ~/.claude/settings.json \
+  >| "$src/dot_claude/.settings.base.json"
+
+new=( ${(f)"$(cd ~ && chezmoi unmanaged --path-style=absolute $dirs)"} )
+if (( $#new )); then
+  print -P "%F{yellow}Nouveaux fichiers non suivis%f (chezmoi add <fichier> pour les inclure) :"
+  print -l -- "  "${^new}
+fi
+
+git -C "$src" add -A
+if git -C "$src" diff --cached --quiet; then
+  print -P "%F{green}Rien à sauvegarder.%f"; return 0
+fi
+git -C "$src" diff --cached --stat
+
+gitleaks git --staged --no-banner --redact "$src" || {
+  print -P "%F{red}gitleaks a trouvé un secret : rien n'est commité.%f"; return 1
+}
+
+[[ $1 == -n ]] && { print "(-n : pas de commit)"; return 0; }
+git -C "$src" commit -q -m "dots: $(hostname -s) $(date +%F)"
+git -C "$src" push -q
+print -P "%F{green}Dotfiles sauvegardés et poussés.%f"
