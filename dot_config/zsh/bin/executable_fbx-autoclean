@@ -1,0 +1,99 @@
+#!/usr/bin/env zsh
+# fbx-autoclean : supprime de la liste d'hôtes de la Freebox les entrées fantômes
+# (plan ~/Desktop/pi/plans/done/HANDOFF-freebox-autoclean.md, §3 et §4).
+#
+#   fbx-autoclean            dry-run (par défaut) : liste ce qui serait supprimé, ne touche à rien
+#   fbx-autoclean --apply    supprime réellement
+#   fbx-autoclean --select HOSTS.json LEASES.json NOW [SELF_MACS.json]
+#                            sélection seule, fonction pure (tests sur fixtures)
+#
+# Un hôte est supprimé si et seulement si : inactif, ET vu pour la dernière fois il y a plus de 30 jours (ou jamais :
+# last_time_reachable absent ou 0), ET sa MAC n'est celle d'aucun bail statique. Jamais la machine qui l'exécute.
+# Garde-fous : plus de 20 candidats → rien supprimé, sortie en erreur ; baux introuvables ou vides → rien supprimé.
+# Journal : une ligne JSON par hôte (stdout, donc journald sous systemd) et un résumé par passage.
+emulate -L zsh
+setopt no_unset pipe_fail extended_glob
+
+: ${FBX_BIN:=${0:A:h}/fbx}
+: ${FBX_AUTOCLEAN_DAYS:=30}
+: ${FBX_AUTOCLEAN_MAX:=20}
+IFACES=(pub wifiguest)
+
+SELECT='
+def up: ascii_upcase;
+($leases | map(.mac // "" | up)) as $L
+| ($self | map(up)) as $S
+| [ $hosts | to_entries[] | .key as $iface | (.value // [])[]
+    | select(.active == false)
+    | select((.last_time_reachable // 0) == 0 or .last_time_reachable < ($now - $days * 86400))
+    | (.l2ident.id // "" | up) as $mac
+    | select($mac != "" and ($L | index($mac)) == null and ($S | index($mac)) == null)
+    | {iface: $iface, id, mac: $mac, primary_name: (.primary_name // ""), last_time_reachable: (.last_time_reachable // 0)} ]'
+
+select_hosts() { # HOSTS LEASES NOW [SELF]
+  jq -n --slurpfile h $1 --slurpfile l $2 --argjson now $3 --argjson days $FBX_AUTOCLEAN_DAYS \
+    --argjson self "$( [[ -n ${4-} ]] && cat $4 || print '[]' )" \
+    '$h[0] as $hosts | $l[0] as $leases | '"$SELECT"
+}
+
+jlog() { jq -nc --arg date "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$@" }
+
+self_macs() {
+  if [[ $OSTYPE == darwin* ]]; then ifconfig 2>/dev/null | awk '/ether /{print $2}'
+  else cat /sys/class/net/*/address 2>/dev/null; fi | jq -R -s -c 'split("\n") | map(select(. != "" and . != "00:00:00:00:00:00"))'
+}
+
+if [[ ${1-} == --select ]]; then
+  (( $# >= 4 )) || { print -u2 "usage: fbx-autoclean --select HOSTS LEASES NOW [SELF]"; exit 1 }
+  select_hosts $2 $3 $4 ${5-}; exit
+fi
+apply=0
+case ${1-} in
+  --apply) apply=1 ;;
+  '') ;;
+  *) print -u2 "usage: fbx-autoclean [--apply]"; exit 1 ;;
+esac
+
+tmp=$(mktemp -d); trap 'rm -rf $tmp' EXIT
+abort() { jlog --arg r "$1" '{date:$date, event:"abort", reason:$r}'; exit ${2:-2} }
+
+# baux statiques : sans eux, la règle 3 ne protège plus personne
+$FBX_BIN get dhcp/static_lease/ > $tmp/l.json 2>/dev/null || abort "baux statiques illisibles"
+jq -e '.success == true and (.result | type == "array") and (.result | length > 0)' $tmp/l.json >/dev/null \
+  || abort "liste des baux statiques vide ou en erreur"
+jq '.result' $tmp/l.json > $tmp/leases.json
+
+print '{}' > $tmp/hosts.json
+for i in $IFACES; do
+  $FBX_BIN get lan/browser/$i/ > $tmp/h.json 2>/dev/null || abort "liste d'hôtes $i illisible"
+  jq -e '.success == true' $tmp/h.json >/dev/null || abort "liste d'hôtes $i en erreur"
+  jq --arg i $i --slurpfile h $tmp/h.json '. + {($i): ($h[0].result // [])}' $tmp/hosts.json > $tmp/hosts2.json
+  mv $tmp/hosts2.json $tmp/hosts.json
+done
+self_macs > $tmp/self.json
+
+select_hosts $tmp/hosts.json $tmp/leases.json $(date +%s) $tmp/self.json > $tmp/cand.json || abort "sélection en erreur"
+n=$(jq length $tmp/cand.json)
+if (( n > FBX_AUTOCLEAN_MAX )); then
+  jlog --argjson n $n --argjson max $FBX_AUTOCLEAN_MAX '{date:$date, event:"abort", reason:"plafond dépassé, rien supprimé", candidates:$n, max:$max}'
+  exit 3
+fi
+
+deleted=0 failed=0
+for k in $(jq -r 'keys[]' $tmp/cand.json); do
+  h=$(jq -c ".[$k]" $tmp/cand.json)
+  if (( ! apply )); then
+    jlog --argjson h $h '{date:$date, event:"would_delete"} + $h'; continue
+  fi
+  iface=$(jq -r .iface <<<$h) id=$(jq -r .id <<<$h)
+  [[ $iface == (pub|wifiguest) && $id == ether-[0-9a-fA-F:]## ]] || { jlog --argjson h $h '{date:$date, event:"skip", reason:"id inattendu"} + $h'; (( failed++ )); continue }
+  out=$($FBX_BIN delete lan/browser/$iface/$id 2>/dev/null)
+  if jq -e '.success == true or .error_code == "nohost"' >/dev/null 2>&1 <<<$out; then
+    jlog --argjson h $h '{date:$date, event:"deleted"} + ($h | {iface, mac, primary_name, last_time_reachable})'; (( deleted++ ))
+  else
+    jlog --argjson h $h --arg e "$(jq -r '.error_code // "inconnu"' <<<$out 2>/dev/null)" '{date:$date, event:"error", error:$e} + $h'; (( failed++ ))
+  fi
+done
+jlog --argjson n $n --argjson d $deleted --argjson f $failed --argjson apply $apply \
+  '{date:$date, event:"summary", mode:(if $apply == 1 then "apply" else "dry-run" end), candidates:$n, deleted:$d, failed:$f}'
+(( failed == 0 ))

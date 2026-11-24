@@ -1,19 +1,25 @@
 #!/usr/bin/env zsh
 # fbx — mini client API Freebox OS (zsh + curl + jq + openssl).
-# Token dans le Trousseau (service: freebox-api). Aucun secret n'apparaît en argv (ps) :
+# Portable macOS / Linux. Token : Trousseau sur macOS (service: freebox-api) ; sur Linux (LXC ops), variable
+# FBX_APP_TOKEN injectée par `infisical run` (coffre ops). Aucun secret n'apparaît en argv (ps) :
 # HMAC calculé via builtins + openssl sur stdin, en-tête de session passé à curl par -K <(...).
 setopt no_unset pipe_fail
 
 USAGE="Usage: fbx auth | fbx perms | fbx get|delete <path> | fbx put|post <path> <json>
 <path> relatif à /api/vN/ (ex: lan/browser/pub/). Hôte par défaut : passerelle macOS, surchargeable via FBX_URL."
-APP_ID=fr.local.fbx-cli
+[[ $OSTYPE == darwin* ]] && FBX_OS=mac || FBX_OS=linux
+# une autorisation d'app par machine : le serveur n'utilise jamais le jeton du Mac
+if [[ $FBX_OS == mac ]]; then APP_ID=${FBX_APP_ID:-fr.local.fbx-cli}; else APP_ID=${FBX_APP_ID:-fr.local.fbx-server}; fi
 KC=(-s freebox-api -a $APP_ID)
 
 die() { print -ru2 -- "$*"; exit 1 }
 
 # passerelle par défaut = la box sur son LAN. Pas mafreebox.freebox.fr (IP publique Free)
 # ni Freebox-Server.local (~5 s de résolution mDNS, IPv6 sans API).
-gateway() { route -n get default 2>/dev/null | awk '/gateway:/{print $2}' }
+gateway() {
+  if [[ $FBX_OS == mac ]]; then route -n get default 2>/dev/null | awk '/gateway:/{print $2}'
+  else ip route show default 2>/dev/null | awk '{print $3; exit}'; fi
+}
 
 # http METHOD URL [BODY] [SESSION] → JSON sur stdout (erreur HTTP non-JSON normalisée)
 http() {
@@ -52,7 +58,10 @@ hmac_sha1() {
     | openssl dgst -sha1 -binary | xxd -p -c 256
 }
 
-token() { security find-generic-password $KC -w 2>/dev/null || die "Pas de token. Lance: fbx auth" }
+token() {
+  if [[ $FBX_OS == mac ]]; then security find-generic-password $KC -w 2>/dev/null || die "Pas de token. Lance: fbx auth"
+  else [[ -n ${FBX_APP_TOKEN-} ]] && print -r -- $FBX_APP_TOKEN || die "Pas de token (FBX_APP_TOKEN, injecté par infisical run)"; fi
+}
 
 login() {
   local ch tok pw
@@ -72,10 +81,18 @@ auth() {
     s=$(req GET "login/authorize/$(jq -r .track_id <<<$res)" | ok) || exit 1
     case $(jq -r .status <<<$s) in
       granted)
-        # token passé via stdin (mode interactif de security), jamais en argv
-        print -r -- "add-generic-password -U $KC -w \"$(jq -r .app_token <<<$res)\"" | security -i >/dev/null \
-          || die "Échec d'écriture dans le Trousseau"
-        print "OK, token enregistré dans le Trousseau."; return ;;
+        if [[ $FBX_OS == mac ]]; then
+          # token passé via stdin (mode interactif de security), jamais en argv
+          print -r -- "add-generic-password -U $KC -w \"$(jq -r .app_token <<<$res)\"" | security -i >/dev/null \
+            || die "Échec d'écriture dans le Trousseau"
+          print "OK, token enregistré dans le Trousseau."
+        else
+          # Linux : jamais à l'écran ; fichier 0600 (FBX_TOKEN_OUT) à verser dans Infisical puis à détruire
+          [[ -n ${FBX_TOKEN_OUT-} ]] || die "FBX_TOKEN_OUT requis sur Linux"
+          ( umask 077; jq -j .app_token <<<$res >| $FBX_TOKEN_OUT ) || die "Échec d'écriture de $FBX_TOKEN_OUT"
+          print "OK, token écrit dans $FBX_TOKEN_OUT (0600)."
+        fi
+        return ;;
       pending) sleep 2 ;;
       *) die "Statut: $(jq -r .status <<<$s)" ;;
     esac

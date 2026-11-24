@@ -1,0 +1,190 @@
+#!/usr/bin/env zsh
+# reposync : met à jour les clones locaux des dépôts tagués `auto-sync` dès qu'un push est annoncé sur le canal ntfy du relais.
+#
+#   reposync daemon      flux ouvert en permanence (lancé par launchd à travers `reposync launch`)
+#   reposync launch      attend une session Infisical valide, puis lance `daemon` avec le jeton injecté
+#   reposync sync NAME   met à jour un dépôt de la config (fast-forward seulement), puis son post_sync
+#   reposync sync-all    idem pour tous les dépôts de la config
+#
+# Règles : le message (« owner/dépôt sha ») ne sert qu'à désigner un dépôt déjà listé dans la config ; rien du message
+# n'est exécuté. Jamais d'écrasement : rien si l'arbre est modifié ou si la branche a divergé. Le jeton ntfy vient de
+# l'environnement (injecté par `infisical run`) et n'est passé à curl que par descripteur.
+#
+# Config : ~/.config/reposync/config.toml (REPOSYNC_CONFIG), état : ~/.local/state/reposync (REPOSYNC_STATE),
+# journal : ~/Library/Logs/reposync.log (REPOSYNC_LOG).
+emulate -L zsh
+setopt no_unset pipe_fail extended_glob
+
+: ${REPOSYNC_CONFIG:=$HOME/.config/reposync/config.toml}
+: ${REPOSYNC_STATE:=$HOME/.local/state/reposync}
+: ${REPOSYNC_LOG:=$HOME/Library/Logs/reposync.log}
+: ${REPOSYNC_RETRY:=5}          # secondes avant de rouvrir le flux après une coupure
+: ${REPOSYNC_IDLE:=120}         # coupure présumée sans octet reçu pendant ce temps (keepalive ntfy : 45 s)
+: ${REPOSYNC_MAX_AGE:=86400}    # au-delà (cache ntfy de 24 h), rattrapage complet
+: ${REPOSYNC_NOTIFY:=1}         # notifications macOS
+
+MSG_RE='^(walid-mos|NextNodeSolutions)/[A-Za-z0-9._-]+ [0-9a-f]{40}$'
+typeset -gA REPO_PATH REPO_POST
+typeset -ga REPO_NAMES
+typeset -g RELAY_URL= RELAY_CHANNEL= RELAY_TOKEN_ENV=
+
+log() { print -r -- "$(date '+%Y-%m-%dT%H:%M:%S%z') $*" >> $REPOSYNC_LOG }
+
+notify() { # texte fixe ou nom de dépôt de la config : jamais de contenu du message
+  (( REPOSYNC_NOTIFY )) || return 0
+  local t=${1//\"/} m=${2//\"/}
+  osascript -e "display notification \"$m\" with title \"$t\"" >/dev/null 2>&1 || true
+}
+
+# --- config : sous-ensemble de TOML (sections [relay] et [[repo]], valeurs "chaîne")
+load_config() {
+  [[ -r $REPOSYNC_CONFIG ]] || { print -u2 "reposync: config introuvable ($REPOSYNC_CONFIG)"; return 1 }
+  REPO_NAMES=() REPO_PATH=() REPO_POST=()
+  local line sect= key val name= p= post= n=0
+  flush() {
+    [[ $sect == repo ]] || return 0
+    [[ -n $name && -n $p ]] || { print -u2 "reposync: [[repo]] incomplet (name, path)"; return 1 }
+    [[ "$name 0000000000000000000000000000000000000000" =~ $MSG_RE ]] || { print -u2 "reposync: nom de dépôt invalide: $name"; return 1 }
+    REPO_NAMES+=$name; REPO_PATH[$name]=${p/#\~/$HOME}; REPO_POST[$name]=$post
+  }
+  while IFS= read -r line || [[ -n $line ]]; do
+    line=${line%%[[:space:]]#}; line=${line##[[:space:]]#}
+    [[ -z $line || $line == \#* ]] && continue
+    if [[ $line == '[[repo]]' ]]; then flush || return 1; sect=repo name= p= post=; continue; fi
+    if [[ $line == '[relay]' ]]; then flush || return 1; sect=relay; continue; fi
+    if [[ $line =~ '^([a-z_]+)[[:space:]]*=[[:space:]]*"(.*)"$' ]]; then
+      key=$match[1] val=$match[2]
+      case $sect/$key in
+        relay/url) RELAY_URL=${val%/} ;;
+        relay/channel) RELAY_CHANNEL=$val ;;
+        relay/token_env) RELAY_TOKEN_ENV=$val ;;
+        repo/name) name=$val ;;
+        repo/path) p=$val ;;
+        repo/post_sync) post=$val ;;
+        *) print -u2 "reposync: clé inconnue: $sect/$key"; return 1 ;;
+      esac
+    else print -u2 "reposync: ligne invalide: $line"; return 1
+    fi
+  done < $REPOSYNC_CONFIG
+  flush || return 1
+  unfunction flush
+}
+
+# --- un dépôt : fetch, puis fast-forward seulement si l'arbre est propre et HEAD est ancêtre de l'amont
+sync_repo() {
+  local name=$1 sha=${2-} dir lock rc=0
+  dir=${REPO_PATH[$name]-}
+  [[ -n $dir ]] || { log "$name : absent de la config, ignoré"; return 0 }
+  [[ -d $dir/.git ]] || { log "$name : pas de clone dans $dir"; notify reposync "$name : pas de clone local"; return 1 }
+  lock=$REPOSYNC_STATE/lock.${name//\//_}
+  mkdir -p $REPOSYNC_STATE
+  mkdir $lock 2>/dev/null || { log "$name : synchro déjà en cours, ignoré"; return 0 }
+  {
+    if [[ -n $sha ]] && git -C $dir merge-base --is-ancestor $sha HEAD 2>/dev/null; then
+      log "$name ${sha[1,12]} : déjà présent"; return 0
+    fi
+    git -C $dir fetch --quiet 2>>$REPOSYNC_LOG || { log "$name : échec du fetch"; notify reposync "$name : échec du fetch"; rc=1; return }
+    local up head
+    up=$(git -C $dir rev-parse --verify --quiet '@{upstream}') || { log "$name : pas de branche amont"; rc=1; return }
+    head=$(git -C $dir rev-parse HEAD)
+    if [[ $head == $up ]]; then log "$name ${up[1,12]} : à jour"; return 0; fi
+    if [[ -n $(git -C $dir status --porcelain --untracked-files=no) ]]; then
+      log "$name : arbre modifié, rien appliqué (amont ${up[1,12]})"; notify reposync "$name : modifications locales, mise à jour non appliquée"; rc=2; return
+    fi
+    if ! git -C $dir merge-base --is-ancestor HEAD $up; then
+      log "$name : branche divergente ou en avance, rien appliqué (amont ${up[1,12]})"; notify reposync "$name : branche divergente, mise à jour non appliquée"; rc=2; return
+    fi
+    git -C $dir merge --ff-only --quiet $up >>$REPOSYNC_LOG 2>&1 || { log "$name : échec du fast-forward"; rc=1; return }
+    log "$name ${head[1,12]} -> ${up[1,12]} : fast-forward"
+    if [[ -n ${REPO_POST[$name]} ]]; then
+      if (cd $dir && zsh -c ${REPO_POST[$name]}) >>$REPOSYNC_LOG 2>&1; then log "$name : post_sync OK"
+      else log "$name : échec du post_sync"; notify reposync "$name : échec du post_sync"; rc=1; fi
+    fi
+  } always { rmdir $lock 2>/dev/null }
+  return $rc
+}
+
+sync_all() { local n rc=0; for n in $REPO_NAMES; do sync_repo $n || rc=1; done; return $rc }
+
+# --- une ligne du flux JSON de ntfy
+handle_line() {
+  local line=$1 ev id msg
+  ev=$(jq -r 'select(type=="object") | [.event // "", .id // "", .time // 0, .message // ""] | @tsv' <<<$line 2>/dev/null) || return 0
+  [[ -n $ev ]] || return 0
+  local -a f; f=("${(@ps:\t:)ev}")
+  [[ $f[1] == message ]] || return 0
+  id=$f[2] msg=$f[4]
+  if [[ $id == [A-Za-z0-9]## ]]; then
+    mkdir -p $REPOSYNC_STATE
+    print -r -- $id >| $REPOSYNC_STATE/last-id; print -r -- $f[3] >| $REPOSYNC_STATE/last-time
+  fi
+  if [[ ! $msg =~ $MSG_RE ]]; then log "message ignoré : format invalide"; return 0; fi
+  local name=${msg% *} sha=${msg#* }
+  [[ -n ${REPO_PATH[$name]-} ]] || { log "$name : absent de la config, ignoré"; return 0 }
+  sync_repo $name $sha
+  return 0
+}
+
+token() {
+  local v=${RELAY_TOKEN_ENV:-RELAY_TOKEN}
+  [[ $v == [A-Z_][A-Z0-9_]# ]] || { print -u2 "reposync: token_env invalide"; return 1 }
+  print -r -- ${(P)v-}
+}
+
+# --- flux : rattrapage complet, puis lecture du canal depuis le dernier message
+daemon() {
+  load_config || return 1
+  [[ -n $RELAY_URL ]] || RELAY_URL=${RELAY_BASE_URL-}   # sinon : core:/homelab/reference, injecté par `launch`
+  [[ -n $RELAY_URL && -n $RELAY_CHANNEL ]] || { print -u2 "reposync: [relay] url et channel requis"; return 1 }
+  local tok; tok=$(token) || return 1
+  [[ -n $tok ]] || { log "jeton ntfy absent de l'environnement"; notify reposync "Jeton du relais absent : reconnecte Infisical"; return 1 }
+  local -a others; others=(${(k)parameters[(I)RELAY_TOKEN_*]}); unset $others 2>/dev/null
+  mkdir -p $REPOSYNC_STATE
+  local since last now
+  while true; do
+    now=$(date +%s)
+    last=$(cat $REPOSYNC_STATE/last-time 2>/dev/null) || last=0
+    if [[ ! -s $REPOSYNC_STATE/last-id || $(( now - ${last:-0} )) -gt $REPOSYNC_MAX_AGE ]]; then
+      log "rattrapage complet"
+      since=$now; sync_all
+      rm -f $REPOSYNC_STATE/last-id; print -r -- $since >| $REPOSYNC_STATE/last-time
+    else
+      since=$(<$REPOSYNC_STATE/last-id)
+    fi
+    log "flux ouvert (since=$since)"
+    while IFS= read -r line; do
+      handle_line $line
+    done < <(curl -sSN --speed-limit 1 --speed-time $REPOSYNC_IDLE \
+               -K <(print -r -- "header = \"Authorization: Bearer $tok\"") \
+               "$RELAY_URL/$RELAY_CHANNEL/json?since=$since" 2>>$REPOSYNC_LOG)
+    log "flux coupé, reprise dans ${REPOSYNC_RETRY} s"
+    sleep $REPOSYNC_RETRY
+    # premier lancement ou rattrapage : pas encore d'id ; on garde l'heure du rattrapage pour reprendre sans trou
+    [[ -s $REPOSYNC_STATE/last-id ]] || print -r -- $since >| $REPOSYNC_STATE/last-time
+  done
+}
+
+# --- lancement par launchd : attend une session Infisical valide (nouvel essai toutes les 5 min)
+launch() {
+  : ${REPOSYNC_INFISICAL_ENV:=$HOME/.config/reposync/infisical.env}
+  [[ -r $REPOSYNC_INFISICAL_ENV ]] || { log "pointeurs Infisical absents ($REPOSYNC_INFISICAL_ENV)"; return 1 }
+  local INFISICAL_DOMAIN= INFISICAL_CORE_ID= INFISICAL_PROFILE=
+  source $REPOSYNC_INFISICAL_ENV
+  local -a prof; [[ -n $INFISICAL_PROFILE ]] && prof=(--profile $INFISICAL_PROFILE)
+  while ! infisical secrets $prof --domain $INFISICAL_DOMAIN --projectId $INFISICAL_CORE_ID --env main --path /homelab/relay --silent >/dev/null 2>&1; do
+    log "session Infisical indisponible, nouvel essai dans 5 min"; notify reposync "Reconnecte Infisical (infisical login)"
+    sleep 300
+  done
+  exec infisical run $prof --domain $INFISICAL_DOMAIN --projectId $INFISICAL_CORE_ID --env main --path /homelab/relay --path /homelab/reference --silent -- \
+    ${0:A} daemon
+}
+
+[[ -n ${REPOSYNC_LIB-} ]] && return 0   # `REPOSYNC_LIB=1 source reposync` : fonctions seulement (tests)
+
+case ${1-} in
+  daemon) daemon ;;
+  launch) launch ;;
+  sync) [[ $# == 2 ]] || { print -u2 "usage: reposync sync owner/dépôt"; exit 1 }; load_config && sync_repo $2 ;;
+  sync-all) load_config && sync_all ;;
+  *) print -u2 "usage: reposync daemon | launch | sync owner/dépôt | sync-all"; exit 1 ;;
+esac

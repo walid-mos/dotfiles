@@ -6,6 +6,7 @@
 #
 # Lancer : bats ~/.config/zsh/tests
 # Prérequis : LAN Freebox, `fbx auth` fait, droit « settings » accordé.
+# Sur Linux (LXC ops) : lancer sous `infisical run` (FBX_APP_TOKEN).
 
 load helpers
 
@@ -78,7 +79,7 @@ assert_clean_failure() {
 
 # --- Découverte, performance, secrets
 
-@test "IP de la box = passerelle par défaut macOS" {
+@test "IP de la box = passerelle par défaut du système" {
   run --separate-stderr "$FBX" get lan/config/
   [ "$status" -eq 0 ]
   [ "$(jq -r .result.ip <<<"$output")" = "$(gateway)" ]
@@ -97,7 +98,7 @@ assert_clean_failure() {
 }
 
 @test "aucun secret visible dans ps pendant les appels" {
-  tok=$(security find-generic-password -s freebox-api -a fr.local.fbx-cli -w)
+  tok=$(fbx_token)
   snap="$BATS_TEST_TMPDIR/ps"
   ( for i in 1 2 3; do "$FBX" get lan/config/ >/dev/null; done ) & pid=$!
   while kill -0 "$pid" 2>/dev/null; do ps -axww -o args= >>"$snap"; done

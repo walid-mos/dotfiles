@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- reposync : flux du relais toujours ouvert (plan relay §3.7). Jeton injecté par `infisical run` dans `reposync launch`. -->
+<plist version="1.0">
+<dict>
+  <key>Label</key><string>fr.nextnode.reposync</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/zsh</string>
+    <string>{{ .chezmoi.homeDir }}/.local/bin/reposync</string>
+    <string>launch</string>
+  </array>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+  </dict>
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+  <key>ThrottleInterval</key><integer>30</integer>
+  <key>StandardOutPath</key><string>{{ .chezmoi.homeDir }}/Library/Logs/reposync.log</string>
+  <key>StandardErrorPath</key><string>{{ .chezmoi.homeDir }}/Library/Logs/reposync.log</string>
+</dict>
+</plist>

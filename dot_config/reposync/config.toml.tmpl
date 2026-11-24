@@ -1,0 +1,16 @@
+# reposync : dépôts tagués `auto-sync` à tenir à jour sur cette machine (plan relay §3.7).
+# L'adresse du relais n'est pas ici (dépôt public) : elle vient de core:/homelab/reference (RELAY_BASE_URL),
+# injectée au lancement avec le jeton de la machine. Pointeurs Infisical : ~/.config/reposync/infisical.env (local).
+[relay]
+channel   = "repo-updates"
+token_env = "{{ if eq .chezmoi.hostname "mac-studio" }}RELAY_TOKEN_MAC_STUDIO{{ else }}RELAY_TOKEN_MACBOOK{{ end }}"
+
+[[repo]]
+name      = "walid-mos/pi-agent"
+path      = "~/.pi/agent"
+post_sync = ""
+
+[[repo]]
+name      = "walid-mos/dotfiles"
+path      = "~/.dotfiles"
+post_sync = "chezmoi apply --exclude=scripts --no-tty"
