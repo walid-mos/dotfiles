@@ -21,7 +21,7 @@ szsh() { clear; exec zsh -l }
 pim() {
   local var
   case "$(hostname -s)" in
-    walids-mac-studio) var=MAGPIE_KEY_MAC_STUDIO ;;
+    mac-studio)        var=MAGPIE_KEY_MAC_STUDIO ;;
     *)                 var=MAGPIE_KEY_MACBOOK ;;
   esac
   PIM_KEY_VAR=$var infisical run --projectId=ce69a081-6aec-472d-9ee8-edbb7ed2b72e --env=main --path=/homelab/magpie --silent -- \
