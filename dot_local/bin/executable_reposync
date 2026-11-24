@@ -23,6 +23,7 @@ setopt no_unset pipe_fail extended_glob
 : ${REPOSYNC_MAX_AGE:=86400}    # au-delà (cache ntfy de 24 h), rattrapage complet
 : ${REPOSYNC_NOTIFY:=1}         # notifications macOS
 
+REPOSYNC_SELF=${0:A}   # chemin du script (dans une fonction, $0 est le nom de la fonction)
 MSG_RE='^(walid-mos|NextNodeSolutions)/[A-Za-z0-9._-]+ [0-9a-f]{40}$'
 typeset -gA REPO_PATH REPO_POST
 typeset -ga REPO_NAMES
@@ -176,7 +177,7 @@ launch() {
     sleep 300
   done
   exec infisical run $prof --domain $INFISICAL_DOMAIN --projectId $INFISICAL_CORE_ID --env main --path /homelab/relay --path /homelab/reference --silent -- \
-    ${0:A} daemon
+    /bin/zsh $REPOSYNC_SELF daemon
 }
 
 [[ -n ${REPOSYNC_LIB-} ]] && return 0   # `REPOSYNC_LIB=1 source reposync` : fonctions seulement (tests)
