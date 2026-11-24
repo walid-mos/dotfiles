@@ -1,0 +1,16 @@
+{{- $t := joinPath .chezmoi.homeDir ".pi/agent/models.json.tmpl" -}}
+#!/bin/bash
+# Rend ~/.pi/agent/models.json depuis le template du dépôt pi-agent (models.json.tmpl), avec les données locales
+# de chezmoi (adresse de la gateway Magpie). Relancé dès que le template ou les données changent.
+# Le dépôt pi-agent est cloné par chezmoi (.chezmoiexternal.toml) : au tout premier apply, il peut manquer ; relancer apply.
+set -euo pipefail
+{{ if stat $t -}}
+f="$HOME/.pi/agent/models.json"
+cat > "$f.new" <<'MODELS_JSON'
+{{ includeTemplate $t . }}
+MODELS_JSON
+mv "$f.new" "$f"
+echo "models.json rendu"
+{{- else -}}
+echo "pi-agent pas encore cloné : relancer chezmoi apply pour rendre models.json"
+{{- end }}

@@ -1,3 +1,7 @@
+{{- /* Valeurs du homelab propres à chaque machine : demandées une fois à `chezmoi init`, jamais versionnées. */ -}}
+{{- $infisicalDomain := promptStringOnce . "infisicalDomain" "Domaine de l'Infisical auto-hébergé (https://…)" -}}
+{{- $infisicalCoreId := promptStringOnce . "infisicalCoreId" "ID du coffre core dans Infisical" -}}
+{{- $magpieBaseUrl := promptStringOnce . "magpieBaseUrl" "Adresse de la gateway Magpie (https://…, sans /v1)" -}}
 # Config locale de chezmoi, générée par `chezmoi init` sur chaque machine.
 sourceDir = {{ .chezmoi.sourceDir | quote }}   # le repo : ~/.dotfiles
 
@@ -6,3 +10,8 @@ sourceDir = {{ .chezmoi.sourceDir | quote }}   # le repo : ~/.dotfiles
 
 [diff]
   pager = "delta"
+
+[data]
+  infisicalDomain = {{ $infisicalDomain | quote }}
+  infisicalCoreId = {{ $infisicalCoreId | quote }}
+  magpieBaseUrl = {{ $magpieBaseUrl | trimSuffix "/" | quote }}
