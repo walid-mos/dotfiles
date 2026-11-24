@@ -1,5 +1,5 @@
 {
+  "autoMemoryEnabled": false,
   "theme": "auto",
-  "tui": "fullscreen",
-  "autoMemoryEnabled": false
+  "tui": "fullscreen"
 }
