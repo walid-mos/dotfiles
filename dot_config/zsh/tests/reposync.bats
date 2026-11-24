@@ -11,7 +11,7 @@ RS="${REPOSYNC_BIN:-${BATS_TEST_DIRNAME}/../../../.local/bin/reposync}"
 [ -x "$RS" ] || RS="$HOME/.local/bin/reposync"
 
 setup() {
-  export REPOSYNC_STATE="$BATS_TEST_TMPDIR/state" REPOSYNC_LOG="$BATS_TEST_TMPDIR/log" REPOSYNC_NOTIFY=0
+  export REPOSYNC_STATE="$BATS_TEST_TMPDIR/state" REPOSYNC_LOG="$BATS_TEST_TMPDIR/log"
   export REPOSYNC_CONFIG="$BATS_TEST_TMPDIR/config.toml"
   export GIT_CONFIG_GLOBAL="$BATS_TEST_TMPDIR/gitconfig" GIT_CONFIG_NOSYSTEM=1
   git config --global user.name t; git config --global user.email t@t; git config --global init.defaultBranch main
