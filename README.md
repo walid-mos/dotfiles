@@ -19,13 +19,13 @@ Thème : Rosé Pine Dawn (clair) / Kanagawa Wave (sombre), police GeistMono Nerd
    `ssh-keygen -t ed25519 -f ~/.ssh/github -C "github@$(hostname -s)"`
 2. Tout installer :
    ```sh
-   sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply walid-mos
+   sh -c "$(curl -fsLS get.chezmoi.io)" -- init --apply --source ~/.dotfiles walid-mos
    ```
    Installe Homebrew et le Brewfile, pose les fichiers, clone les repos pi.
 
 ## Au quotidien
 
-- Modifier les fichiers à leur place, normalement.
+- Le repo est dans `~/.dotfiles` ; les fichiers se modifient à leur place, normalement.
 - `dots` : sauvegarde tout (re-add, Claude settings, scan gitleaks, commit, push).
   `dots -n` pour voir sans commiter.
 - Nouveau fichier : `chezmoi add <fichier>` (dots les signale).
