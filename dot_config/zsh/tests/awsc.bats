@@ -107,6 +107,34 @@ login_alive()   { [ -f "$FAKE_AWS_DIR/login.pid" ] && kill -0 "$(cat "$FAKE_AWS_
   ! login_alive
 }
 
+@test "--headless, SSO signed out but identity provider signed in: follows it back, clicks Allow, silent" {
+  start_sso idp-alive
+  run --separate-stderr "$AWSC" dev --headless
+  [ "$status" -eq 0 ]
+  [ -z "$output$stderr" ]
+  [ "$(grep -c '^allow d-test.awsapps.com$' "$SSO_LOG")" -eq 1 ]
+  ! grep -q '^login$' "$SSO_LOG"
+}
+
+@test "window allowed, identity provider signed in: no window, no sign-in message" {
+  start_sso idp-alive
+  run --separate-stderr "$AWSC" dev
+  [ "$status" -eq 0 ]
+  [ -z "$output$stderr" ]
+  [ "$(grep -c '^allow d-test.awsapps.com$' "$SSO_LOG")" -eq 1 ]
+}
+
+@test "--headless, identity provider waits for the user without a password field: exit 4 after AWSC_IDP_GRACE, names the page" {
+  start_sso idp-stuck
+  SECONDS=0
+  AWSC_IDP_GRACE=3 run --separate-stderr "$AWSC" dev --headless
+  [ "$status" -eq 4 ]
+  [ "$SECONDS" -ge 3 ]
+  [[ "$stderr" == *login.idp.test* && "$stderr" == *"Pick an account"* && "$stderr" == *"3 s"* ]] || false
+  ! grep -q '^allow' "$SSO_LOG"
+  ! login_alive
+}
+
 @test "guard rail: an Allow button outside AWS is never clicked" {
   start_sso foreign
   run --separate-stderr "$AWSC" dev --headless

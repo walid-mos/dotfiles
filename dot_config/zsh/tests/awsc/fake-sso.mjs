@@ -4,6 +4,11 @@
 // MODE: allow        the SSO session is alive: /authorize leads straight to the Allow page
 //       signin       the SSO session is dead: /authorize leads to the identity provider, which waits for the user
 //       signin-auto  as signin, but the sign-in page submits itself after a delay, standing in for the user
+//       idp-alive    the SSO session is dead but the identity provider's is alive: /authorize goes through the
+//                    identity provider, which sends the browser back by itself after a delay (as Microsoft's
+//                    self-submitting SAML form does)
+//       idp-stuck    the identity provider shows a page that waits for the user without a password field (as
+//                    Microsoft's account picker does)
 //       foreign      the Allow page is served by a host that is not AWS
 //       nobutton     the AWS page never shows an Allow button
 import fs from 'node:fs'
@@ -28,7 +33,7 @@ const server = http.createServer((req, res) => {
     switch (url.pathname) {
         case '/authorize': {
             const signedIn = (req.headers.cookie ?? '').includes('sso=1')
-            if (mode.startsWith('signin') && !signedIn) return go(`${idp()}/login?${back}`)
+            if ((mode.startsWith('signin') || mode.startsWith('idp-')) && !signedIn) return go(`${idp()}/login?${back}`)
             return go(`${mode === 'foreign' ? foreign() : portal()}/consent?${back}`)
         }
         case '/login':
@@ -36,6 +41,11 @@ const server = http.createServer((req, res) => {
                 note('login')
                 return go(`${portal()}/session?${back}`)
             }
+            if (mode === 'idp-alive') {
+                return res.end(page('Working...', `<form method="post" action="${portal()}/session?${back}"></form>` +
+                    '<script>setTimeout(() => document.forms[0].submit(), 1000)</script>'))
+            }
+            if (mode === 'idp-stuck') return res.end(page('Pick an account', '<button>someone@example.test</button>'))
             return res.end(page('Sign in', `<form method="post" action="/login?${back}"><input name="user">` +
                 '<input type="password" name="password"><button>Sign in</button></form>' +
                 (mode === 'signin-auto' ? '<script>setTimeout(() => document.forms[0].submit(), 1500)</script>' : '')))
