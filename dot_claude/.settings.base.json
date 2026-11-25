@@ -1,5 +1,23 @@
 {
   "autoMemoryEnabled": false,
   "theme": "auto",
-  "tui": "fullscreen"
+  "tui": "fullscreen",
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/hooks/block-attribution.sh"
+          }
+        ]
+      }
+    ]
+  }
 }
