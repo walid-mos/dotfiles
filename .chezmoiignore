@@ -1,6 +1,7 @@
 # Jamais dans le repo : historiques, caches, état local des apps.
 README.md
 .config/zsh/.zsh_history
+.config/zsh/.zsh_sessions
 .config/zsh/**/*.zwc
 
 # Herdr : état local et fichiers livrés avec l'app (seuls tes layouts/thèmes sont versionnés).
