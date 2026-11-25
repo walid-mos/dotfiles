@@ -11,7 +11,7 @@ Thème : Rosé Pine Dawn (clair) / Kanagawa Wave (sombre), police GeistMono Nerd
 | Outils | git + delta, lazygit, btop, fastfetch, gh |
 | Apps | Vicinae, Hex, Claude Code (`settings.json` sans `model`) |
 | Paquets | `~/.config/homebrew/Brewfile`, installé automatiquement |
-| Repos à part | `~/.pi/agent`, `~/.config/pi/pi-vendor`, `pi-accor`, `pi-nextnode` (`.chezmoiexternal.toml`); the skills and extensions of the last two are linked into `~/.pi/agent/skills/` and `~/.pi/agent/extensions/` by `run_after_30-pi-skill-links.sh` |
+| Repos à part | `~/.pi/agent`, `~/.config/pi/pi-vendor`, `pi-accor`, `pi-nextnode` (`.chezmoiexternal.toml`), loaded by pi as one package (`~/.config/pi/package.json`) |
 
 ## Nouvelle machine
 
@@ -30,3 +30,5 @@ Thème : Rosé Pine Dawn (clair) / Kanagawa Wave (sombre), police GeistMono Nerd
   `dots -n` pour voir sans commiter.
 - Nouveau fichier : `chezmoi add <fichier>` (dots les signale).
 - Récupérer les changements de l'autre machine : `chezmoi update`.
+- `awsc <profile>`: logs an AWS SSO profile in and clicks Allow in its own headless Chromium; signing in to the
+  identity provider stays manual (a window opens when needed). `--check` and `--headless` are for agents.
