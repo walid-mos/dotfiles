@@ -141,6 +141,15 @@ login_alive()   { [ -f "$FAKE_AWS_DIR/login.pid" ] && kill -0 "$(cat "$FAKE_AWS_
   [ "$(grep -c '^allow d-test.awsapps.com$' "$SSO_LOG")" -eq 1 ]
 }
 
+@test "window allowed, the user never signs in: exit 1 after AWSC_SIGNIN_TIMEOUT, says the sign-in did not happen" {
+  start_sso signin
+  AWSC_SIGNIN_TIMEOUT=3 run --separate-stderr "$AWSC" dev
+  [ "$status" -eq 1 ]
+  [[ "$stderr" == *"no sign-in within 3 s"* ]] || false
+  [[ "$stderr" != *"no Allow button"* ]] || false
+  ! login_alive
+}
+
 @test "two runs at once: one login, both succeed" {
   start_sso allow
   "$AWSC" dev --headless & first=$!

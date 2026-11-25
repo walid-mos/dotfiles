@@ -16,7 +16,8 @@ APPROVE="$HOME/.local/share/awsc/approve.mjs"
 # Seconds for `aws sso login` to print its URL. Before printing it, the CLI's callback server does a reverse DNS
 # lookup of the loopback, which takes 35 s on a Mac whose resolver falls back to multicast DNS for PTR queries.
 URL_TIMEOUT=90
-# Seconds a run waits for another one to finish with the browser; covers the sign-in window (approve.mjs, 600 s).
+# Seconds a run waits for another one to finish with the browser; covers the sign-in window (approve.mjs,
+# SIGNIN_TIMEOUT, 600 s by default; AWSC_SIGNIN_TIMEOUT overrides it).
 LOCK_TIMEOUT=660
 
 usage() { echo "$USAGE" >&2; exit 2; }

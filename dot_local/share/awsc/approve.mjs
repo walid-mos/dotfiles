@@ -11,7 +11,7 @@ import { chromium } from 'playwright'
 // Seconds to wait on an AWS page for the Allow button, then for the page to move on; an approval takes a few seconds.
 const APPROVE_TIMEOUT = Number(process.env.AWSC_TIMEOUT || 60)
 // Seconds the user has to sign in in the window.
-const SIGNIN_TIMEOUT = 600
+const SIGNIN_TIMEOUT = Number(process.env.AWSC_SIGNIN_TIMEOUT || 600)
 // Milliseconds between two looks at the page: fast enough to feel instant, slow enough to cost nothing.
 const POLL_MS = 250
 // The only hosts where Allow is clicked: the access portal, the SSO OIDC and portal endpoints, AWS sign-in.
@@ -71,7 +71,11 @@ async function attempt(headless) {
             }
             if (Date.now() > deadline) {
                 const title = await page.title()
-                console.error(`awsc: no Allow button on ${here.hostname} ("${title}") after ${APPROVE_TIMEOUT} s`)
+                if (!isAws(here.hostname)) {
+                    console.error(`awsc: no sign-in within ${SIGNIN_TIMEOUT} s (window left on ${here.hostname}, "${title}")`)
+                } else {
+                    console.error(`awsc: no Allow button on ${here.hostname} ("${title}") after ${APPROVE_TIMEOUT} s`)
+                }
                 return 1
             }
             await page.waitForTimeout(POLL_MS)
