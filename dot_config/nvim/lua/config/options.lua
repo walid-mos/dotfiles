@@ -9,7 +9,11 @@ opt.signcolumn = "yes"
 opt.cursorline = true
 opt.scrolloff = 8
 opt.sidescrolloff = 8
-opt.wrap = false
+-- Wrap long lines at word boundaries, keeping the indent of the wrapped line
+opt.wrap = true
+opt.linebreak = true
+opt.breakindent = true
+opt.showbreak = "↪ "
 opt.winborder = "rounded"
 opt.list = true
 opt.listchars = { tab = "» ", trail = "·", nbsp = "␣" }

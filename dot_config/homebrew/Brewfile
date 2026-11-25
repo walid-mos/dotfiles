@@ -6,8 +6,6 @@ tap "infisical/get-cli"
 brew "antidote"
 # Improved shell history for zsh, bash, fish and nushell
 brew "atuin"
-# Official Amazon AWS command-line interface
-brew "awscli"
 # Clone of cat(1) with syntax highlighting and Git integration
 brew "bat"
 # Bash Automated Testing System
