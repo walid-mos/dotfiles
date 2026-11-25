@@ -1,38 +1,156 @@
 #!/bin/zsh
-# dots : sauvegarde les dotfiles de cette machine dans le repo chezmoi et les pousse.
-#   1. recopie les fichiers suivis modifiés (chezmoi re-add)
-#   2. recopie ~/.claude/settings.json sans les clés propres à la machine (claudeLocalKeys)
-#   3. signale les nouveaux fichiers non suivis dans les dossiers suivis
-#   4. bloque si gitleaks trouve un secret, sinon commit + push
-# `dots -n` : tout sauf commit/push (pour voir ce qui partirait).
+# dots: saves this machine's dotfiles into the chezmoi repository and pushes them.
+#
+#   dots -m "<type(scope): subject>" <file>...
+#     One commit holding only the named files, under that Conventional Commits message; whatever else is
+#     pending stays uncommitted. A deployed file (~/.config/zsh/.zprofile) is first copied into the repository
+#     (chezmoi re-add, or chezmoi add when chezmoi does not manage it yet); a file of the repository itself
+#     (a template, README.md) is taken as it is. Refused when a named file would stay out of step: a deployed
+#     file rendered from a template and edited in place, or a repository file not applied on this machine.
+#
+#   dots
+#     Everything pending in one commit:
+#     1. copies the modified managed files (chezmoi re-add)
+#     2. copies ~/.claude/settings.json without the keys each machine keeps for itself (claudeLocalKeys)
+#     3. reports the new unmanaged files in the managed directories
+#   dots -n
+#     The same without commit or push (to see what would go).
+#
+# Both forms commit nothing when gitleaks finds a secret, and push.
 emulate -L zsh -o err_return -o pipe_fail
+
+# Types of @commitlint/config-conventional, the format every commit of the repository follows.
+commit_types='build|chore|ci|docs|feat|fix|perf|refactor|revert|style|test'
 
 src=$(chezmoi source-path)
 dirs=(.config/{zsh,nvim,git,atuin,btop,fastfetch,lazygit} .config/herdr-app/{themes,layouts})
 
-chezmoi re-add
+fail() { print -u2 -r -- "dots: $1"; return 1 }
 
-local_keys=$(chezmoi execute-template '{{ .claudeLocalKeys | toJson }}')
-jq --argjson k "$local_keys" 'delpaths([$k[] | [.]])' ~/.claude/settings.json \
-  >| "$src/dot_claude/.settings.base.json"
-
-new=( ${(f)"$(cd ~ && chezmoi unmanaged --path-style=absolute $dirs)"} )
-if (( $#new )); then
-  print -P "%F{yellow}Nouveaux fichiers non suivis%f (chezmoi add <fichier> pour les inclure) :"
-  print -l -- "  "${^new}
-fi
-
-git -C "$src" add -A
-if git -C "$src" diff --cached --quiet; then
-  print -P "%F{green}Rien à sauvegarder.%f"; return 0
-fi
-git -C "$src" diff --cached --stat
-
-gitleaks git --staged --no-banner --redact "$src" || {
-  print -P "%F{red}gitleaks a trouvé un secret : rien n'est commité.%f"; return 1
+usage() {
+  print -u2 -r -- 'usage: dots -m "<type(scope): subject>" <file>...   one commit with only these files'
+  print -u2 -r -- '       dots [-n]                                    everything pending (-n: no commit)'
+  return 2
 }
 
-[[ $1 == -n ]] && { print "(-n : pas de commit)"; return 0; }
-git -C "$src" commit -q -m "dots: $(hostname -s) $(date +%F)"
-git -C "$src" push -q
-print -P "%F{green}Dotfiles sauvegardés et poussés.%f"
+# ~/.claude/settings.json is written by a modify script from .settings.base.json, which chezmoi re-add cannot
+# update: export it there without the keys each machine keeps for itself. Read whole before the file is
+# rewritten, so a jq failure leaves the base file as it was.
+save_claude_settings() {
+  local local_keys base
+  local_keys=$(chezmoi execute-template '{{ .claudeLocalKeys | toJson }}')
+  base=$(jq --argjson k "$local_keys" 'delpaths([$k[] | [.]])' ~/.claude/settings.json)
+  print -r -- "$base" >| "$src/dot_claude/.settings.base.json"
+}
+
+push() {
+  git -C "$src" push -q || fail "not pushed. If the remote has commits this machine lacks, run \
+'git -C $src pull --rebase', then the same dots command again."
+}
+
+save_named() {
+  local msg=$1; shift
+  local header=${msg%%$'\n'*}
+  # 100 characters: header-max-length of @commitlint/config-conventional.
+  if [[ ! $header =~ "^($commit_types)(\([a-z0-9._/-]+\))?!?: [^ ]" || $header == *. ]] || (( $#header > 100 )); then
+    fail "'$header' is not a Conventional Commits header of at most 100 characters without a final period, \
+such as 'feat(zsh): add an alias'"
+  fi
+  (( $# )) || fail "name the files this commit holds: dots -m \"$header\" <file>..."
+
+  # Sort the files before anything is written, so a refusal leaves the repository untouched.
+  local -a managed readd add applied specs
+  local f dir top target claude=0
+  managed=( ${(f)"$(chezmoi managed --path-style=absolute)"} )
+  for f in "$@"; do
+    f=${f:a}
+    [[ -e $f ]] || fail "$f does not exist"
+    if [[ $f == $src/* ]]; then
+      specs+=( $f )
+      target=$(chezmoi target-path $f)
+      if (( ${managed[(Ie)$target]} )); then applied+=( $target ); fi
+    elif [[ $f == $HOME/.claude/settings.json ]]; then
+      claude=1
+    elif (( ${managed[(Ie)$f]} )); then
+      readd+=( $f )
+    else
+      # chezmoi add would copy any file into the dotfiles; one that another repository tracks belongs there.
+      # git answers non-zero outside a repository: that is the expected case, not an error.
+      if [[ -d $f ]]; then dir=$f; else dir=${f:h}; fi
+      if top=$(git -C $dir rev-parse --show-toplevel 2>/dev/null); then
+        fail "$f belongs to the git repository $top: commit it there"
+      fi
+      add+=( $f )
+    fi
+  done
+
+  if (( $#readd )); then chezmoi re-add $readd; fi
+  if (( $#add )); then chezmoi add $add; fi
+  if (( claude )); then save_claude_settings; specs+=( $src/dot_claude/.settings.base.json ); fi
+
+  # chezmoi re-add skips a file rendered from a template without saying so, and a repository file can be
+  # committed while this machine still has the old deployed file: both would be stale after the commit.
+  # Scripts are left out: they run when applied, and no other machine applies them automatically.
+  for f in $readd; do
+    chezmoi verify --exclude=scripts $f || fail "$f still differs from the repository: it is rendered from \
+$(chezmoi source-path $f) (a template or a modify script), which chezmoi re-add cannot update. Put the change in \
+that file, run 'chezmoi apply $f', then give that file to dots."
+  done
+  for f in $applied; do
+    chezmoi verify --exclude=scripts $f || fail "$f is not what the repository renders: run 'chezmoi apply $f' \
+before saving the repository file."
+  done
+  for f in $readd $add; do specs+=( "$(chezmoi source-path $f)" ); done
+
+  git -C "$src" add -- $specs
+  if git -C "$src" diff --cached --quiet -- $specs; then
+    push
+    print -r -- "dots: nothing new to commit for these files; the repository is pushed."
+    return 0
+  fi
+  git -C "$src" --no-pager diff --cached --stat -- $specs
+  # Only the added lines, as gitleaks reads a commit: removing a secret must stay possible.
+  if ! git -C "$src" diff --cached --no-ext-diff --no-color -U0 -- $specs | sed -n 's/^+//p' \
+      | gitleaks stdin --no-banner --redact; then
+    git -C "$src" reset -q -- $specs
+    fail "gitleaks found a secret in these files: nothing is committed."
+  fi
+  git -C "$src" commit -q -m "$msg" -- $specs
+  push
+  print -r -- "dots: saved and pushed: $header"
+}
+
+save_all() {
+  local dry=$1
+  chezmoi re-add
+  save_claude_settings
+
+  local -a new
+  new=( ${(f)"$(cd ~ && chezmoi unmanaged --path-style=absolute $dirs)"} )
+  if (( $#new )); then
+    print -P "%F{yellow}Nouveaux fichiers non suivis%f (chezmoi add <fichier> pour les inclure) :"
+    print -l -- "  "${^new}
+  fi
+
+  git -C "$src" add -A
+  if git -C "$src" diff --cached --quiet; then
+    print -P "%F{green}Rien à sauvegarder.%f"; return 0
+  fi
+  git -C "$src" diff --cached --stat
+
+  gitleaks git --staged --no-banner --redact "$src" || {
+    print -P "%F{red}gitleaks a trouvé un secret : rien n'est commité.%f"; return 1
+  }
+
+  if (( dry )); then print "(-n : pas de commit)"; return 0; fi
+  git -C "$src" commit -q -m "chore(dots): save $(hostname -s) $(date +%F)"
+  push
+  print -P "%F{green}Dotfiles sauvegardés et poussés.%f"
+}
+
+case ${1-} in
+  -m) (( $# >= 2 )) || usage; save_named "${@:2}" ;;
+  -n) (( $# == 1 )) || usage; save_all 1 ;;
+  '') (( $# == 0 )) || usage; save_all 0 ;;
+  *)  usage ;;
+esac

@@ -28,6 +28,10 @@ Thème : Rosé Pine Dawn (clair) / Kanagawa Wave (sombre), police GeistMono Nerd
 - Le repo est dans `~/.dotfiles` ; les fichiers se modifient à leur place, normalement.
 - `dots` : sauvegarde tout (re-add, Claude settings, scan gitleaks, commit, push).
   `dots -n` pour voir sans commiter.
+- `dots -m "<type(scope): subject>" <file>...`: one commit holding only the named files (deployed files, or files
+  of this repository such as a template), scanned by gitleaks and pushed; the rest stays uncommitted. It refuses a
+  file that would stay out of step with the repository. Agents save every dotfile change this way (the `chezmoi`
+  skill of `~/.pi/agent`); reposync then applies the push on the other Mac.
 - Nouveau fichier : `chezmoi add <fichier>` (dots les signale).
 - Récupérer les changements de l'autre machine : `chezmoi update`.
 - `awsc <profile>`: logs an AWS SSO profile in and clicks Allow in its own headless Chromium; signing in to the
