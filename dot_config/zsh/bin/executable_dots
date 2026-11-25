@@ -45,8 +45,9 @@ save_claude_settings() {
 }
 
 push() {
-  git -C "$src" push -q || fail "not pushed. If the remote has commits this machine lacks, run \
-'git -C $src pull --rebase', then the same dots command again."
+  git -C "$src" push -q || fail "not pushed (git's reason is above); what was committed stays committed. Run the \
+same dots command again to push it. If git says the remote has commits this machine lacks, run \
+'git -C $src pull --rebase' first."
 }
 
 save_named() {
