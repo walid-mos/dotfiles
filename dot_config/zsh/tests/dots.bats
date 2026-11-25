@@ -107,6 +107,16 @@ fake_token()     { printf 'ghp_%s%s' x7Kq2mVb9Lr4Tz8Wc1 Yd5Hn3Fj6Gs0PaUeXi; }
   [ "$(remote_files)" = "dot_tpl.tmpl " ]
 }
 
+@test "-m: a file removed from the repository with chezmoi forget is committed as a deletion" {
+  chezmoi forget --force "$HOME/.two"
+  run "$DOTS" -m "chore: stop managing two" "$SRC/dot_two"
+  [ "$status" -eq 0 ]
+  [ "$(remote_subject)" = "chore: stop managing two" ]
+  [ "$(remote_files)" = "dot_two " ]
+  run git -C "$R" cat-file -e HEAD:dot_two
+  [ "$status" -ne 0 ]
+}
+
 @test "-m ~/.claude/settings.json: saved without the keys the machine keeps for itself" {
   printf '{"model":"local-model","theme":"light"}\n' > "$HOME/.claude/settings.json"
   run "$DOTS" -m "feat(claude): use the light theme" "$HOME/.claude/settings.json"

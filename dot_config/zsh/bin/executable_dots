@@ -5,8 +5,9 @@
 #     One commit holding only the named files, under that Conventional Commits message; whatever else is
 #     pending stays uncommitted. A deployed file (~/.config/zsh/.zprofile) is first copied into the repository
 #     (chezmoi re-add, or chezmoi add when chezmoi does not manage it yet); a file of the repository itself
-#     (a template, README.md) is taken as it is. Refused when a named file would stay out of step: a deployed
-#     file rendered from a template and edited in place, or a repository file not applied on this machine.
+#     (a template, README.md) is taken as it is, and one removed from it (chezmoi forget, chezmoi destroy) is
+#     committed as a deletion. Refused when a named file would stay out of step: a deployed file rendered
+#     from a template and edited in place, or a repository file not applied on this machine.
 #
 #   dots
 #     Everything pending in one commit:
@@ -64,6 +65,14 @@ such as 'feat(zsh): add an alias'"
   managed=( ${(f)"$(chezmoi managed --path-style=absolute)"} )
   for f in "$@"; do
     f=${f:a}
+    if [[ $f == $src/* && ! -e $f ]]; then
+      # Removed from the repository: a deletion to commit, when git tracks the file (its answer is the exit
+      # status; the message it prints for an unknown file is replaced by ours).
+      git -C "$src" ls-files --error-unmatch -- $f &>/dev/null \
+        || fail "$f does not exist and the repository does not track it"
+      specs+=( $f )
+      continue
+    fi
     [[ -e $f ]] || fail "$f does not exist"
     if [[ $f == $src/* ]]; then
       specs+=( $f )
