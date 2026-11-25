@@ -1,0 +1,99 @@
+#!/bin/bash
+# awsc: logs an AWS CLI profile in through IAM Identity Center (SSO) and clicks Allow for you, in awsc's own
+# headless Chromium (~/.local/share/awsc/approve.mjs). It never signs you in to the identity provider: when that
+# session is dead, it opens a window for you, or with --headless stops with exit 4.
+# Needs: aws, node, and the Chromium installed by chezmoi (run_onchange_after_40-awsc-browser.sh).
+set -euo pipefail
+
+USAGE="usage: awsc PROFILE [--check | --headless]
+  awsc PROFILE             log PROFILE in when its session is dead; opens a window if you must sign in to SSO
+  awsc PROFILE --headless  the same without ever opening a window (for agents)
+  awsc PROFILE --check     never log in, only say whether the session works
+exit: 0 ok, 1 error, 2 usage, 3 dead session (--check), 4 you must sign in (--headless)"
+
+STATE=${AWSC_STATE_DIR:-$HOME/.local/state/awsc}
+APPROVE="$HOME/.local/share/awsc/approve.mjs"
+# Seconds for `aws sso login` to print its URL. Before printing it, the CLI's callback server does a reverse DNS
+# lookup of the loopback, which takes 35 s on a Mac whose resolver falls back to multicast DNS for PTR queries.
+URL_TIMEOUT=90
+# Seconds a run waits for another one to finish with the browser; covers the sign-in window (approve.mjs, 600 s).
+LOCK_TIMEOUT=660
+
+usage() { echo "$USAGE" >&2; exit 2; }
+die() { echo "awsc: $*" >&2; exit 1; }
+
+[ $# -ge 1 ] && [ $# -le 2 ] || usage
+profile=$1
+case "$profile" in -*) usage ;; esac
+case "${2-}" in
+  "") mode=window ;;
+  --check) mode=check ;;
+  --headless) mode=headless ;;
+  *) usage ;;
+esac
+export AWSC_STATE_DIR="$STATE"
+
+# Whether the profile's session works; the CLI's last error line is kept in $why.
+why=""
+alive() {
+  local err
+  if err=$(aws sts get-caller-identity --profile "$profile" 2>&1 >/dev/null); then return 0; fi
+  why=$(printf '%s\n' "$err" | grep -v '^[[:space:]]*$' | tail -n 1)
+  return 1
+}
+
+if [ "$mode" = check ]; then
+  alive && exit 0
+  echo "awsc: the session of profile $profile does not work ($why): run awsc $profile" >&2
+  exit 3
+fi
+alive && exit 0
+
+command -v node >/dev/null || die "node not found"
+[ -f "$APPROVE" ] || die "$APPROVE is missing: run chezmoi apply"
+mkdir -p "$STATE"
+chmod 700 "$STATE"
+
+# One run at a time drives the browser profile; a lock left by a dead run is taken over.
+lock="$STATE/lock" pid="" tmp=""
+cleanup() {
+  # The CLI is stopped on purpose here: its exit status and bash's "Terminated" notice say nothing.
+  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then kill "$pid"; wait "$pid" 2>/dev/null || :; fi
+  if [ -n "$tmp" ]; then rm -rf "$tmp"; fi
+  if [ "$(cat "$lock/pid" 2>/dev/null)" = "$$" ]; then rm -rf "$lock"; fi
+}
+trap cleanup EXIT
+SECONDS=0
+until mkdir "$lock" 2>/dev/null; do
+  holder=$(cat "$lock/pid" 2>/dev/null) || holder=""
+  if [ -n "$holder" ] && ! kill -0 "$holder" 2>/dev/null; then rm -rf "$lock"; continue; fi
+  [ "$SECONDS" -lt "$LOCK_TIMEOUT" ] || die "another awsc (pid ${holder:-?}) still holds $lock"
+  sleep 0.5
+done
+echo $$ > "$lock/pid"
+alive && exit 0   # the run we waited for may have logged this profile in
+
+tmp=$(mktemp -d)
+aws sso login --profile "$profile" --no-browser > "$tmp/out" 2> "$tmp/err" < /dev/null &
+pid=$!
+SECONDS=0
+until url=$(grep -m 1 -E '^https?://[^[:space:]]+$' "$tmp/out"); do
+  if ! kill -0 "$pid" 2>/dev/null; then
+    status=0; wait "$pid" || status=$?; pid=""
+    die "aws sso login failed (exit $status): $(cat "$tmp/err")"
+  fi
+  [ "$SECONDS" -lt "$URL_TIMEOUT" ] || die "aws sso login printed no URL in $URL_TIMEOUT s: $(cat "$tmp/err")"
+  sleep 0.1
+done
+
+approved=0
+printf '%s\n' "$url" | node "$APPROVE" "$mode" || approved=$?
+case "$approved" in
+  0) ;;
+  4) echo "awsc: sign in to the SSO portal first: run awsc $profile in a terminal, it opens the window" >&2; exit 4 ;;
+  *) exit 1 ;;
+esac
+
+status=0; wait "$pid" || status=$?; pid=""
+[ "$status" -eq 0 ] || die "aws sso login failed after the approval (exit $status): $(cat "$tmp/err")"
+alive || die "logged in, but the profile $profile still does not work: $why"

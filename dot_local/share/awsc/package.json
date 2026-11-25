@@ -1,0 +1,9 @@
+{
+  "name": "awsc",
+  "private": true,
+  "description": "Headless browser that clicks Allow on the AWS SSO approval page for awsc (~/.config/zsh/bin/awsc).",
+  "type": "module",
+  "dependencies": {
+    "playwright": "1.65.1"
+  }
+}

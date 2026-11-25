@@ -1,0 +1,10 @@
+#!/bin/bash
+# Installs the Playwright dependency of awsc and its Chromium. Rerun by chezmoi when package.json changes.
+# package.json hash: {{ include "dot_local/share/awsc/package.json" | sha256sum }}
+set -euo pipefail
+command -v npm >/dev/null || { echo "awsc: npm not found; install Node, then run chezmoi apply again" >&2; exit 1; }
+cd "$HOME/.local/share/awsc"
+npm install --no-audit --no-fund --silent
+# The full Chromium only (no headless shell): awsc uses the same binary with and without a window, so both share
+# one browser profile.
+npx --no-install playwright install --no-shell chromium

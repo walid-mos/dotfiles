@@ -1,0 +1,55 @@
+#!/usr/bin/env node
+// Stand-in for the AWS CLI in awsc.bats: only the commands awsc runs. The SSO session of a profile is the file
+// $FAKE_AWS_DIR/session-<profile>; every call is appended to $FAKE_AWS_DIR/calls.
+const fs = require('node:fs')
+const http = require('node:http')
+const path = require('node:path')
+
+const dir = process.env.FAKE_AWS_DIR
+const args = process.argv.slice(2)
+fs.appendFileSync(path.join(dir, 'calls'), `${args.join(' ')}\n`)
+const profile = args[args.indexOf('--profile') + 1]
+const session = path.join(dir, `session-${profile}`)
+
+if (args[0] === 'sts' && args[1] === 'get-caller-identity') {
+    if (fs.existsSync(session)) {
+        console.log(JSON.stringify({ Account: '000000000000', Arn: 'arn:aws:sts::000000000000:assumed-role/x/y' }))
+        process.exit(0)
+    }
+    console.error('Error when retrieving token from sso: Token has expired and refresh failed')
+    process.exit(255)
+} else if (args[0] === 'sso' && args[1] === 'login') {
+    if (!args.includes('--no-browser')) {
+        console.error('fake aws: sso login without --no-browser would open the default browser')
+        process.exit(97)
+    }
+    if (process.env.FAKE_AWS_LOGIN === 'fail') {
+        console.error('fake aws: the SSO session of this profile is not configured')
+        process.exit(253)
+    }
+    fs.writeFileSync(path.join(dir, 'login.pid'), String(process.pid))
+    fs.appendFileSync(path.join(dir, 'logins'), 'login\n')
+    const server = http.createServer((req, res) => {
+        if (new URL(req.url, 'http://127.0.0.1').pathname !== '/oauth/callback') {
+            res.statusCode = 404
+            return res.end()
+        }
+        fs.writeFileSync(session, '')
+        res.end('<title>Request approved</title>Request approved')
+        console.log(`Successfully logged into Start URL: ${process.env.FAKE_SSO_URL}/start`)
+        setTimeout(() => process.exit(0), 100)
+    })
+    server.listen(0, '127.0.0.1', () => {
+        const callback = `http://127.0.0.1:${server.address().port}/oauth/callback`
+        console.log('Browser will not be automatically opened.')
+        console.log('Please visit the following URL:\n')
+        console.log(`${process.env.FAKE_SSO_URL}/authorize?response_type=code&client_id=c&redirect_uri=${encodeURIComponent(callback)}&state=fake-state-value\n`)
+    })
+    setTimeout(() => {
+        console.error('fake aws: no callback received')
+        process.exit(1)
+    }, 120000)
+} else {
+    console.error(`fake aws: unexpected command: ${args.join(' ')}`)
+    process.exit(98)
+}
