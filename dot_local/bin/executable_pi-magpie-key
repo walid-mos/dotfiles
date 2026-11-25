@@ -1,0 +1,61 @@
+#!/bin/bash
+# pi-magpie-key: copies this Mac's Magpie key from Infisical into its login Keychain, and points Pi's auth.json at it.
+#
+#   pi-magpie-key MAGPIE_KEY_<MACHINE>
+#
+# Pi resolves a `!command` key with a hard 10 s timeout and caches a failure for the life of the process, so a key
+# fetched from Infisical at every start fails whenever the network is slow (relayed tailnet, hotspot). The Keychain
+# answers locally in milliseconds. Run it once per machine, and again after the key is rotated (a stale copy fails
+# loudly with a 401). It needs a GUI login session: over plain SSH the login Keychain is locked.
+#
+# Needs: infisical (logged in as the user), jq, security, shasum. Prints nothing secret: names and a hash prefix only.
+set -euo pipefail
+
+SERVICE=pi-magpie                 # Keychain item, read back by the command written into auth.json
+ACCOUNT=api-key
+FOLDER=/homelab/magpie            # where the MAGPIE_KEY_<machine> secrets live in the core vault
+ENVIRONMENT=main
+AUTH=$HOME/.pi/agent/auth.json
+READ_CMD="security find-generic-password -s $SERVICE -a $ACCOUNT -w"
+
+fail() { printf 'pi-magpie-key: %s\n' "$1" >&2; exit 1; }
+sha() { shasum -a 256 | cut -c1-64; }
+
+[ $# -eq 1 ] || { printf 'usage: pi-magpie-key MAGPIE_KEY_<MACHINE>   (the name under core:%s)\n' "$FOLDER" >&2; exit 2; }
+name=$1
+for tool in infisical jq security shasum; do
+	command -v "$tool" >/dev/null || fail "$tool is not installed"
+done
+core=$HOME/.config/infisical/core.env
+[ -r "$core" ] || fail "$core is missing: run chezmoi apply, which renders it"
+# shellcheck source=/dev/null
+. "$core"
+
+err=$(mktemp)
+trap 'rm -f "$err"' EXIT
+value=$(INFISICAL_DISABLE_UPDATE_CHECK=true infisical secrets get "$name" --domain "$INFISICAL_DOMAIN" \
+	--projectId "$INFISICAL_CORE_ID" --env "$ENVIRONMENT" --path "$FOLDER" --plain --silent 2>"$err") ||
+	fail "infisical could not read $name: $(head -c 300 "$err"). Check 'infisical login' and the name."
+[ -n "$value" ] || fail "$name is empty in core:$FOLDER"
+# security -i parses its input line like a shell: only accept characters that need no quoting rules.
+[[ $value =~ ^[A-Za-z0-9._~+/=-]+$ ]] || fail "$name holds characters this script does not pass to security safely"
+want=$(printf %s "$value" | sha)
+
+# The value goes through stdin (printf is a builtin), never through a process argument.
+printf 'add-generic-password -U -s %s -a %s -l "Pi magpie key" -w "%s"\n' "$SERVICE" "$ACCOUNT" "$value" |
+	security -i >/dev/null 2>"$err" || fail "security could not write the Keychain item: $(head -c 300 "$err")"
+unset value
+# security -w ends the value with a newline, which Pi trims; the key itself never holds one (checked above).
+got=$($READ_CMD 2>"$err" | tr -d '\n' | sha) || fail "the Keychain item cannot be read back: $(head -c 300 "$err")"
+[ "$got" = "$want" ] || fail "the Keychain holds another value than $name (locked Keychain? run it in a GUI terminal)"
+
+# Point auth.json at the Keychain, keeping every other provider as it is.
+umask 077
+mkdir -p "$(dirname "$AUTH")"
+[ -f "$AUTH" ] || printf '{}\n' >"$AUTH"
+jq --arg key "!$READ_CMD" '.magpie = {type: "api_key", key: $key}' "$AUTH" >"$AUTH.new" ||
+	fail "$AUTH is not valid JSON; it is left unchanged"
+mv "$AUTH.new" "$AUTH"
+chmod 600 "$AUTH"
+
+printf 'pi-magpie-key: %s stored in the Keychain (sha256 %s…), auth.json reads it from there\n' "$name" "${want:0:12}"
