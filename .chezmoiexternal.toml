@@ -5,7 +5,7 @@
   refreshPeriod = "168h"
   pull.args = ["--ff-only"]
 
-[".config/pi-vendor"]
+[".config/pi/pi-vendor"]
   type = "git-repo"
   url = "git@github.com:walid-mos/pi-vendor.git"
   refreshPeriod = "168h"
