@@ -22,3 +22,9 @@ path=(
   /opt/homebrew/opt/python/libexec/bin
   $path
 )
+
+# pi in Herdr terminals: also send copies through OSC 52, so Herdr forwards them to the
+# clipboard of the Mac showing the terminal (pi only does this by itself over SSH).
+if [[ -n $HC_TERMINAL_ID ]]; then
+  export PI_CLIPBOARD_OSC52=1
+fi
