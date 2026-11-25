@@ -7,6 +7,9 @@
   - `github` / `github.pub`
   - examples: `gitlab`, `bitbucket`, `vps-ovh`, `prod-server`
 - If a service needs several keys (e.g. several accounts), add a dash suffix: `github-personal`, `github-work`.
+- Proxmox: `proxmox` opens the hypervisor (`pve`) only. Each LXC on it gets its own key named
+  `proxmox-<lxc>` after the container's name (e.g. `proxmox-magpie`), so the prefix shows which host it belongs to.
+  Its `Host` block sits under the `# LXC on the Proxmox node` section of `config`.
 - The public key has the same name plus `.pub`.
 
 ## Creating a key
