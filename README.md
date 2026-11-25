@@ -11,7 +11,7 @@ Thème : Rosé Pine Dawn (clair) / Kanagawa Wave (sombre), police GeistMono Nerd
 | Outils | git + delta, lazygit, btop, fastfetch, gh |
 | Apps | Vicinae, Hex, Claude Code (`settings.json` sans `model`) |
 | Paquets | `~/.config/homebrew/Brewfile`, installé automatiquement |
-| Repos à part | `~/.pi/agent`, `~/.config/pi-vendor` (`.chezmoiexternal.toml`) |
+| Repos à part | `~/.pi/agent`, `~/.config/pi/pi-vendor`, `pi-accor`, `pi-nextnode` (`.chezmoiexternal.toml`); the skills of the last two are linked into `~/.pi/agent/skills/` by `run_after_30-pi-skill-links.sh` |
 
 ## Nouvelle machine
 

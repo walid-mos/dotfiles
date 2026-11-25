@@ -10,3 +10,15 @@
   url = "git@github.com:walid-mos/pi-vendor.git"
   refreshPeriod = "168h"
   pull.args = ["--ff-only"]
+
+[".config/pi/pi-accor"]
+  type = "git-repo"
+  url = "git@github.com:walid-mos/pi-accor.git"
+  refreshPeriod = "168h"
+  pull.args = ["--ff-only"]
+
+[".config/pi/pi-nextnode"]
+  type = "git-repo"
+  url = "git@github.com:NextNodeSolutions/pi-nextnode.git"
+  refreshPeriod = "168h"
+  pull.args = ["--ff-only"]
