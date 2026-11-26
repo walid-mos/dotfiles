@@ -1,0 +1,34 @@
+{{- $tools := joinPath .chezmoi.homeDir ".config/pi/pi-vendor/packages/web-tools" -}}
+{{- $lock := joinPath $tools "pnpm-lock.yaml" -}}
+#!/bin/bash
+# Installs the agent's browser tooling (e2e, its web engine, chrome-devtools-mcp) from the lockfile of
+# pi-vendor/packages/web-tools, then the browsers that tooling pins. Rerun by chezmoi when that lockfile changes.
+# The versions are written in the lockfile only. pi-vendor is cloned by chezmoi (.chezmoiexternal.toml).
+set -euo pipefail
+{{ if stat $lock -}}
+# pnpm-lock.yaml hash: {{ include $lock | sha256sum }}
+command -v pnpm >/dev/null || { echo "web-tools: pnpm not found; install it, then run chezmoi apply again" >&2; exit 1; }
+cd "{{ $tools }}"
+pnpm install --frozen-lockfile
+# What a dependency may do (build scripts, agent skills) is decided in the package's pnpm-workspace.yaml. Anything
+# still awaiting a decision is the user's to approve or deny: say so loudly, approve nothing, and leave the tooling
+# marked as not installed.
+permissions=$(pnpm permissions list)
+if printf '%s\n' "$permissions" | grep -q '^Awaiting approval'; then
+  echo "web-tools: STOPPED: a dependency asks for a permission nobody decided yet (build script or agent skill):" >&2
+  printf '%s\n' "$permissions" >&2
+  echo "web-tools: nothing was approved. Decide in pi-vendor/packages/web-tools/pnpm-workspace.yaml (review it as pi-vendor's AGENTS.md says), then run chezmoi apply again." >&2
+  exit 1
+fi
+node_modules/.bin/e2e-web install chromium firefox webkit
+mkdir -p "$HOME/.local/state/e2e" "$HOME/.local/state/chrome-mcp" "$HOME/.local/state/pi-chromium"
+# After an update the running browser may be the old build: stop it, the next e2e session starts the new one.
+# `pi-chromium status` exits 0 only when the browser is running.
+if [ -x "$HOME/.local/bin/pi-chromium" ] && "$HOME/.local/bin/pi-chromium" status >/dev/null; then
+  echo "web-tools: stopping the shared Chromium so that the next session starts the installed build"
+  "$HOME/.local/bin/pi-chromium" stop
+fi
+{{- else -}}
+echo "web-tools: {{ $lock }} is missing (pi-vendor not cloned yet, or older than the web-tools package): run chezmoi apply again" >&2
+exit 1
+{{- end }}
