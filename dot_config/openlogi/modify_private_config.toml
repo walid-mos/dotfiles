@@ -1,0 +1,28 @@
+{{- /* chezmoi:modify-template */ -}}
+{{- /*
+  ~/.config/openlogi/config.toml = .config.base.toml (versioned, edited by hand: a change made in the OpenLogi app
+  to a shared setting is reverted at the next chezmoi apply)
+  + what each machine keeps for itself (openlogiLocalKeys): those keys of [app_settings] and of every device,
+  and every device the base does not know, taken whole from the machine's current file.
+*/ -}}
+{{- $config := include "dot_config/openlogi/.config.base.toml" | fromToml -}}
+{{- if .chezmoi.stdin -}}
+{{-   $current := .chezmoi.stdin | fromToml -}}
+{{-   $currentApp := get $current "app_settings" | default dict -}}
+{{-   $app := get $config "app_settings" -}}
+{{-   range .openlogiLocalKeys.app_settings -}}
+{{-     if hasKey $currentApp . -}}{{- $_ := set $app . (get $currentApp .) -}}{{- end -}}
+{{-   end -}}
+{{-   $devices := get $config "devices" -}}
+{{-   range $id, $currentDevice := get $current "devices" | default dict -}}
+{{-     if hasKey $devices $id -}}
+{{-       $device := get $devices $id -}}
+{{-       range $.openlogiLocalKeys.device -}}
+{{-         if hasKey $currentDevice . -}}{{- $_ := set $device . (get $currentDevice .) -}}{{- end -}}
+{{-       end -}}
+{{-     else -}}
+{{-       $_ := set $devices $id $currentDevice -}}
+{{-     end -}}
+{{-   end -}}
+{{- end -}}
+{{ toToml $config }}

@@ -1,2 +1,8 @@
 # Clés de ~/.claude/settings.json propres à chaque machine : jamais versionnées.
 claudeLocalKeys = ["model"]
+
+# Keys of ~/.config/openlogi/config.toml each machine keeps for itself, in [app_settings] and in each device:
+# never versioned. Connections (links) differ per machine and pointer feel is set per desk.
+[openlogiLocalKeys]
+app_settings = ["thumbwheel_sensitivity", "vertical_scroll_sensitivity"]
+device = ["dpi", "thumbwheel_sensitivity", "links"]
