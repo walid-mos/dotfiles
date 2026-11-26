@@ -4,6 +4,6 @@
   "description": "Local Pi package: the skills and extensions of the repositories cloned in ~/.config/pi. See README.md.",
   "pi": {
     "skills": ["pi-*/skills", "pi-vendor/packages/*/skills"],
-    "extensions": ["pi-*/extensions/index.ts"]
+    "extensions": ["pi-*/extensions/index.ts", "pi-vendor/packages/web/extensions/index.ts"]
   }
 }

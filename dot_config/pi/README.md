@@ -28,6 +28,7 @@ Mac by `reposync` (topic `auto-sync`).
 - `pi-vendor/packages/*/skills`: the skills of every vendored package.
 - `pi-*/extensions/index.ts`: the extension of a `pi-<name>` repository, if it has one. Vendored extensions are not
   matched: each one is added here by name, after its review in `pi-vendor`.
+- `pi-vendor/packages/web/extensions/index.ts`: our own web package, the tools `web_search` and `fetch_content`.
 
 A skill or an extension added to a repository loads at the next Pi session (or `/reload`) once the repository is
 pulled. Nothing else to declare.
