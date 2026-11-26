@@ -15,6 +15,9 @@ setup() {
   export PI_WEB_TOOLS_DIR="$BATS_TEST_TMPDIR/tools"
   export FAKE_BROWSER_ARGS="$BATS_TEST_TMPDIR/browser-args"
   export FAKE_BROWSER_LIST="$BATS_TEST_TMPDIR/list.json"
+  # A short poll in every test: the `sleep` of a watcher outlives the watcher that teardown kills and holds the output
+  # bats waits on, so with the script's own poll a run would end up to one full poll after its last test.
+  export PI_CHROMIUM_IDLE_POLL_S=0.2
   ENDPOINT="http://127.0.0.1:$PI_CHROMIUM_PORT"
   PROFILE="$PI_CHROMIUM_STATE/profile"
   LOG="$PI_CHROMIUM_STATE/chromium.log"
@@ -262,7 +265,7 @@ start_mute_browser() {
 
 # --- the idle stop
 
-idle_fast() { export PI_CHROMIUM_IDLE_STOP_S=2 PI_CHROMIUM_IDLE_POLL_S=1; }
+idle_fast() { export PI_CHROMIUM_IDLE_STOP_S=2; }
 
 @test "with only about:blank open, the browser stops by itself and says why" {
   idle_fast

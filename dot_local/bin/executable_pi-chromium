@@ -97,8 +97,8 @@ pages_open() {
 		log "watch: /json/list failed: $list; nothing is stopped"
 		return 1
 	fi
-	if ! count=$(printf '%s' "$list" | jq --arg title "$title" \
-		'[.[] | select(.type == "page" and .url != "about:blank" and ((.url | startswith("http://127.0.0.1:")) and .title == $title | not))] | length' 2>&1); then
+	if ! count=$(printf '%s' "$list" | jq --arg first "$FIRST_PAGE" --arg title "$title" \
+		'[.[] | select(.type == "page" and .url != $first and ((.url | startswith("http://127.0.0.1:")) and .title == $title | not))] | length' 2>&1); then
 		log "watch: /json/list is not the expected JSON ($count); nothing is stopped"
 		return 1
 	fi
@@ -148,7 +148,7 @@ start_watcher() {
 }
 
 start_browser() {
-	local mode=$1 exe pid flags
+	local mode=${1:-headless} exe pid flags
 	[ -d "$TOOLS_DIR" ] || die "the tooling directory $TOOLS_DIR does not exist: run chezmoi apply (it installs the web-tools package)"
 	[ -f "$TOOLS_DIR/node_modules/@e2e-dev/web/package.json" ] ||
 		die "@e2e-dev/web is not installed in $TOOLS_DIR: run chezmoi apply (the web-tools install script)"
@@ -194,19 +194,26 @@ stop_browser() {
 	log "stopped: $cause"
 }
 
-# --- transitions: every change of the browser, by state and command; ensure, stop and idle run under the lock
+forget_stale_pid() {
+	say "removing the pid file of pid $(recorded_pid), which is not our browser any more"
+	rm -f "$PID_FILE"
+}
+
+# --- transitions: every change of the browser, by state and command; ensure, stop and idle run under the lock.
+# `idle` is what the watcher asks for at each poll; a branch that exits is where the watcher ends.
 
 transition() {
-	local command=$1 mode=${2:-} state pid
+	local command=$1 mode=${2:-} state pid running_mode pages idle
 	state=$(browser_state)
 	case "$state:$command" in
-		stopped:ensure) start_browser "${mode:-headless}" ;;
+		stopped:ensure) start_browser "$mode" ;;
 		stopped:stop) say "already stopped" ;;
-		stopped:idle | stale:idle | foreign:idle) ;;   # the watcher ends at its next look
+		stopped:idle | stale:idle | foreign:idle) exit 0 ;;
 		running:ensure)
 			pid=$(recorded_pid)
-			if [ -n "$mode" ] && [ "$mode" != "$(mode_of "$pid")" ]; then
-				die "running $(mode_of "$pid"): run \`pi-chromium stop\` first"
+			running_mode=$(mode_of "$pid")
+			if [ -n "$mode" ] && [ "$mode" != "$running_mode" ]; then
+				die "running $running_mode: run \`pi-chromium stop\` first"
 			fi
 			touch "$ACTIVITY_FILE"
 			if [ "$(watcher_of "$pid")" = missing ]; then
@@ -218,22 +225,18 @@ transition() {
 			;;
 		running:stop | unresponsive:stop) stop_browser stop ;;
 		running:idle)
-			local n
-			if n=$(pages_open) && [ "$n" -eq 0 ] && [ "$(idle_for)" -ge "$IDLE_STOP_S" ]; then
-				stop_browser "idle, no page open for $(idle_for) s"
+			# The idle rule. Pages that cannot be counted stop nothing (pages_open logged why).
+			pages=$(pages_open) || return 0
+			if [ "$pages" -gt 0 ]; then
+				touch "$ACTIVITY_FILE"
+			elif idle=$(idle_for) && [ "$idle" -ge "$IDLE_STOP_S" ]; then
+				stop_browser "idle, no page open for $idle s"
 			fi
 			;;
 		unresponsive:ensure) die "the browser does not answer: run \`pi-chromium stop\`" ;;
-		unresponsive:idle) log "browser does not answer: the watcher ends" ;;
-		stale:ensure)
-			say "removing the pid file of pid $(recorded_pid), which is not our browser any more"
-			rm -f "$PID_FILE"
-			start_browser "${mode:-headless}"
-			;;
-		stale:stop)
-			say "removing the pid file of pid $(recorded_pid), which is not our browser any more"
-			rm -f "$PID_FILE"
-			;;
+		unresponsive:idle) log "browser does not answer: the watcher ends"; exit 0 ;;
+		stale:ensure) forget_stale_pid; start_browser "$mode" ;;
+		stale:stop) forget_stale_pid ;;
 		foreign:ensure) die "port $PORT is held by another process (pid $(listener)); it is not a browser of ours" ;;
 		foreign:stop) die "port $PORT is held by another process (pid $(listener)): nothing of ours to stop" ;;
 		*) die "no transition for $state:$command" ;;   # `starting` is never seen under the lock
@@ -270,22 +273,13 @@ endpoint_cmd() {
 	echo "$ENDPOINT"
 }
 
-# The idle watcher: no memory between polls (the clock is a file); it ends with its browser.
+# The idle watcher: no memory between polls (the clock is a file) and no rule of its own (it asks for the `idle`
+# transition). It ends when the pid file no longer names its browser, or in a branch of `transition` that exits.
 watch_loop() {
-	local browser=$1 state n
+	local browser=$1
 	while sleep "$IDLE_POLL_S"; do
 		[ "$(cat "$PID_FILE" 2>/dev/null || :)" = "$browser" ] || exit 0
-		state=$(browser_state)
-		if [ "$state" = unresponsive ]; then
-			acquire_lock; transition idle; release_lock
-			exit 0
-		fi
-		[ "$state" = running ] || exit 0
-		n=$(pages_open) || continue
-		if [ "$n" -gt 0 ]; then touch "$ACTIVITY_FILE"; continue; fi
-		if [ "$(idle_for)" -ge "$IDLE_STOP_S" ]; then
-			acquire_lock; transition idle; release_lock
-		fi
+		acquire_lock; transition idle; release_lock
 	done
 }
 
