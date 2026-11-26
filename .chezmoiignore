@@ -11,3 +11,8 @@ README.md
 .config/herdr-app/layouts/win98.*
 .config/herdr-app/themes/win98.json
 .config/herdr-app/themes/atom-one-dark.json
+
+# Claude Code skills: links that pi's claude-skills extension (~/.pi/agent/extensions) creates for the skills pi
+# loads, some of them private to a client. They belong to no repository.
+.claude/skills
+.claude/skills/**
