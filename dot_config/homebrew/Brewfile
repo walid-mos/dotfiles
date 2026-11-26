@@ -12,6 +12,8 @@ brew "awscli"
 brew "bat"
 # Bash Automated Testing System
 brew "bats-core"
+# Secure and free password manager for all of your devices
+brew "bitwarden-cli"
 # Resource monitor. C++ version and continuation of bashtop and bpytop
 brew "btop"
 # Manage your dotfiles across multiple diverse machines, securely
