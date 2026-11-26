@@ -68,6 +68,8 @@ cask "font-commit-mono-nerd-font"
 cask "font-iosevka-term-nerd-font"
 cask "font-maple-mono-nf"
 cask "font-monaspice-nerd-font"
+# Local-first alternative to Logitech Options+ for HID++ devices
+cask "openlogi"
 # Mesh VPN based on WireGuard
 cask "tailscale-app"
 # Application launcher and command palette
