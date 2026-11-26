@@ -359,6 +359,17 @@ idle_fast() { export PI_CHROMIUM_IDLE_STOP_S=2; }
   grep -q "/json/list" "$LOG"
 }
 
+@test "a start page title file that cannot be read stops nothing, and the log names it" {
+  idle_fast
+  list '[{"type":"page","url":"about:blank","title":""}]'
+  "$PI_CHROMIUM" ensure
+  local pid; pid=$(browser_pid)
+  rm "$PI_WEB_TOOLS_DIR/start-page-title.txt"
+  sleep 5
+  kill -0 "$pid"
+  grep -q "start-page-title.txt" "$LOG"
+}
+
 @test "after stop, the watcher ends within two polls" {
   idle_fast
   list '[{"type":"page","url":"https://example.com/","title":"Example"}]'

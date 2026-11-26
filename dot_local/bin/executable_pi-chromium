@@ -90,11 +90,14 @@ browser_state() {
 # --- the idle rule
 
 # Open pages: targets of type page that are neither about:blank nor the start page (a 127.0.0.1 page with its title).
-# Prints the count; when /json/list fails or is not the expected JSON, logs why and returns 1: neither "no page" nor
-# "a page".
+# Prints the count; when the title cannot be read, or /json/list fails or is not the expected JSON, logs why and
+# returns 1: neither "no page" nor "a page".
 pages_open() {
 	local list title count
-	title=$(cat "$START_PAGE_TITLE_FILE")
+	if ! title=$(cat "$START_PAGE_TITLE_FILE" 2>&1); then
+		log "watch: the start page's title cannot be read: $title; nothing is stopped"
+		return 1
+	fi
 	if ! list=$(curl -fsS -m 5 "$ENDPOINT/json/list" 2>&1); then
 		log "watch: /json/list failed: $list; nothing is stopped"
 		return 1
