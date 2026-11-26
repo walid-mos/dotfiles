@@ -1,0 +1,312 @@
+#!/bin/bash
+# pi-chromium: the owner of the shared Chromium of the agent's browser tools. e2e drives it (its `chromium` target) and
+# chrome-devtools-mcp inspects the same pages. One process, e2e's own Chromium build, its debugging port on 127.0.0.1,
+# its own profile. It runs on demand, never all day:
+#   - only `ensure` starts it, which the e2e config calls when a chromium session opens;
+#   - it stops on `stop`, on its idle watcher once no page has been open for IDLE_STOP_S, or when the web-tools install
+#     script stops it after an update.
+#
+#   pi-chromium ensure [--headed|--headless]   start it or reuse it; prints the endpoint
+#   pi-chromium endpoint                       the endpoint of a running browser; starts nothing
+#   pi-chromium status                         the state, and pid, mode, endpoint and watcher when there is a process
+#   pi-chromium stop                           stop it
+# (`pi-chromium watch <pid>` is the idle watcher that `ensure` starts; it is never run by hand.)
+#
+# The state is computed from the pid file, the process list and the port each time (browser_state), never stored.
+# Every change of the browser is one branch of `transition`. Only the endpoint goes to stdout; everything else to stderr.
+# Needs: node, curl, jq, lsof, and the web-tools package that chezmoi installs in pi-vendor.
+set -euo pipefail
+
+PORT=${PI_CHROMIUM_PORT:-9322}                                    # the variable is for the tests
+STATE_DIR=${PI_CHROMIUM_STATE:-$HOME/.local/state/pi-chromium}     # idem
+TOOLS_DIR=${PI_WEB_TOOLS_DIR:-$HOME/.config/pi/pi-vendor/packages/web-tools}   # idem: the pinned tooling (e2e's playwright-core, the start page's title)
+PROFILE=$STATE_DIR/profile            # dedicated profile, mode 0700: never the user's, never a personal account
+PID_FILE=$STATE_DIR/pid               # the process this script started
+LOCK_DIR=$STATE_DIR/lock              # mkdir is atomic: one transition at a time
+LOG=$STATE_DIR/chromium.log           # the browser's output, and one line per transition with its cause
+ACTIVITY_FILE=$STATE_DIR/last-activity    # its modification time is the idle clock
+WATCHER_PID_FILE=$STATE_DIR/watcher.pid
+START_PAGE_TITLE_FILE=$TOOLS_DIR/start-page-title.txt   # the one place the start page's title is written
+START_TIMEOUT_S=${PI_CHROMIUM_START_TIMEOUT_S:-20}        # the variable is for the tests
+STOP_TIMEOUT_S=10
+LOCK_TIMEOUT_S=30
+IDLE_STOP_S=${PI_CHROMIUM_IDLE_STOP_S:-900}   # 15 minutes with no page open: decided with the user, the browser runs
+                                              # on demand and never all day; long enough to cover a pause inside one
+                                              # piece of work. The variable is for the tests
+IDLE_POLL_S=${PI_CHROMIUM_IDLE_POLL_S:-30}    # how often the watcher looks; the stop is late by at most this. Idem
+FLAGS=(--remote-debugging-port="$PORT" --user-data-dir="$PROFILE" --no-first-run --no-default-browser-check)
+HEADLESS_FLAG=--headless=new
+FIRST_PAGE=about:blank                        # without it Chromium opens a new-tab page, which would count as a page
+
+SELF=$(cd "$(dirname "$0")" && pwd -P)/$(basename "$0")
+ENDPOINT=http://127.0.0.1:$PORT
+
+say() { printf 'pi-chromium: %s\n' "$*" >&2; }
+die() { say "$*"; exit 1; }
+log() { mkdir -p "$STATE_DIR"; printf '%s %s\n' "$(date '+%Y-%m-%dT%H:%M:%S')" "$*" >> "$LOG"; }
+usage() {
+	printf 'usage: pi-chromium ensure [--headed|--headless] | endpoint | status | stop\n' >&2
+	printf '       (pi-chromium watch <pid> is the idle watcher that ensure starts; never run it by hand)\n' >&2
+	exit 2
+}
+
+# --- facts
+
+alive() { kill -0 "$1" 2>/dev/null; }
+# The arguments of a process; empty when there is no such process (ps exits 1 then, which is the answer).
+args_of() { ps -o args= -p "$1" 2>/dev/null || :; }
+# Ours: the process holds our profile argument, so a reused pid is never taken for the browser.
+ours() { case "$(args_of "$1")" in *"--user-data-dir=$PROFILE"*) return 0 ;; *) return 1 ;; esac; }
+recorded_pid() { cat "$PID_FILE"; }
+answers() { curl -fsS -m 2 -o /dev/null "$ENDPOINT/json/version" 2>/dev/null; }
+# The pid listening on the port; empty when none (lsof exits 1 then).
+listener() { lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null | head -1 || :; }
+lock_holder() { cat "$LOCK_DIR/pid" 2>/dev/null || :; }
+# Held by another process than this one: this one, holding the lock, never sees its own start as `starting`.
+lock_held() { local holder; holder=$(lock_holder); [ -n "$holder" ] && [ "$holder" != $$ ] && alive "$holder"; }
+mode_of() { case "$(args_of "$1")" in *"$HEADLESS_FLAG"*) echo headless ;; *) echo headed ;; esac; }
+watcher_of() {
+	local browser=$1 watcher
+	watcher=$(cat "$WATCHER_PID_FILE" 2>/dev/null || :)
+	case "$(if [ -n "$watcher" ]; then args_of "$watcher"; fi)" in
+		*"pi-chromium watch $browser") echo "$watcher" ;;
+		*) echo missing ;;
+	esac
+}
+
+browser_state() {
+	local pid
+	if [ -f "$PID_FILE" ] && pid=$(recorded_pid) && alive "$pid" && ours "$pid"; then
+		if answers; then echo running
+		elif lock_held; then echo starting
+		else echo unresponsive; fi
+	elif [ -n "$(listener)" ]; then echo foreign
+	elif [ -f "$PID_FILE" ]; then echo stale
+	else echo stopped; fi
+}
+
+# --- the idle rule
+
+# Open pages: targets of type page that are neither about:blank nor the start page (a 127.0.0.1 page with its title).
+# Prints the count; when /json/list fails or is not the expected JSON, logs why and returns 1: neither "no page" nor
+# "a page".
+pages_open() {
+	local list title count
+	title=$(cat "$START_PAGE_TITLE_FILE")
+	if ! list=$(curl -fsS -m 5 "$ENDPOINT/json/list" 2>&1); then
+		log "watch: /json/list failed: $list; nothing is stopped"
+		return 1
+	fi
+	if ! count=$(printf '%s' "$list" | jq --arg title "$title" \
+		'[.[] | select(.type == "page" and .url != "about:blank" and ((.url | startswith("http://127.0.0.1:")) and .title == $title | not))] | length' 2>&1); then
+		log "watch: /json/list is not the expected JSON ($count); nothing is stopped"
+		return 1
+	fi
+	echo "$count"
+}
+
+idle_for() { echo $(($(date +%s) - $(date -r "$ACTIVITY_FILE" +%s))); }
+
+# --- the lock
+
+acquire_lock() {
+	local end=$((SECONDS + LOCK_TIMEOUT_S)) holder
+	mkdir -p "$STATE_DIR"
+	until mkdir "$LOCK_DIR" 2>/dev/null; do
+		holder=$(lock_holder)
+		if [ -n "$holder" ] && ! alive "$holder"; then
+			say "removing the lock left by pid $holder, which is gone"
+			rm -rf "$LOCK_DIR"
+			continue
+		fi
+		[ "$SECONDS" -lt "$end" ] || die "the lock $LOCK_DIR is still held after ${LOCK_TIMEOUT_S} s (pid ${holder:-unknown})"
+		sleep 0.1
+	done
+	echo $$ > "$LOCK_DIR/pid"
+	trap release_lock EXIT
+}
+
+release_lock() { if [ "$(lock_holder)" = $$ ]; then rm -rf "$LOCK_DIR"; fi; }
+
+# --- actions
+
+chromium_path() {
+	node --input-type=module -e '
+import { createRequire } from "node:module";
+import { existsSync, realpathSync } from "node:fs";
+import { join } from "node:path";
+const root = process.argv[1];
+const fromWeb = createRequire(realpathSync(join(root, "@e2e-dev/web", "package.json")));
+const exe = fromWeb("playwright-core").chromium.executablePath();
+if (!existsSync(exe)) { console.error(`pi-chromium: Chromium is missing at ${exe}: run e2e-web install chromium (in the web-tools package)`); process.exit(1); }
+console.log(exe);' "$TOOLS_DIR/node_modules"
+}
+
+start_watcher() {
+	nohup "$SELF" watch "$1" >> "$LOG" 2>&1 < /dev/null &
+	echo $! > "$WATCHER_PID_FILE"
+}
+
+start_browser() {
+	local mode=$1 exe pid flags
+	[ -d "$TOOLS_DIR" ] || die "the tooling directory $TOOLS_DIR does not exist: run chezmoi apply (it installs the web-tools package)"
+	[ -f "$TOOLS_DIR/node_modules/@e2e-dev/web/package.json" ] ||
+		die "@e2e-dev/web is not installed in $TOOLS_DIR: run chezmoi apply (the web-tools install script)"
+	[ -f "$START_PAGE_TITLE_FILE" ] || die "$START_PAGE_TITLE_FILE is missing: run chezmoi apply"
+	exe=$(chromium_path) || exit 1
+	mkdir -p "$PROFILE"
+	chmod 700 "$PROFILE"
+	flags=("${FLAGS[@]}")
+	if [ "$mode" = headless ]; then flags+=("$HEADLESS_FLAG"); fi
+	nohup "$exe" "${flags[@]}" "$FIRST_PAGE" >> "$LOG" 2>&1 < /dev/null &
+	pid=$!
+	echo "$pid" > "$PID_FILE"
+	local end=$((SECONDS + START_TIMEOUT_S))
+	until answers; do
+		if [ "$SECONDS" -ge "$end" ] || ! alive "$pid"; then
+			kill -KILL "$pid" 2>/dev/null || :   # already gone when it died by itself
+			wait "$pid" 2>/dev/null || :         # reap it; its exit status is the failure reported below
+			rm -f "$PID_FILE"
+			log "start failed: no answer on $ENDPOINT within ${START_TIMEOUT_S} s"
+			say "the browser did not answer on $ENDPOINT within ${START_TIMEOUT_S} s; the end of $LOG:"
+			tail -n 5 "$LOG" >&2
+			exit 1
+		fi
+		sleep 0.2
+	done
+	touch "$ACTIVITY_FILE"
+	start_watcher "$pid"
+	log "started: pid $pid, $mode"
+	echo "$ENDPOINT"
+}
+
+stop_browser() {
+	local cause=$1 pid end
+	pid=$(recorded_pid)
+	kill -TERM "$pid"
+	end=$((SECONDS + STOP_TIMEOUT_S))
+	while alive "$pid" && [ "$SECONDS" -lt "$end" ]; do sleep 0.2; done
+	if alive "$pid"; then
+		say "the browser (pid $pid) did not stop within ${STOP_TIMEOUT_S} s: killing it"
+		kill -KILL "$pid"
+	fi
+	rm -f "$PID_FILE"
+	log "stopped: $cause"
+}
+
+# --- transitions: every change of the browser, by state and command; ensure, stop and idle run under the lock
+
+transition() {
+	local command=$1 mode=${2:-} state pid
+	state=$(browser_state)
+	case "$state:$command" in
+		stopped:ensure) start_browser "${mode:-headless}" ;;
+		stopped:stop) say "already stopped" ;;
+		stopped:idle | stale:idle | foreign:idle) ;;   # the watcher ends at its next look
+		running:ensure)
+			pid=$(recorded_pid)
+			if [ -n "$mode" ] && [ "$mode" != "$(mode_of "$pid")" ]; then
+				die "running $(mode_of "$pid"): run \`pi-chromium stop\` first"
+			fi
+			touch "$ACTIVITY_FILE"
+			if [ "$(watcher_of "$pid")" = missing ]; then
+				start_watcher "$pid"
+				say "the idle watcher was missing: restarted it"
+				log "watcher restarted by ensure"
+			fi
+			echo "$ENDPOINT"
+			;;
+		running:stop | unresponsive:stop) stop_browser stop ;;
+		running:idle)
+			local n
+			if n=$(pages_open) && [ "$n" -eq 0 ] && [ "$(idle_for)" -ge "$IDLE_STOP_S" ]; then
+				stop_browser "idle, no page open for $(idle_for) s"
+			fi
+			;;
+		unresponsive:ensure) die "the browser does not answer: run \`pi-chromium stop\`" ;;
+		unresponsive:idle) log "browser does not answer: the watcher ends" ;;
+		stale:ensure)
+			say "removing the pid file of pid $(recorded_pid), which is not our browser any more"
+			rm -f "$PID_FILE"
+			start_browser "${mode:-headless}"
+			;;
+		stale:stop)
+			say "removing the pid file of pid $(recorded_pid), which is not our browser any more"
+			rm -f "$PID_FILE"
+			;;
+		foreign:ensure) die "port $PORT is held by another process (pid $(listener)); it is not a browser of ours" ;;
+		foreign:stop) die "port $PORT is held by another process (pid $(listener)): nothing of ours to stop" ;;
+		*) die "no transition for $state:$command" ;;   # `starting` is never seen under the lock
+	esac
+}
+
+# --- commands without the lock
+
+status_cmd() {
+	local state pid
+	state=$(browser_state)
+	case $state in
+		running)
+			pid=$(recorded_pid)
+			echo "running pid=$pid mode=$(mode_of "$pid") endpoint=$ENDPOINT watcher=$(watcher_of "$pid")"
+			exit 0
+			;;
+		starting | unresponsive)
+			pid=$(recorded_pid)
+			echo "$state pid=$pid mode=$(mode_of "$pid")"
+			[ "$state" = starting ] && exit 7
+			exit 5
+			;;
+		stale) echo "stale pid=$(recorded_pid)"; exit 4 ;;
+		foreign) echo "foreign pid=$(listener) port=$PORT"; exit 6 ;;
+		stopped) echo stopped; exit 3 ;;
+	esac
+}
+
+endpoint_cmd() {
+	local state
+	state=$(browser_state)
+	[ "$state" = running ] || die "no shared browser: open a page with e2e first (state: $state)"
+	echo "$ENDPOINT"
+}
+
+# The idle watcher: no memory between polls (the clock is a file); it ends with its browser.
+watch_loop() {
+	local browser=$1 state n
+	while sleep "$IDLE_POLL_S"; do
+		[ "$(cat "$PID_FILE" 2>/dev/null || :)" = "$browser" ] || exit 0
+		state=$(browser_state)
+		if [ "$state" = unresponsive ]; then
+			acquire_lock; transition idle; release_lock
+			exit 0
+		fi
+		[ "$state" = running ] || exit 0
+		n=$(pages_open) || continue
+		if [ "$n" -gt 0 ]; then touch "$ACTIVITY_FILE"; continue; fi
+		if [ "$(idle_for)" -ge "$IDLE_STOP_S" ]; then
+			acquire_lock; transition idle; release_lock
+		fi
+	done
+}
+
+command=${1:-}
+[ $# -gt 0 ] && shift
+case $command in
+	ensure)
+		mode=
+		for arg in "$@"; do
+			case $arg in
+				--headed) mode=headed ;;
+				--headless) mode=headless ;;
+				*) usage ;;
+			esac
+		done
+		acquire_lock
+		transition ensure "$mode"
+		;;
+	stop) [ $# -eq 0 ] || usage; acquire_lock; transition stop ;;
+	status) [ $# -eq 0 ] || usage; status_cmd ;;
+	endpoint) [ $# -eq 0 ] || usage; endpoint_cmd ;;
+	watch) [ $# -eq 1 ] || usage; watch_loop "$1" ;;
+	*) usage ;;
+esac
