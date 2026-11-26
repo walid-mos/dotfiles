@@ -147,6 +147,18 @@ start_watcher() {
 	echo $! > "$WATCHER_PID_FILE"
 }
 
+# A start that failed leaves nothing behind: no process, no pid file.
+fail_start() {
+	local pid=$1 why=$2
+	kill -KILL "$pid" 2>/dev/null || :   # already gone when it died by itself
+	wait "$pid" 2>/dev/null || :         # reap it; its exit status is the failure reported below
+	rm -f "$PID_FILE"
+	log "start failed: $why"
+	say "$why; the end of $LOG:"
+	tail -n 5 "$LOG" >&2
+	exit 1
+}
+
 start_browser() {
 	local mode=${1:-headless} exe pid flags
 	[ -d "$TOOLS_DIR" ] || die "the tooling directory $TOOLS_DIR does not exist: run chezmoi apply (it installs the web-tools package)"
@@ -163,15 +175,8 @@ start_browser() {
 	echo "$pid" > "$PID_FILE"
 	local end=$((SECONDS + START_TIMEOUT_S))
 	until answers; do
-		if [ "$SECONDS" -ge "$end" ] || ! alive "$pid"; then
-			kill -KILL "$pid" 2>/dev/null || :   # already gone when it died by itself
-			wait "$pid" 2>/dev/null || :         # reap it; its exit status is the failure reported below
-			rm -f "$PID_FILE"
-			log "start failed: no answer on $ENDPOINT within ${START_TIMEOUT_S} s"
-			say "the browser did not answer on $ENDPOINT within ${START_TIMEOUT_S} s; the end of $LOG:"
-			tail -n 5 "$LOG" >&2
-			exit 1
-		fi
+		alive "$pid" || fail_start "$pid" "the browser exited before it answered on $ENDPOINT"
+		[ "$SECONDS" -lt "$end" ] || fail_start "$pid" "the browser did not answer on $ENDPOINT within ${START_TIMEOUT_S} s"
 		sleep 0.2
 	done
 	touch "$ACTIVITY_FILE"

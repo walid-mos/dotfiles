@@ -169,6 +169,15 @@ start_mute_browser() {
   wait_until 5 stopped_now
 }
 
+@test "a browser that exits before it answers: ensure fails saying so, and leaves no pid file" {
+  printf '#!/bin/bash\necho "$*" >> "$FAKE_BROWSER_ARGS"\nexit 3\n' > "$BATS_TEST_TMPDIR/bin/chromium"
+  run --separate-stderr "$PI_CHROMIUM" ensure
+  [ "$status" -ne 0 ]
+  [ "$(starts)" = 1 ]
+  [[ "$stderr" == *"exited"* ]] || false
+  stopped_now
+}
+
 @test "a browser of ours that does not answer: unresponsive (exit 5); ensure fails naming stop and kills nothing; stop ends it" {
   start_mute_browser
   local pid; pid=$(browser_pid)
