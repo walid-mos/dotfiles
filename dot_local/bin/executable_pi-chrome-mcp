@@ -1,0 +1,15 @@
+#!/bin/sh
+# pi-chrome-mcp [chrome-devtools-mcp arguments]: starts chrome-devtools-mcp on the endpoint of the shared Chromium that
+# pi-chromium owns (the build e2e uses), so it inspects the pages e2e drives.
+# It never starts a browser and does not need one to start: chrome-devtools-mcp connects at its first tool call, so
+# its tools fail until e2e has opened a page, then work in the same Pi session. A launcher that exited for lack of a
+# browser would leave chrome unusable for the whole session, since Pi never restarts an MCP server that exited.
+# Behaviour flags (--no-usage-statistics…) come from mcp.json; this script only adds the connection.
+# Needs: the tooling that chezmoi installs in pi-vendor/packages/web-tools.
+set -eu
+fail() { printf 'pi-chrome-mcp: %s\n' "$1" >&2; exit 1; }
+tools=${PI_WEB_TOOLS_DIR:-$HOME/.config/pi/pi-vendor/packages/web-tools}   # the variable is for the tests
+port=${PI_CHROMIUM_PORT:-9322}   # pi-chromium's port, and the same variable for the tests
+server=$tools/node_modules/.bin/chrome-devtools-mcp
+[ -x "$server" ] || fail "chrome-devtools-mcp is not installed in $tools: run chezmoi apply (the web-tools install script)"
+exec "$server" --browserUrl "http://127.0.0.1:$port" "$@"
