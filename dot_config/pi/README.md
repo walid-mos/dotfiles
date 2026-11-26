@@ -13,7 +13,7 @@ private skills. Pi loads this whole directory as one local package, declared onc
 |---|---|---|
 | `package.json` | Pi manifest: which skills and extensions of the repositories below Pi loads | dotfiles |
 | `README.md`, `AGENTS.md` | this file, and the rules for agents working here | dotfiles |
-| `pi-vendor/` | reviewed and pinned third-party packages (public) | `walid-mos/pi-vendor` |
+| `pi-vendor/` | reviewed and pinned third-party packages, and our own packages with third-party dependencies (public) | `walid-mos/pi-vendor` |
 | `pi-accor/` | private skills and extensions for Accor work | `walid-mos/pi-accor` |
 | `pi-nextnode/` | private skills and extensions for Nextnode work | `NextNodeSolutions/pi-nextnode` |
 

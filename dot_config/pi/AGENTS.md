@@ -6,12 +6,13 @@
   repository, not here.
 - Where a resource goes:
   - generic, shareable with anyone: `~/.pi/agent` (public `pi-agent`);
-  - third-party, unedited: `pi-vendor`, through its update procedure;
+  - third-party, unedited: `pi-vendor`, through its update procedure; our own packages that need third-party
+    dependencies (`web`, `web-tools`) live there too, edited directly, as its `AGENTS.md` says;
   - private to a client or a company: that domain's `pi-<name>`.
 - The domains never mix: nothing of one `pi-<name>` (names, repositories, people, tickets, secrets) is copied into
   another, nor into the public repositories (`pi-agent`, `pi-vendor`, dotfiles), because each domain is isolated from
   the others.
-- `package.json` matches repositories by pattern and must keep naming none of them. The one exception is a vendored
-  extension, added by its path after its review in `pi-vendor`.
+- `package.json` matches repositories by pattern and must keep naming none of them. The one exception is an extension in
+  `pi-vendor` (vendored, or our own `web`), added by its path after its review there.
 - After a change to what loads, start a fresh session (`pi -p --no-session ...`) and check that the expected skills
   are listed and that Pi prints no collision or extension warning.
