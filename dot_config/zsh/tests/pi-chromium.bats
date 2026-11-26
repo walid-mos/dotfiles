@@ -162,7 +162,8 @@ start_mute_browser() {
 }
 
 @test "a browser that never answers within the start timeout: ensure fails and leaves no process and no pid file" {
-  FAKE_BROWSER_MUTE=1 PI_CHROMIUM_START_TIMEOUT_S=1 run --separate-stderr "$PI_CHROMIUM" ensure
+  # 3 s, not 1: the fake browser is a Python script, which can take over a second to start and record its arguments.
+  FAKE_BROWSER_MUTE=1 PI_CHROMIUM_START_TIMEOUT_S=3 run --separate-stderr "$PI_CHROMIUM" ensure
   [ "$status" -ne 0 ]
   [ "$(starts)" = 1 ]
   wait_until 5 stopped_now
