@@ -1,0 +1,3 @@
+// Makes ~/.local/state/e2e e2e's project root (its results, sessions, videos and cache stay here), while the config
+// and its imports stay in the pinned tooling package. Never edit: change the real config in pi-vendor.
+export { default } from '{{ .chezmoi.homeDir }}/.config/pi/pi-vendor/packages/web-tools/e2e.config.ts';
