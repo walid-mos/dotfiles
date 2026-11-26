@@ -21,7 +21,7 @@ setup() {
   R="$BATS_TEST_TMPDIR/remote.git"; SRC="$BATS_TEST_TMPDIR/src"
   git init -q --bare "$R"
   git clone -q "$R" "$SRC" 2>/dev/null
-  mkdir -p "$HOME/.config/chezmoi" "$HOME/.claude" "$SRC/dot_claude"
+  mkdir -p "$HOME/.config/chezmoi" "$HOME/.claude" "$SRC/dot_claude" "$HOME/.config/openlogi" "$SRC/dot_config/openlogi"
   # The directories in which dots looks for new files: it stops when one is missing.
   mkdir -p "$HOME"/.config/{zsh,nvim,git,atuin,btop,fastfetch,lazygit} "$HOME"/.config/herdr-app/{themes,layouts}
   printf 'sourceDir = "%s"\n' "$SRC" > "$HOME/.config/chezmoi/chezmoi.toml"
@@ -32,7 +32,12 @@ setup() {
   printf 'notes\n' > "$SRC/README.md"
   printf 'README.md\n' > "$SRC/.chezmoiignore"
   # ~/.claude/settings.json as in the real repository: a base file plus the keys each machine keeps (model).
-  printf 'claudeLocalKeys = ["model"]\n' > "$SRC/.chezmoidata.toml"
+  cat > "$SRC/.chezmoidata.toml" <<'EOF'
+claudeLocalKeys = ["model"]
+[openlogiLocalKeys]
+app_settings = ["thumbwheel_sensitivity"]
+device = ["dpi", "links"]
+EOF
   jq -n '{theme: "dark"}' > "$SRC/dot_claude/.settings.base.json"   # jq's own layout, as dots writes it
   cat > "$SRC/dot_claude/modify_settings.json" <<'EOF'
 {{- /* chezmoi:modify-template */ -}}
@@ -46,6 +51,12 @@ setup() {
 {{ toPrettyJson $settings }}
 EOF
   printf '{"model":"local-model","theme":"dark"}\n' > "$HOME/.claude/settings.json"
+  # ~/.config/openlogi/config.toml: the same scheme in TOML, with keys kept in [app_settings] and in each device.
+  # How the machine's keys are put back on apply is the real modify script's business, not dots'.
+  # chezmoi's toToml layout, as dots writes it
+  printf '[app_settings]\n  smooth_scroll = false\n' > "$SRC/dot_config/openlogi/.config.base.toml"
+  printf '{{- /* chezmoi:modify-template */ -}}\n{{ include "dot_config/openlogi/.config.base.toml" }}' \
+    > "$SRC/dot_config/openlogi/modify_private_config.toml"
   git -C "$SRC" add -A; git -C "$SRC" commit -q -m "chore: init"; git -C "$SRC" push -q origin main
   chezmoi apply
   BASE=$(git -C "$R" rev-parse HEAD)
@@ -55,6 +66,29 @@ remote_head()    { git -C "$R" rev-parse HEAD; }
 remote_subject() { git -C "$R" log -1 --format=%s; }
 remote_files()   { git -C "$R" show --name-only --format= HEAD | sort | tr '\n' ' '; }
 remote_show()    { git -C "$R" show "HEAD:$1"; }
+# A TOML file of the remote as compact JSON with sorted keys, so that its layout does not matter.
+remote_toml()    { remote_show "$1" | chezmoi execute-template --with-stdin '{{ .chezmoi.stdin | fromToml | toJson }}' | jq -cS .; }
+
+# The OpenLogi app rewrote its file: a shared setting changed (smooth_scroll), among keys this machine keeps for
+# itself (the sensitivity, the dpi and the connections of a device). openlogi_shared is what the base must become.
+openlogi_changed_in_app() {
+  cat > "$HOME/.config/openlogi/config.toml" <<'EOF'
+[app_settings]
+smooth_scroll = true
+thumbwheel_sensitivity = 40
+
+[devices."serial:x"]
+dpi = 3400
+invert_scroll = true
+
+[devices."serial:x".links."direct:1".capabilities]
+buttons = true
+
+[devices."serial:x".bindings]
+Back = "CaptureRegion"
+EOF
+  openlogi_shared='{"app_settings":{"smooth_scroll":true},"devices":{"serial:x":{"bindings":{"Back":"CaptureRegion"},"invert_scroll":true}}}'
+}
 # A token gitleaks detects, assembled here so that this file holds no such token itself.
 fake_token()     { printf 'ghp_%s%s' x7Kq2mVb9Lr4Tz8Wc1 Yd5Hn3Fj6Gs0PaUeXi; }
 
@@ -124,6 +158,15 @@ fake_token()     { printf 'ghp_%s%s' x7Kq2mVb9Lr4Tz8Wc1 Yd5Hn3Fj6Gs0PaUeXi; }
   [ "$(remote_subject)" = "feat(claude): use the light theme" ]
   [ "$(remote_files)" = "dot_claude/.settings.base.json " ]
   [ "$(remote_show dot_claude/.settings.base.json | jq -c .)" = '{"theme":"light"}' ]
+}
+
+@test "-m ~/.config/openlogi/config.toml: saved without the keys each machine keeps for itself" {
+  openlogi_changed_in_app
+  run "$DOTS" -m "feat(openlogi): turn smooth scroll on" "$HOME/.config/openlogi/config.toml"
+  [ "$status" -eq 0 ]
+  [ "$(remote_subject)" = "feat(openlogi): turn smooth scroll on" ]
+  [ "$(remote_files)" = "dot_config/openlogi/.config.base.toml " ]
+  [ "$(remote_toml dot_config/openlogi/.config.base.toml)" = "$openlogi_shared" ]
 }
 
 # --- dots -m: refusals, before anything is committed
@@ -201,4 +244,12 @@ fake_token()     { printf 'ghp_%s%s' x7Kq2mVb9Lr4Tz8Wc1 Yd5Hn3Fj6Gs0PaUeXi; }
   [ "$status" -eq 0 ]
   remote_subject | grep -Eq '^chore\(dots\): .+'
   [ "$(remote_files)" = "dot_one dot_two " ]
+}
+
+@test "without -m: an OpenLogi setting changed in the app is saved without the machine's keys" {
+  openlogi_changed_in_app
+  run "$DOTS"
+  [ "$status" -eq 0 ]
+  [ "$(remote_files)" = "dot_config/openlogi/.config.base.toml " ]
+  [ "$(remote_toml dot_config/openlogi/.config.base.toml)" = "$openlogi_shared" ]
 }

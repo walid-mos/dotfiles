@@ -1,7 +1,7 @@
 {{- /* chezmoi:modify-template */ -}}
 {{- /*
-  ~/.config/openlogi/config.toml = .config.base.toml (versioned, edited by hand: a change made in the OpenLogi app
-  to a shared setting is reverted at the next chezmoi apply)
+  ~/.config/openlogi/config.toml = .config.base.toml (versioned, written by `dots` from the file the OpenLogi app
+  writes: a change made in the app reaches the other machines once saved with dots)
   + what each machine keeps for itself (openlogiLocalKeys): those keys of [app_settings] and of every device,
   and every device the base does not know, taken whole from the machine's current file.
 */ -}}

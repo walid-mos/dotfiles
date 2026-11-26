@@ -12,7 +12,8 @@
 #   dots
 #     Everything pending in one commit:
 #     1. copies the modified managed files (chezmoi re-add)
-#     2. copies ~/.claude/settings.json without the keys each machine keeps for itself (claudeLocalKeys)
+#     2. copies ~/.claude/settings.json without the keys each machine keeps for itself (claudeLocalKeys), and
+#        ~/.config/openlogi/config.toml likewise (openlogiLocalKeys)
 #     3. reports the new unmanaged files in the managed directories
 #   dots -n
 #     The same without commit or push (to see what would go).
@@ -44,6 +45,21 @@ save_claude_settings() {
   print -r -- "$base" >| "$src/dot_claude/.settings.base.json"
 }
 
+# ~/.config/openlogi/config.toml, which the OpenLogi app rewrites, is handled the same way: exported to
+# .config.base.toml without the keys of [app_settings] and of each device that each machine keeps for itself.
+save_openlogi_settings() {
+  local base
+  base=$(chezmoi execute-template '
+{{- $config := include (joinPath .chezmoi.homeDir ".config/openlogi/config.toml") | fromToml -}}
+{{- $app := get $config "app_settings" | default dict -}}
+{{- range .openlogiLocalKeys.app_settings -}}{{- $_ := unset $app . -}}{{- end -}}
+{{- range $id, $device := get $config "devices" | default dict -}}
+{{-   range $.openlogiLocalKeys.device -}}{{- $_ := unset $device . -}}{{- end -}}
+{{- end -}}
+{{ toToml $config }}')
+  print -r -- "$base" >| "$src/dot_config/openlogi/.config.base.toml"
+}
+
 push() {
   git -C "$src" push -q || fail "not pushed (git's reason is above); what was committed stays committed. Run the \
 same dots command again to push it. If git says the remote has commits this machine lacks, run \
@@ -62,7 +78,7 @@ such as 'feat(zsh): add an alias'"
 
   # Sort the files before anything is written, so a refusal leaves the repository untouched.
   local -a managed readd add applied specs
-  local f dir top target claude=0
+  local f dir top target claude=0 openlogi=0
   managed=( ${(f)"$(chezmoi managed --path-style=absolute)"} )
   for f in "$@"; do
     f=${f:a}
@@ -81,6 +97,8 @@ such as 'feat(zsh): add an alias'"
       if (( ${managed[(Ie)$target]} )); then applied+=( $target ); fi
     elif [[ $f == $HOME/.claude/settings.json ]]; then
       claude=1
+    elif [[ $f == $HOME/.config/openlogi/config.toml ]]; then
+      openlogi=1
     elif (( ${managed[(Ie)$f]} )); then
       readd+=( $f )
     else
@@ -97,6 +115,7 @@ such as 'feat(zsh): add an alias'"
   if (( $#readd )); then chezmoi re-add $readd; fi
   if (( $#add )); then chezmoi add $add; fi
   if (( claude )); then save_claude_settings; specs+=( $src/dot_claude/.settings.base.json ); fi
+  if (( openlogi )); then save_openlogi_settings; specs+=( $src/dot_config/openlogi/.config.base.toml ); fi
 
   # chezmoi re-add skips a file rendered from a template without saying so, and a repository file can be
   # committed while this machine still has the old deployed file: both would be stale after the commit.
@@ -134,6 +153,7 @@ save_all() {
   local dry=$1
   chezmoi re-add
   save_claude_settings
+  save_openlogi_settings
 
   local -a new
   new=( ${(f)"$(cd ~ && chezmoi unmanaged --path-style=absolute $dirs)"} )
