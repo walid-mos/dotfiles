@@ -11,8 +11,8 @@ command -v pnpm >/dev/null || { echo "web-tools: pnpm not found; install it, the
 cd "{{ $tools }}"
 pnpm install --frozen-lockfile
 # What a dependency may do (build scripts, agent skills) is decided in the package's pnpm-workspace.yaml. Anything
-# still awaiting a decision is the user's to approve or deny: say so loudly, approve nothing, and leave the tooling
-# marked as not installed.
+# still awaiting a decision is the user's to approve or deny: say so loudly, approve nothing, and exit non-zero so that
+# chezmoi runs this script again at the next apply.
 permissions=$(pnpm permissions list)
 if grep -q '^Awaiting approval' <<<"$permissions"; then   # no pipe: under pipefail, grep -q closing one early reads as no match
   echo "web-tools: STOPPED: a dependency asks for a permission nobody decided yet (build script or agent skill):" >&2
@@ -21,7 +21,7 @@ if grep -q '^Awaiting approval' <<<"$permissions"; then   # no pipe: under pipef
   exit 1
 fi
 node_modules/.bin/e2e-web install chromium firefox webkit
-mkdir -p "$HOME/.local/state/e2e" "$HOME/.local/state/chrome-mcp" "$HOME/.local/state/pi-chromium"
+mkdir -p "$HOME/.local/state/chrome-mcp"   # the chrome server's cwd in mcp.json, which nothing else creates
 # After an update the running browser may be the old build: stop it, the next e2e session starts the new one.
 # `pi-chromium status` exits 0 only when the browser is running.
 if [ -x "$HOME/.local/bin/pi-chromium" ] && "$HOME/.local/bin/pi-chromium" status >/dev/null; then
