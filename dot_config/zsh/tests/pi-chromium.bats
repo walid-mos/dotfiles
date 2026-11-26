@@ -309,7 +309,9 @@ idle_fast() { export PI_CHROMIUM_IDLE_STOP_S=2; }
 }
 
 @test "an ensure every second restarts the idle clock" {
-  idle_fast
+  # The idle clock counts whole seconds, so it can read one second more than the time really spent: a delay of 2 s
+  # could be reached between two ensure one second apart.
+  export PI_CHROMIUM_IDLE_STOP_S=3
   list '[]'
   "$PI_CHROMIUM" ensure
   local pid; pid=$(browser_pid)
