@@ -1,0 +1,4 @@
+# Agent tooling, never part of a project: e2e's results and Pi's project configuration.
+# A repository that adopts e2e or shares Pi configuration on purpose adds `!.e2e/` or `!.pi/` to its own .gitignore.
+.e2e/
+.pi/
