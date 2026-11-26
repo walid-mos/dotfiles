@@ -14,7 +14,7 @@ pnpm install --frozen-lockfile
 # still awaiting a decision is the user's to approve or deny: say so loudly, approve nothing, and leave the tooling
 # marked as not installed.
 permissions=$(pnpm permissions list)
-if printf '%s\n' "$permissions" | grep -q '^Awaiting approval'; then
+if grep -q '^Awaiting approval' <<<"$permissions"; then   # no pipe: under pipefail, grep -q closing one early reads as no match
   echo "web-tools: STOPPED: a dependency asks for a permission nobody decided yet (build script or agent skill):" >&2
   printf '%s\n' "$permissions" >&2
   echo "web-tools: nothing was approved. Decide in pi-vendor/packages/web-tools/pnpm-workspace.yaml (review it as pi-vendor's AGENTS.md says), then run chezmoi apply again." >&2
