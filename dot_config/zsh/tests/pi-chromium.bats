@@ -217,6 +217,15 @@ start_mute_browser() {
   [[ "$stderr" == *"$dead"* ]] || false
 }
 
+@test "an ensure interrupted while the browser starts leaves no browser, no pid file and no lock" {
+  FAKE_BROWSER_MUTE=1 "$PI_CHROMIUM" ensure & local ensure=$!
+  wait_until 5 test -f "$PI_CHROMIUM_STATE/pid"
+  kill -TERM "$ensure"
+  wait "$ensure" || true
+  wait_until 5 stopped_now
+  [ ! -e "$PI_CHROMIUM_STATE/lock" ]
+}
+
 @test "without @e2e-dev/web in the tooling tree, ensure fails naming chezmoi apply" {
   rm -r "$PI_WEB_TOOLS_DIR/node_modules/@e2e-dev"
   run --separate-stderr "$PI_CHROMIUM" ensure

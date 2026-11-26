@@ -172,6 +172,9 @@ start_browser() {
 	if [ "$mode" = headless ]; then flags+=("$HEADLESS_FLAG"); fi
 	nohup "$exe" "${flags[@]}" "$FIRST_PAGE" >> "$LOG" 2>&1 < /dev/null &
 	pid=$!
+	# Until the browser answers and has its watcher, an interrupted ensure (e2e aborts it when the session that asked
+	# is cancelled) is a failed start too: a browser left without a watcher would never stop by itself.
+	trap "fail_start $pid 'ensure was interrupted while the browser started'" INT TERM HUP
 	echo "$pid" > "$PID_FILE"
 	local end=$((SECONDS + START_TIMEOUT_S))
 	until answers; do
@@ -181,6 +184,7 @@ start_browser() {
 	done
 	touch "$ACTIVITY_FILE"
 	start_watcher "$pid"
+	trap - INT TERM HUP
 	log "started: pid $pid, $mode"
 	echo "$ENDPOINT"
 }
