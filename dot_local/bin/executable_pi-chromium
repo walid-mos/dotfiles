@@ -62,8 +62,10 @@ answers() { curl -fsS -m 2 -o /dev/null "$ENDPOINT/json/version" 2>/dev/null; }
 # The pid listening on the port; empty when none (lsof exits 1 then).
 listener() { lsof -nP -iTCP:"$PORT" -sTCP:LISTEN -t 2>/dev/null | head -1 || :; }
 lock_holder() { cat "$LOCK_DIR/pid" 2>/dev/null || :; }
+# A holder is a running pi-chromium: a pid that another program took after a crash or a reboot holds nothing.
+holds_lock() { case "$(args_of "$1")" in *"${SELF##*/} "*) return 0 ;; *) return 1 ;; esac; }
 # Held by another process than this one: this one, holding the lock, never sees its own start as `starting`.
-lock_held() { local holder; holder=$(lock_holder); [ -n "$holder" ] && [ "$holder" != $$ ] && alive "$holder"; }
+lock_held() { local holder; holder=$(lock_holder); [ -n "$holder" ] && [ "$holder" != $$ ] && holds_lock "$holder"; }
 mode_of() { case "$(args_of "$1")" in *"$HEADLESS_FLAG"*) echo headless ;; *) echo headed ;; esac; }
 watcher_of() {
 	local browser=$1 watcher
@@ -114,7 +116,7 @@ acquire_lock() {
 	mkdir -p "$STATE_DIR"
 	until mkdir "$LOCK_DIR" 2>/dev/null; do
 		holder=$(lock_holder)
-		if [ -n "$holder" ] && ! alive "$holder"; then
+		if [ -n "$holder" ] && ! holds_lock "$holder"; then
 			say "removing the lock left by pid $holder, which is gone"
 			rm -rf "$LOCK_DIR"
 			continue

@@ -217,6 +217,17 @@ start_mute_browser() {
   [[ "$stderr" == *"$dead"* ]] || false
 }
 
+@test "a lock whose holder's pid now belongs to another program is removed, and ensure succeeds" {
+  mkdir -p "$PI_CHROMIUM_STATE/lock"
+  sleep 300 & local other=$!
+  echo "$other" > "$BATS_TEST_TMPDIR/extra-sleep.pid"
+  echo "$other" > "$PI_CHROMIUM_STATE/lock/pid"
+  run --separate-stderr "$PI_CHROMIUM" ensure
+  [ "$status" -eq 0 ]
+  [[ "$stderr" == *"$other"* ]] || false
+  kill -0 "$other"
+}
+
 @test "an ensure interrupted while the browser starts leaves no browser, no pid file and no lock" {
   FAKE_BROWSER_MUTE=1 "$PI_CHROMIUM" ensure & local ensure=$!
   wait_until 5 test -f "$PI_CHROMIUM_STATE/pid"
