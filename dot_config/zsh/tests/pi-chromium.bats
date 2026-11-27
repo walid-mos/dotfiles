@@ -381,6 +381,21 @@ idle_fast() { export PI_CHROMIUM_IDLE_STOP_S=2; }
   wait_until 3 bash -c "! kill -0 $watcher 2>/dev/null"
 }
 
+@test "a browser that misses an answer keeps its watcher, and the idle stop still happens" {
+  idle_fast
+  list '[{"type":"page","url":"https://example.com/","title":"Example"}]'
+  "$PI_CHROMIUM" ensure
+  local pid watcher; pid=$(browser_pid); watcher=$(cat "$PI_CHROMIUM_STATE/watcher.pid")
+  # A frozen browser answers nothing, as during a sleep of the machine or under load. Longer than a poll plus the
+  # two seconds pi-chromium gives an answer.
+  kill -STOP "$pid"
+  sleep 4
+  kill -CONT "$pid"
+  kill -0 "$watcher"
+  list '[]'
+  wait_until 10 stopped_now
+}
+
 @test "a killed watcher shows as missing; the next ensure restarts it, and the idle stop happens" {
   idle_fast
   list '[{"type":"page","url":"https://example.com/","title":"Example"}]'

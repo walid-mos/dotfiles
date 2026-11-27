@@ -260,7 +260,9 @@ transition() {
 			fi
 			;;
 		unresponsive:ensure) die "the browser does not answer: run \`pi-chromium stop\`" ;;
-		unresponsive:idle) log "browser does not answer: the watcher ends"; exit 0 ;;
+		# A browser that misses an answer (the machine slept, or is loaded) keeps its watcher: one that ended here left
+		# the browser running with no idle stop. The watcher ends with the browser's process, in the branch above.
+		unresponsive:idle) log "watch: the browser does not answer; nothing is stopped" ;;
 		stale:ensure) forget_stale_pid; start_browser "$mode" ;;
 		stale:stop) forget_stale_pid ;;
 		foreign:ensure) die "port $PORT is held by another process (pid $(listener)); it is not a browser of ours" ;;
