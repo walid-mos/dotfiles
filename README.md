@@ -34,5 +34,12 @@ Thème : Rosé Pine Dawn (clair) / Kanagawa Wave (sombre), police GeistMono Nerd
   skill of `~/.pi/agent`); reposync then applies the push on the other Mac.
 - Nouveau fichier : `chezmoi add <fichier>` (dots les signale).
 - Récupérer les changements de l'autre machine : `chezmoi update`.
+
+## Wobkey Crush80
+
+In [VIA](https://usevia.app/), enable **Show Design tab** under **Settings**, then load
+`~/.config/via/crush80-reboot-pro-2.4g.json` under **Design** and authorize the receiver.
+This is the [Wobkey device definition](https://wiki.wobkey.com/en/Products/Crush-80/Driver-Firmware).
+Use **Save + Load → Save Current Layout** to export the keymap separately.
 - `awsc <profile>`: logs an AWS SSO profile in and clicks Allow in its own headless Chromium; signing in to the
   identity provider stays manual (a window opens when needed). `--check` and `--headless` are for agents.
