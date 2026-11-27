@@ -286,6 +286,21 @@ lock" ]
   [ "$(sent edit | jq -c '{password: .login.password, state: [.fields[] | select(.name == "agent-state") | .value]}')" = '{"password":"PREVIOUS-PW-FIXTURE","state":["verified"]}' ]
 }
 
+@test "trash moves a verified item to Trash and rewrites the index" {
+  run agent-bw trash item-verified
+  [ "$status" -eq 0 ]
+  [ "$(calls | grep '^delete ')" = 'delete item item-verified' ]
+  jq -e '.logins | all(.item != "item-verified")' "$HOME/.local/state/e2e/logins.json"
+}
+
+@test "trash refuses logins shared with another collection and pending sign-ups" {
+  for id in item-both item-new; do
+    run agent-bw trash "$id"
+    [ "$status" -eq 1 ]
+  done
+  ! calls | grep -q '^delete '
+}
+
 @test "discard deletes an unverified-new item and rewrites the index" {
   run agent-bw discard item-new
   [ "$status" -eq 0 ]
