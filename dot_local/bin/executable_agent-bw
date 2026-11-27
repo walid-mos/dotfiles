@@ -1,0 +1,222 @@
+#!/bin/bash
+# agent-bw: the agent's reader and writer of its Bitwarden collection, for the logins e2e fills (see the `web` skill).
+#
+#   agent-bw password <item-id>              the item's password                      } print a secret: called only
+#   agent-bw totp <item-id>                  the item's current one-time code         } by the e2e config, never from
+#   agent-bw previous-password <item-id>     the newest password of its history      } an agent's shell
+#   agent-bw list                            one line per item: id, name, state, username, totp or no-totp
+#   agent-bw sync                            rewrites the login index (INDEX) from the collection
+#   agent-bw create <name> <uri> <username>  a login with a generated password, unverified-new; prints its id
+#   agent-bw rotate <item-id>                a generated password replaces the current one
+#   agent-bw confirm <item-id>               the current password was seen to work
+#   agent-bw revert <item-id>                the previous password is put back
+#   agent-bw discard <item-id>               deletes an item whose account was never made (Bitwarden's trash)
+#
+# States of an item, held in its custom text field `agent-state`; the transitions are in transition() below.
+#   unverified-new       the item exists; the account may not exist on the site yet    confirm, discard
+#   verified             a login with the current password was seen to work           rotate
+#   unverified-rotation  Bitwarden holds the new password; the site may still expect   confirm, revert
+#                        the previous one, or the new one was not yet seen to work
+# An item without the field was made by hand by the user and is verified.
+#
+# Only the items of COLLECTION, in ORGANIZATION, are read; a write also refuses an item that is in another collection.
+#
+# Bitwarden: one fixed data directory (STATE), never a temporary one and never deleted, because Bitwarden takes each
+# new directory for a new device and emails the user at its login. The script logs in only when logged out, and at
+# exit locks, never logs out. The server is SERVER: the agent's account is on Bitwarden's EU server, and the default
+# server refuses its key.
+#
+# Secrets: the three credentials (core:/tools/bitwarden) exist only in the environment of the `infisical run` child,
+# the session key only in this script's environment. A password goes through pipes and file descriptors, never an
+# argument, and is printed only by the three secret commands. `bw sync` runs before anything is read or written; when
+# it fails the call fails, and the local copy is never read in its place.
+#
+# Needs: infisical (logged in as the user), bw, jq.
+set -euo pipefail
+
+SERVER=https://vault.bitwarden.eu
+ORGANIZATION=Agents
+COLLECTION="Agents Vault"
+STATE=$HOME/.local/state/agent-bw
+INDEX=$HOME/.local/state/e2e/logins.json   # read by the e2e config of pi-vendor/packages/web-tools
+FOLDER=/tools/bitwarden                     # the three credentials, in the core vault
+ENVIRONMENT=main
+GENERATE=(-ulns --length 24)                # bw generate: upper, lower, numbers, special characters
+INSIDE=--inside-infisical                   # marks the second run, inside infisical run
+
+fail() { printf 'agent-bw: %s\n' "$1" >&2; exit 1; }
+usage() {
+	printf 'usage: agent-bw password|totp|previous-password|rotate|confirm|revert|discard <item-id>\n       agent-bw list|sync\n       agent-bw create <name> <uri> <username>\n' >&2
+	exit 2
+}
+check_usage() {
+	case "${1:-}" in
+	password | totp | previous-password | rotate | confirm | revert | discard) [ $# -eq 2 ] || usage ;;
+	list | sync) [ $# -eq 1 ] || usage ;;
+	create) [ $# -eq 4 ] || usage ;;
+	*) usage ;;
+	esac
+}
+
+# --- first run: check, then run again inside infisical run, which brings the credentials ---
+
+if [ "${1:-}" != "$INSIDE" ]; then
+	check_usage "$@"
+	for tool in infisical bw jq; do
+		command -v "$tool" >/dev/null || fail "$tool is not installed"
+	done
+	core=$HOME/.config/infisical/core.env
+	[ -r "$core" ] || fail "$core is missing: run chezmoi apply, which renders it"
+	# shellcheck source=/dev/null
+	. "$core"
+	exec env INFISICAL_DISABLE_UPDATE_CHECK=true infisical run --domain "$INFISICAL_DOMAIN" --projectId "$INFISICAL_CORE_ID" \
+		--env "$ENVIRONMENT" --path "$FOLDER" --silent -- "$0" "$INSIDE" "$@"
+fi
+shift
+check_usage "$@"
+command=$1
+
+# --- open the vault ---
+
+export BITWARDENCLI_APPDATA_DIR=$STATE
+mkdir -p "$STATE"
+chmod 700 "$STATE"
+[ "$(bw config server)" = "$SERVER" ] || bw config server "$SERVER" >/dev/null || fail "bw could not set the server $SERVER"
+status=$(bw status | jq -r .status) || fail "bw status failed"
+case $status in
+unauthenticated) bw login --apikey >/dev/null || fail "bw login with the API key failed (server $SERVER)" ;;
+locked | unlocked) ;;
+*) fail "bw status is $status, which this script does not know" ;;
+esac
+BW_SESSION=$(bw unlock --passwordenv BW_PASSWORD --raw) || fail "bw unlock failed"
+[ -n "$BW_SESSION" ] || fail "bw unlock returned no session"
+export BW_SESSION
+trap 'bw lock >/dev/null || printf "agent-bw: bw lock failed\n" >&2' EXIT
+bw sync >/dev/null || fail "bw sync failed, so nothing is read or written"
+
+organizations=$(bw list organizations) || fail "bw list organizations failed"
+org=$(jq -r --arg n "$ORGANIZATION" '[.[] | select(.name == $n)] | if length == 1 then .[0].id else empty end' <<<"$organizations")
+[ -n "$org" ] || fail "the organization $ORGANIZATION is not found exactly once"
+collections=$(bw list collections) || fail "bw list collections failed"
+col=$(jq -r --arg n "$COLLECTION" --arg o "$org" \
+	'[.[] | select(.name == $n and .organizationId == $o)] | if length == 1 then .[0].id else empty end' <<<"$collections")
+[ -n "$col" ] || fail "the collection $COLLECTION is not found exactly once in $ORGANIZATION"
+
+# --- items ---
+
+# jq definitions shared by the commands: an item's state, and an item with another state.
+JQ_STATE='def state: [.fields[]? | select(.name == "agent-state") | .value] | if length == 0 then "verified" elif length == 1 then .[0] else "several agent-state fields" end;
+def with_state($s): .fields = ([.fields[]? | select(.name != "agent-state")] + [{name: "agent-state", value: $s, type: 0, linkedId: null}]);'
+
+# read_item <id>: sets `item`, refusing an item outside the collection.
+read_item() {
+	item=$(bw get item "$1") || fail "bw get item $1 failed"
+	jq -e --arg c "$col" '.collectionIds | index($c) != null' <<<"$item" >/dev/null || fail "$1 is not an item of $COLLECTION"
+}
+
+# writable <id>: refuses an item that is also in another collection or in another organization.
+writable() {
+	jq -e --arg c "$col" --arg o "$org" '.collectionIds == [$c] and .organizationId == $o' <<<"$item" >/dev/null ||
+		fail "$1 is also in another collection: agent-bw writes only the items of $COLLECTION alone"
+}
+
+# transition <state> <command>: sets `next`, the state after the command, or refuses the command in that state.
+transition() {
+	case "$1:$2" in
+	unverified-new:confirm | unverified-rotation:confirm | unverified-rotation:revert) next=verified ;;
+	verified:rotate) next=unverified-rotation ;;
+	unverified-new:discard) next=deleted ;;
+	unverified-new:*) fail "$2 is not allowed on an unverified-new item (allowed: confirm, discard)" ;;
+	verified:*) fail "$2 is not allowed on a verified item (allowed: rotate)" ;;
+	unverified-rotation:*) fail "$2 is not allowed on an unverified-rotation item (allowed: confirm, revert)" ;;
+	*) fail "the item's agent-state is \"$1\", which agent-bw does not know; fix it in Bitwarden" ;;
+	esac
+}
+
+# write_step <id> <command>: reads the item, checks it may be written and sets `next`.
+write_step() {
+	read_item "$1"
+	writable "$1"
+	transition "$(jq -r "$JQ_STATE state" <<<"$item")" "$2"
+}
+
+# save <id> <edited item>: the edited item, built first so that a failed edit sends nothing, becomes the item.
+save() { bw encode <<<"$2" | bw edit item "$1" >/dev/null || fail "bw edit item $1 failed"; }
+
+# sync_index: rewrites INDEX, which holds no secret, from the collection. Two items giving one name fail, naming both.
+sync_index() {
+	local items index
+	items=$(bw list items --collectionid "$col") || fail "bw list items failed"
+	index=$(jq '[.[] | select(.type == 1) | {name: (.name | ascii_downcase | gsub("[^a-z0-9]"; "-")), item: .id,
+		username: (.login.username // error("\(.id) has no username")), totp: (.login.totp != null)}]
+		| (group_by(.name) | map(select(length > 1) | "\(.[0].name): \(map(.item) | join(", "))")) as $twice
+		| if ($twice | length) > 0 then error("two items give one index name: \($twice | join("; "))") else {logins: .} end' \
+		<<<"$items" 2>&1) || fail "the index is not written: $index"
+	mkdir -p "$(dirname "$INDEX")"
+	(umask 077 && printf '%s\n' "$index" >"$INDEX.new") || fail "cannot write $INDEX.new"
+	mv "$INDEX.new" "$INDEX"
+	printf '%s logins in %s\n' "$(jq '.logins | length' <<<"$index")" "$INDEX"
+}
+
+case $command in
+password)
+	read_item "$2"
+	jq -e -r '.login.password // empty' <<<"$item" || fail "$2 has no password"
+	;;
+previous-password)
+	read_item "$2"
+	jq -e -r '.passwordHistory[0].password // empty' <<<"$item" || fail "$2 has no password history"
+	;;
+totp)
+	read_item "$2"
+	bw get totp "$2" || fail "$2 has no one-time code"
+	;;
+list)
+	items=$(bw list items --collectionid "$col") || fail "bw list items failed"
+	jq -r "$JQ_STATE"' .[] | [.id, .name, state, (.login.username // ""), (if .login.totp then "totp" else "no-totp" end)] | @tsv' <<<"$items"
+	;;
+sync)
+	sync_index
+	;;
+create)
+	# The template, the generated password on a file descriptor, then the new item on stdin: no argument holds it.
+	created=$(bw get template item | jq --arg org "$org" --arg col "$col" --arg name "$2" --arg uri "$3" --arg user "$4" \
+		--rawfile pw <(bw generate "${GENERATE[@]}") "$JQ_STATE"'
+		($pw | rtrimstr("\n")) as $p | if $p == "" then error("bw generate gave no password") else . end
+		| .type = 1 | .name = $name | .notes = null | .organizationId = $org | .collectionIds = [$col]
+		| .login = {username: $user, password: $p, totp: null, uris: [{match: null, uri: $uri}]}
+		| .fields = [] | with_state("unverified-new")' | bw encode | bw create item) || fail "bw create item failed"
+	id=$(jq -r .id <<<"$created")
+	unset created
+	printf '%s\n' "$id"
+	sync_index
+	;;
+rotate)
+	write_step "$2" rotate
+	edited=$(jq --arg s "$next" --rawfile pw <(bw generate "${GENERATE[@]}") "$JQ_STATE"'
+		($pw | rtrimstr("\n")) as $p | if $p == "" then error("bw generate gave no password") else . end
+		| .login.password = $p | with_state($s)' <<<"$item") || fail "the new password could not be set"
+	save "$2" "$edited"
+	printf '%s %s\n' "$2" "$next"
+	;;
+confirm)
+	write_step "$2" confirm
+	edited=$(jq --arg s "$next" "$JQ_STATE"' with_state($s)' <<<"$item") || fail "the state could not be set"
+	save "$2" "$edited"
+	printf '%s %s\n' "$2" "$next"
+	;;
+revert)
+	write_step "$2" revert
+	edited=$(jq --arg s "$next" "$JQ_STATE"'
+		(.passwordHistory[0].password // error("no previous password in the history")) as $p
+		| .login.password = $p | with_state($s)' <<<"$item") || fail "$2 has no previous password to put back"
+	save "$2" "$edited"
+	printf '%s %s\n' "$2" "$next"
+	;;
+discard)
+	write_step "$2" discard
+	bw delete item "$2" >/dev/null || fail "bw delete item $2 failed"
+	printf '%s deleted\n' "$2"
+	sync_index
+	;;
+esac
