@@ -1,0 +1,9 @@
+#!/bin/sh
+# e2e [arguments]: the e2e command of the pinned tooling (pi-vendor/packages/web-tools), for the terminal and for
+# agents' shells. It runs with usage telemetry off, as the e2e MCP server does in Pi's mcp.json: a bare link to the
+# binary sent telemetry on every run made by hand.
+# Needs: the tooling that chezmoi installs in pi-vendor/packages/web-tools.
+tools=${PI_WEB_TOOLS_DIR:-$HOME/.config/pi/pi-vendor/packages/web-tools}   # the variable is for the tests, as in pi-chrome-mcp
+bin=$tools/node_modules/.bin/e2e
+[ -x "$bin" ] || { printf 'e2e: %s is missing: run chezmoi apply (the web-tools install script)\n' "$bin" >&2; exit 1; }
+E2E_TELEMETRY_DISABLED=1 exec "$bin" "$@"
