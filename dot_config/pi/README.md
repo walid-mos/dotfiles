@@ -11,7 +11,7 @@ private skills. Pi loads this whole directory as one local package, declared onc
 
 | Path | What | Source |
 |---|---|---|
-| `package.json` | Pi manifest: which skills and extensions of the repositories below Pi loads | dotfiles |
+| `package.json` | Pi manifest: what Pi loads from the repositories below | dotfiles |
 | `README.md`, `AGENTS.md` | this file, and the rules for agents working here | dotfiles |
 | `pi-vendor/` | reviewed and pinned third-party packages, and our own packages with third-party dependencies (public) | `walid-mos/pi-vendor` |
 | `pi-accor/` | private skills and extensions for Accor work | `walid-mos/pi-accor` |
@@ -31,8 +31,8 @@ Mac by `reposync` (topic `auto-sync`).
   matched: each one is added here by name, after its review in `pi-vendor`.
 - `pi-vendor/packages/web/extensions/index.ts`: our own web package, the tools `web_search` and `fetch_content`.
 
-A skill or an extension added to a repository loads at the next Pi session (or `/reload`) once the repository is
-pulled. Nothing else to declare.
+A file that one of these patterns matches loads at the next Pi session (or `/reload`) once its repository is pulled.
+Nothing else to declare.
 
 ## Add a private repository
 
