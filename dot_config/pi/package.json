@@ -1,9 +1,10 @@
 {
   "name": "pi-config",
   "private": true,
-  "description": "Local Pi package: the skills and extensions of the repositories cloned in ~/.config/pi. See README.md.",
+  "description": "Local Pi package: the skills, prompt templates and extensions of the repositories cloned in ~/.config/pi. See README.md.",
   "pi": {
     "skills": ["pi-*/skills", "pi-vendor/packages/*/skills"],
+    "prompts": ["pi-*/prompts/*.md"],
     "extensions": ["pi-*/extensions/index.ts", "pi-vendor/packages/web/extensions/index.ts"]
   }
 }

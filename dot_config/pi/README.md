@@ -26,6 +26,7 @@ Mac by `reposync` (topic `auto-sync`).
 
 - `pi-*/skills`: every skill directory of every `pi-<name>` repository.
 - `pi-vendor/packages/*/skills`: the skills of every vendored package.
+- `pi-*/prompts/*.md`: the prompt templates (short commands) of every `pi-<name>` repository.
 - `pi-*/extensions/index.ts`: the extension of a `pi-<name>` repository, if it has one. Vendored extensions are not
   matched: each one is added here by name, after its review in `pi-vendor`.
 - `pi-vendor/packages/web/extensions/index.ts`: our own web package, the tools `web_search` and `fetch_content`.
