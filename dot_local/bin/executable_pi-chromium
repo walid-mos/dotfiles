@@ -147,8 +147,15 @@ if (!existsSync(exe)) { console.error(`pi-chromium: Chromium is missing at ${exe
 console.log(exe);' "$TOOLS_DIR/node_modules"
 }
 
+# in_own_session <program> [args]: becomes the program in a new session, so in a process group of its own, with the
+# same pid. Pi runs each MCP server in a process group and kills those groups when it exits: the browser and its watcher,
+# started from e2e's server, must not die with the Pi session that happened to start them. Call it in the background.
+in_own_session() {
+	exec perl -MPOSIX -e 'defined POSIX::setsid() or die "setsid: $!\n"; exec { $ARGV[0] } @ARGV or die "exec $ARGV[0]: $!\n"' "$@"
+}
+
 start_watcher() {
-	nohup "$SELF" watch "$1" >> "$LOG" 2>&1 < /dev/null &
+	in_own_session "$SELF" watch "$1" >> "$LOG" 2>&1 < /dev/null &
 	echo $! > "$WATCHER_PID_FILE"
 }
 
@@ -175,7 +182,7 @@ start_browser() {
 	chmod 700 "$PROFILE"
 	flags=("${FLAGS[@]}")
 	if [ "$mode" = headless ]; then flags+=("$HEADLESS_FLAG"); fi
-	nohup "$exe" "${flags[@]}" "$FIRST_PAGE" >> "$LOG" 2>&1 < /dev/null &
+	in_own_session "$exe" "${flags[@]}" "$FIRST_PAGE" >> "$LOG" 2>&1 < /dev/null &
 	pid=$!
 	# Until the browser answers and has its watcher, an interrupted ensure (e2e aborts it when the session that asked
 	# is cancelled) is a failed start too: a browser left without a watcher would never stop by itself.

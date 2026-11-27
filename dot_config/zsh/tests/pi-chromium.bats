@@ -392,3 +392,18 @@ idle_fast() { export PI_CHROMIUM_IDLE_STOP_S=2; }
   list '[]'
   wait_until 10 stopped_now
 }
+
+@test "the browser and its watcher outlive the process group that asked for them, which Pi kills when it exits" {
+  # Pi runs each MCP server in a process group of its own and kills those groups when it exits; ensure runs inside
+  # the e2e server's group. Here ensure runs in a group of its own, then that whole group is killed.
+  perl -MPOSIX -e 'defined setpgid(0, 0) or die "setpgid: $!"; exec @ARGV or die "exec: $!"' "$PI_CHROMIUM" ensure > "$BATS_TEST_TMPDIR/out" 2>&1 &
+  local caller=$!
+  wait "$caller"
+  [ "$(cat "$BATS_TEST_TMPDIR/out")" = "$ENDPOINT" ]
+  kill -KILL -- "-$caller" || echo "the caller's group is already empty"
+  sleep 0.5
+  run "$PI_CHROMIUM" status
+  [ "$status" -eq 0 ]
+  [[ "$output" == running* ]] || false
+  kill -0 "$(cat "$PI_CHROMIUM_STATE/watcher.pid")"
+}
