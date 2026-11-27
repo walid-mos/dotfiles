@@ -40,6 +40,8 @@ Thème : Rosé Pine Dawn (clair) / Kanagawa Wave (sombre), police GeistMono Nerd
 In [VIA](https://usevia.app/), enable **Show Design tab** under **Settings**, then load
 `~/.config/via/crush80-reboot-pro-2.4g.json` under **Design** and authorize the receiver.
 This is the [Wobkey device definition](https://wiki.wobkey.com/en/Products/Crush-80/Driver-Firmware).
-Use **Save + Load → Save Current Layout** to export the keymap separately.
+To restore the Mac layout, use **Save + Load → Load** with
+`~/.config/via/crush80-mac.layout.json` while the keyboard is in Mac mode. In Brave, the
+**Save** button requires the **File System Access API** flag (`brave://flags/#file-system-access-api`).
 - `awsc <profile>`: logs an AWS SSO profile in and clicks Allow in its own headless Chromium; signing in to the
   identity provider stays manual (a window opens when needed). `--check` and `--headless` are for agents.
