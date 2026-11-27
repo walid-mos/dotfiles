@@ -4,20 +4,25 @@
     "pr": "",
     "sessionUrl": false
   },
-  "autoMemoryEnabled": false,
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Bash",
         "hooks": [
           {
-            "command": "~/.claude/hooks/block-attribution.sh",
-            "type": "command"
+            "type": "command",
+            "command": "~/.claude/hooks/block-attribution.sh"
           }
-        ],
-        "matcher": "Bash"
+        ]
       }
     ]
   },
+  "tui": "fullscreen",
+  "autoMemoryEnabled": false,
   "theme": "auto",
-  "tui": "fullscreen"
+  "modelSettings": {
+    "claude-opus-5-5": {
+      "autoCompactWindow": 400000
+    }
+  }
 }
