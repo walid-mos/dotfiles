@@ -181,8 +181,13 @@ start_browser() {
 	mkdir -p "$PROFILE"
 	chmod 700 "$PROFILE"
 	flags=("${FLAGS[@]}")
-	if [ "$mode" = headless ]; then flags+=("$HEADLESS_FLAG"); fi
-	in_own_session "$exe" "${flags[@]}" "$FIRST_PAGE" >> "$LOG" 2>&1 < /dev/null &
+	if [ "$mode" = headless ]; then
+		flags+=("$HEADLESS_FLAG" "$FIRST_PAGE")
+	else
+		# e2e creates its own window after attaching over CDP.
+		flags+=(--no-startup-window)
+	fi
+	in_own_session "$exe" "${flags[@]}" >> "$LOG" 2>&1 < /dev/null &
 	pid=$!
 	# Until the browser answers and has its watcher, an interrupted ensure (e2e aborts it when the session that asked
 	# is cancelled) is a failed start too: a browser left without a watcher would never stop by itself.

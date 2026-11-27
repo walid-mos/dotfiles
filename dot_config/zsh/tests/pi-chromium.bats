@@ -204,6 +204,8 @@ start_mute_browser() {
   : > "$FAKE_BROWSER_ARGS"
   "$PI_CHROMIUM" ensure --headed
   ! grep -q -- "--headless" "$FAKE_BROWSER_ARGS"
+  grep -q -- "--no-startup-window" "$FAKE_BROWSER_ARGS"
+  ! grep -q -- " about:blank" "$FAKE_BROWSER_ARGS"
   run "$PI_CHROMIUM" status
   [[ "$output" == *"mode=headed"* ]] || false
 }
