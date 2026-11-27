@@ -18,6 +18,8 @@ brew "bitwarden-cli"
 brew "btop"
 # Manage your dotfiles across multiple diverse machines, securely
 brew "chezmoi"
+# GNU File, Shell, and Text utilities (timeout, which macOS lacks)
+brew "coreutils"
 # Container runtimes on MacOS (and Linux) with minimal setup
 brew "colima"
 # Pack, ship and run any application as a lightweight container
@@ -52,6 +54,8 @@ brew "python@3.15"
 brew "ripgrep"
 # Rust toolchain installer
 brew "rustup"
+# Static analysis and lint tool, for (ba)sh scripts
+brew "shellcheck"
 # Cross-shell prompt for astronauts
 brew "starship"
 # Parser generator tool
@@ -62,6 +66,8 @@ brew "zoxide"
 brew "infisical/get-cli/infisical", trusted: true
 # On-device voice dictation
 cask "anomaly-hex"
+# Web browser focusing on privacy (WebHID, for the keyboard configurator)
+cask "brave-browser"
 # Anthropic's official Claude AI desktop app
 cask "claude"
 cask "font-geist-mono-nerd-font"      # police du terminal (Herdr)
